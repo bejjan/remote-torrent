@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { rpc } from "@/lib/deluge/client";
 import type { ExecuteCommand, WatchDir } from "@/lib/deluge/types";
+import { isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
 type Page =
@@ -69,15 +70,22 @@ const PLUGIN_PAGES: { id: Page; label: string; plugin: string }[] = [
 export function PreferencesDialog({
   open,
   onOpenChange,
+  onWebConfigChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onWebConfigChange?: (web: Record<string, unknown>) => void;
 }) {
   const [page, setPage] = useState<Page>("downloads");
   const [core, setCore] = useState<Record<string, unknown>>({});
   const [web, setWeb] = useState<Record<string, unknown>>({});
   const [available, setAvailable] = useState<string[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
+
+  function commitWeb(next: Record<string, unknown>) {
+    setWeb(next);
+    onWebConfigChange?.(next);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +97,9 @@ export function PreferencesDialog({
           rpc<{ available_plugins: string[]; enabled_plugins: string[] }>("web.get_plugins"),
         ]);
         setCore(c || {});
-        setWeb(w || {});
+        const nextWeb = w || {};
+        setWeb(nextWeb);
+        onWebConfigChange?.(nextWeb);
         setAvailable(plugins?.available_plugins || []);
         setEnabled(plugins?.enabled_plugins || []);
       } catch (err) {
@@ -102,6 +112,7 @@ export function PreferencesDialog({
     try {
       await rpc("core.set_config", [core]);
       await rpc("web.set_config", [web]);
+      onWebConfigChange?.(web);
       toast.success("Preferences saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
@@ -143,7 +154,7 @@ export function PreferencesDialog({
               {page === "cache" && <CachePage core={core} setCore={setCore} />}
               {page === "daemon" && <DaemonPage core={core} setCore={setCore} />}
               {page === "other" && <OtherPage core={core} setCore={setCore} />}
-              {page === "interface" && <InterfacePage web={web} setWeb={setWeb} />}
+              {page === "interface" && <InterfacePage web={web} setWeb={commitWeb} />}
               {page === "plugins" && (
                 <PluginsPage
                   available={available}
@@ -507,8 +518,14 @@ function InterfacePage({
     <div className="grid gap-3">
       <label className="flex items-center gap-2 text-sm">
         <Switch
-          checked={Boolean(web.show_sidebar ?? true)}
-          onCheckedChange={(v) => setWeb({ ...web, show_sidebar: v })}
+          checked={isWebSidebarVisible(web)}
+          onCheckedChange={(v) => {
+            const next = { ...web, show_sidebar: v, sidebar: v };
+            setWeb(next);
+            void rpc("web.set_config", [{ show_sidebar: v, sidebar: v }]).catch((err: unknown) => {
+              toast.error(err instanceof Error ? err.message : "Could not save sidebar preference");
+            });
+          }}
         />
         Show sidebar
       </label>

@@ -72,6 +72,7 @@ import {
 import { GRID_KEYS } from "@/lib/deluge/keys";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
+import { isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
 type SortKey = keyof TorrentStatus | "id";
@@ -106,6 +107,12 @@ export function TorrentShell({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
   const [showZeroFilters, setShowZeroFilters] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  const applyWebUi = useCallback((web: Record<string, unknown> | null | undefined) => {
+    setShowZeroFilters(Boolean(web?.sidebar_show_zero));
+    setShowSidebar(isWebSidebarVisible(web));
+  }, []);
 
   const filterDict = useMemo<FilterDict>(() => {
     const dict: FilterDict = {};
@@ -153,15 +160,18 @@ export function TorrentShell({
     let cancelled = false;
     void rpc<Record<string, unknown>>("web.get_config")
       .then((web) => {
-        if (!cancelled) setShowZeroFilters(Boolean(web?.sidebar_show_zero));
+        if (!cancelled) applyWebUi(web);
       })
       .catch(() => {
-        if (!cancelled) setShowZeroFilters(false);
+        if (!cancelled) {
+          setShowZeroFilters(false);
+          setShowSidebar(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [prefsOpen]);
+  }, [prefsOpen, applyWebUi]);
 
   useEffect(() => {
     const tree = ui?.filters;
@@ -593,7 +603,7 @@ export function TorrentShell({
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        {!mobile ? (
+        {!mobile && showSidebar ? (
           <aside className="w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground">
             <FilterSidebar
               filters={ui?.filters ?? null}
@@ -676,7 +686,11 @@ export function TorrentShell({
         ids={selectedIds}
         currentPath={downloadPath}
       />
-      <PreferencesDialog open={prefsOpen} onOpenChange={setPrefsOpen} />
+      <PreferencesDialog
+        open={prefsOpen}
+        onOpenChange={setPrefsOpen}
+        onWebConfigChange={applyWebUi}
+      />
       <Dialog open={hostsOpen} onOpenChange={setHostsOpen}>
         <DialogContent className="max-w-3xl sm:max-w-3xl">
           <DialogHeader>
