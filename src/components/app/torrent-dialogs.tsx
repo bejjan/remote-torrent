@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -16,13 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,7 +33,6 @@ import {
 import { DelugeError, rpc, uploadTorrent } from "@/lib/deluge/client";
 import { formatBytes } from "@/lib/deluge/format";
 import {
-  FILE_PRIORITY_OPTIONS,
   commonPriority,
   compactFilePriorities,
   infoFileIndexes,
@@ -516,7 +509,7 @@ function AddFilesTree({
       <div className="flex items-center gap-2 py-1 text-sm">
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(node.length)}</span>
-        <PrioritySelect
+        <FilePrioritySelect
           value={value}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, [node.index], next))}
         />
@@ -538,7 +531,7 @@ function AddFilesTree({
         </button>
         <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
         <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
-        <PrioritySelect
+        <FilePrioritySelect
           value={shared == null ? "mixed" : String(shared)}
           mixed={shared == null}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, indexes, next))}
@@ -558,42 +551,6 @@ function AddFilesTree({
         ))}
       </div>
     </div>
-  );
-}
-
-function PrioritySelect({
-  value,
-  mixed,
-  onChange,
-}: {
-  value: string;
-  mixed?: boolean;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <Select
-      value={value}
-      onValueChange={(v) => {
-        if (v == null || v === "mixed") return;
-        onChange(Number(v));
-      }}
-    >
-      <SelectTrigger size="sm" className="w-36">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {mixed ? (
-          <SelectItem value="mixed" disabled>
-            Mixed
-          </SelectItem>
-        ) : null}
-        {FILE_PRIORITY_OPTIONS.map((opt) => (
-          <SelectItem key={opt.value} value={String(opt.value)}>
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 

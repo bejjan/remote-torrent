@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "crypto";
 import { parseMagnetName, trackerHost } from "./format";
 import {
+  DEFAULT_FILE_PRIORITY,
   inventDemoFilesTree,
   mapInfoTreeToStatusFiles,
   parseMagnetInfoHash,
@@ -111,7 +112,7 @@ function fileLeaf(
   index: number,
   size: number,
   progress: number,
-  priority = 1,
+  priority = DEFAULT_FILE_PRIORITY,
   offset = 0
 ): FileLeaf {
   return { type: "file", index, size, progress, priority, offset };
@@ -1035,7 +1036,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       case "web.get_torrent_files": {
         const extra = state.torrents[String(params[0])];
         if (!extra) throw new Error("Unknown torrent");
-        return { id, result: extra.files, error: null };
+        return { id, result: structuredClone(extra.files), error: null };
       }
       case "web.get_free_space":
       case "core.get_free_space":
@@ -1466,7 +1467,8 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
 
 function applyPriorities(node: FileNode, prios: number[]) {
   if (node.type === "file") {
-    if (prios[node.index] != null) node.priority = prios[node.index];
+    const next = Number(prios[node.index]);
+    if (Number.isFinite(next)) node.priority = next;
     return;
   }
   for (const child of Object.values(node.contents)) applyPriorities(child, prios);

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_FILE_PRIORITY,
+  canonicalizeFilePriority,
   commonPriority,
   compactFilePriorities,
+  filePriorityLabel,
   infoFileIndexes,
   infoTreeSize,
   initialFilePriorities,
@@ -89,6 +91,24 @@ const official = {
   assert.equal(commonPriority(next, [1, 2]), 0);
   assert.equal(commonPriority(next, [0, 1]), null);
   assert.deepEqual(compactFilePriorities([4, , 0] as number[]), [4, 4, 0]);
+}
+
+{
+  assert.equal(canonicalizeFilePriority(0), 0);
+  assert.equal(canonicalizeFilePriority(1), 1);
+  assert.equal(canonicalizeFilePriority(2), 1);
+  assert.equal(canonicalizeFilePriority(3), 1);
+  assert.equal(canonicalizeFilePriority(4), 4);
+  assert.equal(canonicalizeFilePriority(5), 7);
+  assert.equal(canonicalizeFilePriority(6), 7);
+  assert.equal(canonicalizeFilePriority(7), 7);
+  assert.equal(canonicalizeFilePriority(99), 7);
+  assert.equal(canonicalizeFilePriority(-1), 0);
+  assert.equal(canonicalizeFilePriority(Number.NaN), DEFAULT_FILE_PRIORITY);
+  assert.equal(filePriorityLabel(1), "Low");
+  assert.equal(filePriorityLabel(4), "Normal");
+  assert.equal(filePriorityLabel(5), "High");
+  assert.equal(filePriorityLabel(0), "Don't download");
 }
 
 {

@@ -32,7 +32,31 @@ export const FILE_PRIORITY_OPTIONS = [
   { value: 7, label: "High" },
 ] as const;
 
+export type CanonicalFilePriority = (typeof FILE_PRIORITY_OPTIONS)[number]["value"];
+
+/** Base UI Select `items` map: value → displayed label (never the raw number). */
+export const FILE_PRIORITY_SELECT_ITEMS: Record<string, string> = Object.fromEntries(
+  FILE_PRIORITY_OPTIONS.map((opt) => [String(opt.value), opt.label])
+);
+
 export const DEFAULT_FILE_PRIORITY = 4;
+
+/**
+ * libtorrent priorities are 0–7. Deluge’s four labels map:
+ * 0 skip, 1–3 Low, 4 Normal, 5–7 High.
+ */
+export function canonicalizeFilePriority(priority: number): CanonicalFilePriority {
+  if (!Number.isFinite(priority)) return DEFAULT_FILE_PRIORITY;
+  if (priority <= 0) return 0;
+  if (priority >= 5) return 7;
+  if (priority >= 4) return 4;
+  return 1;
+}
+
+export function filePriorityLabel(priority: number): string {
+  const value = canonicalizeFilePriority(priority);
+  return FILE_PRIORITY_OPTIONS.find((opt) => opt.value === value)?.label ?? "Normal";
+}
 
 type UnknownRecord = Record<string, unknown>;
 

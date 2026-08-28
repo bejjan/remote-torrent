@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { StateBadge } from "@/components/app/state-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rpc } from "@/lib/deluge/client";
+import { canonicalizeFilePriority, compactFilePriorities } from "@/lib/deluge/files-tree";
 import {
   formatBytes,
   formatDate,
@@ -43,44 +38,46 @@ export function TorrentDetails({
   const [peers, setPeers] = useState<TorrentPeer[]>([]);
   const [trackers, setTrackers] = useState<TorrentTracker[]>([]);
   const [detail, setDetail] = useState<TorrentStatus | null>(torrent);
+  const loadGen = useRef(0);
 
   useEffect(() => {
     setDetail(torrent);
   }, [torrent]);
 
-  useEffect(() => {
+  const loadDetails = useCallback(async () => {
     if (!torrentId) {
       setFiles(null);
       setPeers([]);
       setTrackers([]);
       return;
     }
-    let cancelled = false;
-    async function load() {
-      try {
-        const [tree, status] = await Promise.all([
-          rpc<FileNode>("web.get_torrent_files", [torrentId]),
-          rpc<TorrentStatus & { peers?: TorrentPeer[]; trackers?: TorrentTracker[] }>(
-            "web.get_torrent_status",
-            [torrentId, []]
-          ),
-        ]);
-        if (cancelled) return;
-        setFiles(tree);
-        setPeers(status.peers || []);
-        setTrackers(status.trackers || []);
-        setDetail(status);
-      } catch {
-        /* polling shell still has grid fields */
-      }
+    const gen = ++loadGen.current;
+    try {
+      const [tree, status] = await Promise.all([
+        rpc<FileNode>("web.get_torrent_files", [torrentId]),
+        rpc<TorrentStatus & { peers?: TorrentPeer[]; trackers?: TorrentTracker[] }>(
+          "web.get_torrent_status",
+          [torrentId, []]
+        ),
+      ]);
+      if (gen !== loadGen.current) return;
+      setFiles(tree);
+      setPeers(status.peers || []);
+      setTrackers(status.trackers || []);
+      setDetail(status);
+    } catch {
+      /* polling shell still has grid fields */
     }
-    void load();
-    const id = setInterval(() => void load(), 2000);
+  }, [torrentId]);
+
+  useEffect(() => {
+    void loadDetails();
+    const id = setInterval(() => void loadDetails(), 2000);
     return () => {
-      cancelled = true;
+      loadGen.current += 1;
       clearInterval(id);
     };
-  }, [torrentId]);
+  }, [loadDetails]);
 
   if (!torrentId || !detail) {
     return (
@@ -105,7 +102,11 @@ export function TorrentDetails({
         <StatusGrid torrent={detail} />
       </TabsContent>
       <TabsContent value="files" className="min-h-0 overflow-auto p-3">
-        {files ? <FileTree node={files} torrentId={torrentId} name={detail.name} /> : <Muted>No files</Muted>}
+        {files ? (
+          <FileTree node={files} torrentId={torrentId} name={detail.name} onApplied={loadDetails} />
+        ) : (
+          <Muted>No files</Muted>
+        )}
       </TabsContent>
       <TabsContent value="peers" className="min-h-0 overflow-auto p-3">
         <PeerTable peers={peers} />
@@ -170,11 +171,13 @@ function FileTree({
   torrentId,
   name,
   path = "",
+  onApplied,
 }: {
   node: FileNode;
   torrentId: string;
   name: string;
   path?: string;
+  onApplied: () => Promise<void>;
 }) {
   if (node.type === "file") {
     return (
@@ -182,29 +185,42 @@ function FileTree({
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(node.size)}</span>
         <span className="tabular w-12 text-right">{formatProgress(node.progress * 100)}</span>
-        <Select
-          value={String(node.priority)}
-          onValueChange={(v) => {
-            if (v == null) return;
-            void setPriority(torrentId, node.index, Number(v));
+        <FilePrioritySelect
+          value={node.priority}
+          onChange={(priority) => {
+            void setFilePriorities(torrentId, [node.index], priority, onApplied);
           }}
-        >
-          <SelectTrigger size="sm" className="w-28">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">Skip</SelectItem>
-            <SelectItem value="1">Normal</SelectItem>
-            <SelectItem value="5">High</SelectItem>
-            <SelectItem value="7">Highest</SelectItem>
-          </SelectContent>
-        </Select>
+        />
       </div>
     );
   }
+
+  const files: Extract<FileNode, { type: "file" }>[] = [];
+  walkFiles(node, (f) => files.push(f));
+  const indexes = files.map((f) => f.index);
+  const first = files[0];
+  const shared =
+    first &&
+    files.every((f) => canonicalizeFilePriority(f.priority) === canonicalizeFilePriority(first.priority))
+      ? canonicalizeFilePriority(first.priority)
+      : null;
+
   return (
     <div className="text-sm">
-      {path ? <div className="py-1 font-medium">{name}</div> : null}
+      {path ? (
+        <div className="flex items-center gap-3 py-1">
+          <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+          <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(fileTreeSize(node))}</span>
+          <span className="w-12" />
+          <FilePrioritySelect
+            value={shared ?? "mixed"}
+            mixed={shared == null}
+            onChange={(priority) => {
+              void setFilePriorities(torrentId, indexes, priority, onApplied);
+            }}
+          />
+        </div>
+      ) : null}
       <div className={path ? "ml-3 border-l pl-3" : ""}>
         {Object.entries(node.contents).map(([childName, child]) => (
           <FileTree
@@ -213,6 +229,7 @@ function FileTree({
             torrentId={torrentId}
             name={childName}
             path={`${path}/${childName}`}
+            onApplied={onApplied}
           />
         ))}
       </div>
@@ -220,14 +237,21 @@ function FileTree({
   );
 }
 
-async function setPriority(torrentId: string, index: number, priority: number) {
+async function setFilePriorities(
+  torrentId: string,
+  indexes: number[],
+  priority: number,
+  onApplied: () => Promise<void>
+) {
   try {
     const tree = await rpc<FileNode>("web.get_torrent_files", [torrentId]);
     const prios: number[] = [];
+    const indexSet = new Set(indexes);
     walkFiles(tree, (f) => {
-      prios[f.index] = f.index === index ? priority : f.priority;
+      prios[f.index] = indexSet.has(f.index) ? priority : f.priority;
     });
-    await rpc("core.set_torrent_file_priorities", [torrentId, prios]);
+    await rpc("core.set_torrent_file_priorities", [torrentId, compactFilePriorities(prios)]);
+    await onApplied();
   } catch (err) {
     toast.error(err instanceof Error ? err.message : "Priority failed");
   }
@@ -236,6 +260,11 @@ async function setPriority(torrentId: string, index: number, priority: number) {
 function walkFiles(node: FileNode, visit: (f: Extract<FileNode, { type: "file" }>) => void) {
   if (node.type === "file") visit(node);
   else Object.values(node.contents).forEach((c) => walkFiles(c, visit));
+}
+
+function fileTreeSize(node: FileNode): number {
+  if (node.type === "file") return node.size;
+  return Object.values(node.contents).reduce((sum, child) => sum + fileTreeSize(child), 0);
 }
 
 function PeerTable({ peers }: { peers: TorrentPeer[] }) {
