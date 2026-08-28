@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AboutDialog } from "@/components/app/about-dialog";
 import { Brand } from "@/components/app/brand";
 import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
@@ -118,6 +119,7 @@ export function TorrentShell({
   const [removeOpen, setRemoveOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [hostsOpen, setHostsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -453,7 +455,11 @@ export function TorrentShell({
             <Menu />
           </Button>
         ) : null}
-        <Brand className="mr-2 hidden sm:flex" markClassName="size-7" />
+        <Brand
+          className="mr-2 hidden sm:flex"
+          markClassName="size-7"
+          onClick={() => setAboutOpen(true)}
+        />
         {toolbar}
         <div className="relative ml-auto min-w-0 max-w-xs flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -588,6 +594,7 @@ export function TorrentShell({
         onOpenChange={setPrefsOpen}
         onWebConfigChange={applyWebUi}
       />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <Dialog open={hostsOpen} onOpenChange={setHostsOpen}>
         <DialogContent className="max-w-3xl sm:max-w-3xl">
           <DialogHeader>

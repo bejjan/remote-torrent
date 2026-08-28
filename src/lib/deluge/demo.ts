@@ -24,6 +24,8 @@ import type {
 
 const DEMO_PASSWORD = "deluge";
 const HOST_ID = "c0ffee00cafe00beef00dead00feed00feedc0de";
+const DEMO_DAEMON_VERSION = "2.1.1";
+const DEMO_LIBTORRENT_VERSION = "2.0.9.0";
 
 export interface JsonRpcRequest {
   method: string;
@@ -966,7 +968,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       case "web.get_host_status": {
         const hid = String(params[0] ?? HOST_ID);
         const status = state.hostOnline ? "Online" : "Offline";
-        return { id, result: [hid, status, "2.1.1"], error: null };
+        return { id, result: [hid, status, DEMO_DAEMON_VERSION], error: null };
       }
       case "web.add_host": {
         const host = String(params[0] ?? "127.0.0.1");
@@ -1301,6 +1303,12 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: 6881, error: null };
       case "core.get_session_status":
         return { id, result: sessionStats(state), error: null };
+      case "core.get_version":
+        if (!state.connected) throw new Error("Not connected");
+        return { id, result: DEMO_DAEMON_VERSION, error: null };
+      case "core.get_libtorrent_version":
+        if (!state.connected) throw new Error("Not connected");
+        return { id, result: DEMO_LIBTORRENT_VERSION, error: null };
 
       case "label.get_labels":
         requirePlugin(state, "Label");
