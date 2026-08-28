@@ -50,6 +50,17 @@ export function formatQueue(queue: number | null | undefined): string {
   return String(Math.trunc(queue) + 1);
 }
 
+/**
+ * Connected peers/seeds plus tracker swarm size.
+ * `total < 0` means unknown (tracker has not reported a count) — official Deluge
+ * omits the parenthetical instead of painting `-1`.
+ */
+export function formatSwarmCount(connected: number, total: number): string {
+  const n = Number.isFinite(connected) ? Math.trunc(connected) : 0;
+  if (!Number.isFinite(total) || total < 0) return String(n);
+  return `${n} (${Math.trunc(total)})`;
+}
+
 /** Queued torrents (queue >= 0) sort before unqueued (-1) in ascending order. */
 export function compareQueue(
   a: number | null | undefined,

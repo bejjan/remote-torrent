@@ -49,6 +49,7 @@ import {
   formatQueue,
   formatRate,
   formatRatio,
+  formatSwarmCount,
 } from "@/lib/deluge/format";
 import {
   TORRENT_COLUMNS,
@@ -653,13 +654,13 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       case "seeds":
         return (
           <td className="px-2 py-1.5 tabular text-muted-foreground">
-            {hit(`${t.num_seeds} (${t.total_seeds})`)}
+            {hit(formatSwarmCount(t.num_seeds, t.total_seeds))}
           </td>
         );
       case "peers":
         return (
           <td className="px-2 py-1.5 tabular text-muted-foreground">
-            {hit(`${t.num_peers} (${t.total_peers})`)}
+            {hit(formatSwarmCount(t.num_peers, t.total_peers))}
           </td>
         );
       case "label":

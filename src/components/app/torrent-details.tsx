@@ -24,6 +24,7 @@ import {
   formatProgress,
   formatRate,
   formatRatio,
+  formatSwarmCount,
 } from "@/lib/deluge/format";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
@@ -135,8 +136,8 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
     ["Upload speed", formatRate(torrent.upload_payload_rate)],
     ["ETA", formatEta(torrent.eta)],
     ["Ratio", formatRatio(torrent.ratio)],
-    ["Seeds", `${torrent.num_seeds} (${torrent.total_seeds})`],
-    ["Peers", `${torrent.num_peers} (${torrent.total_peers})`],
+    ["Seeds", formatSwarmCount(torrent.num_seeds, torrent.total_seeds)],
+    ["Peers", formatSwarmCount(torrent.num_peers, torrent.total_peers)],
     ["Availability", torrent.distributed_copies.toFixed(3)],
     ["Tracker", torrent.tracker_host],
     ["Tracker status", torrent.tracker_status],
