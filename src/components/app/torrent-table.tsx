@@ -61,6 +61,12 @@ import {
   type TorrentColumn,
   type TorrentColumnId,
 } from "@/lib/deluge/torrent-columns";
+import {
+  TORRENT_FILTER_EMPTY_HINT,
+  TORRENT_FILTER_EMPTY_TITLE,
+  TORRENT_SEARCH_EMPTY_HINT,
+  torrentSearchEmptyTitle,
+} from "@/lib/deluge/torrent-empty-state";
 import type { TorrentSortKey } from "@/lib/deluge/torrent-list";
 import type { TorrentStatus } from "@/lib/deluge/types";
 import { SELECT_COLUMN_ID } from "@/lib/deluge/ui-layout";
@@ -423,16 +429,21 @@ export const TorrentTable = memo(function TorrentTable({
   }
 
   if (torrents.length === 0) {
+    const query = search.trim();
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <p className="text-sm font-medium">No torrents match this view</p>
-        <p className="text-sm text-muted-foreground">
-          Add a torrent or clear filters to see the session.
+        <p className="text-sm font-medium" title={query ? torrentSearchEmptyTitle(search, false) : undefined}>
+          {query ? torrentSearchEmptyTitle(search) : TORRENT_FILTER_EMPTY_TITLE}
         </p>
-        <Button size="sm" onClick={onAddTorrent}>
-          <Plus />
-          Add torrent
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          {query ? TORRENT_SEARCH_EMPTY_HINT : TORRENT_FILTER_EMPTY_HINT}
+        </p>
+        {query ? null : (
+          <Button size="sm" onClick={onAddTorrent}>
+            <Plus />
+            Add torrent
+          </Button>
+        )}
       </div>
     );
   }

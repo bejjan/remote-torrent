@@ -29,4 +29,13 @@ assert.doesNotMatch(table, /min-w-8/);
 assert.match(badge, /inline-block max-w-full min-w-0 font-medium truncate/);
 assert.match(badge, /inline-flex max-w-full min-w-0 cursor-help/);
 
+const emptyState = table.slice(table.indexOf("if (torrents.length === 0)"), table.indexOf("const dragFromIndex"));
+assert.match(emptyState, /const query = search\.trim\(\)/);
+assert.match(emptyState, /torrentSearchEmptyTitle\(search\)/);
+assert.match(emptyState, /TORRENT_SEARCH_EMPTY_HINT/);
+assert.match(emptyState, /TORRENT_FILTER_EMPTY_TITLE/);
+assert.match(emptyState, /TORRENT_FILTER_EMPTY_HINT/);
+assert.doesNotMatch(emptyState, /No torrents match this view/);
+assert.match(emptyState, /query \? null : \(/);
+
 console.log("torrent-table cell truncation tests passed");
