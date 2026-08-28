@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileKindIcon, FolderTreeIcon } from "@/components/app/file-tree-icons";
 import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -347,7 +348,8 @@ export function AddTorrentDialog({
             <TabsTrigger value="magnet">Magnet</TabsTrigger>
             <TabsTrigger value="url">URL</TabsTrigger>
           </TabsList>
-          <TabsContent value="file" className="grid min-w-0 gap-3 pt-3">
+          <div className="min-h-28">
+            <TabsContent value="file" className="grid min-h-28 min-w-0 gap-3 pt-3">
             <div
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -372,7 +374,7 @@ export function AddTorrentDialog({
                 void onPickFile(next);
               }}
               className={cn(
-                "grid min-w-0 gap-2 overflow-hidden rounded-lg border border-dashed p-3 transition-colors",
+                "grid min-h-24 min-w-0 content-center gap-2 overflow-hidden rounded-lg border border-dashed p-3 transition-colors",
                 fileDragOver
                   ? "border-foreground/35 bg-muted/70 dark:bg-input/50"
                   : "border-input bg-muted/25 dark:bg-input/20"
@@ -408,9 +410,10 @@ export function AddTorrentDialog({
               </div>
             </div>
           </TabsContent>
-          <TabsContent value="magnet" className="grid gap-3 pt-3">
+          <TabsContent value="magnet" className="grid min-h-28 gap-3 pt-3">
             <Textarea
               rows={4}
+              className="h-24 min-h-24 field-sizing-fixed"
               placeholder="magnet:?xt=urn:btih:…"
               value={magnet}
               onChange={(e) => setMagnet(e.target.value)}
@@ -420,8 +423,8 @@ export function AddTorrentDialog({
               }}
             />
           </TabsContent>
-          <TabsContent value="url" className="grid min-w-0 gap-3 pt-3">
-            <div className="flex min-w-0 gap-2">
+          <TabsContent value="url" className="grid min-h-28 min-w-0 gap-3 pt-3">
+            <div className="flex min-h-24 min-w-0 items-center gap-2">
               <Input
                 placeholder="https://example.com/file.torrent"
                 value={url}
@@ -438,19 +441,26 @@ export function AddTorrentDialog({
               </Button>
             </div>
           </TabsContent>
-        </Tabs>
-        {loadingInfo ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            {tab === "file" ? "Uploading and reading torrent…" : tab === "url" ? "Downloading torrent…" : "Reading magnet…"}
           </div>
-        ) : null}
+        </Tabs>
         {error ? (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
-        {preview ? <TorrentPreviewCard preview={preview} priorities={priorities} onPriorities={setPriorities} /> : null}
+        <TorrentPreviewCard
+          preview={preview}
+          priorities={priorities}
+          onPriorities={setPriorities}
+          loading={loadingInfo}
+          loadingLabel={
+            tab === "file"
+              ? "Uploading and reading torrent…"
+              : tab === "url"
+                ? "Downloading torrent…"
+                : "Reading magnet…"
+          }
+        />
         <div className="grid min-w-0 gap-2">
           <div className="grid gap-1">
             <Label htmlFor="add-download-location">Download location</Label>
@@ -549,35 +559,51 @@ function TorrentPreviewCard({
   preview,
   priorities,
   onPriorities,
+  loading,
+  loadingLabel,
 }: {
-  preview: TorrentPreview;
+  preview: TorrentPreview | null;
   priorities: number[];
   onPriorities: (next: number[]) => void;
+  loading: boolean;
+  loadingLabel: string;
 }) {
-  const fileCount = preview.tree ? infoFileIndexes(preview.tree).length : 0;
+  const fileCount = preview?.tree ? infoFileIndexes(preview.tree).length : 0;
+  const tree = preview?.tree ?? null;
+  const emptyTree = !loading && !tree;
   return (
     <div className="grid min-w-0 gap-2 overflow-hidden rounded-lg border p-3">
       <div className="grid min-w-0 gap-1 overflow-hidden">
-        <p className="min-w-0 truncate overflow-hidden font-medium" title={preview.name}>
-          {preview.name}
+        <p className="min-w-0 truncate overflow-hidden font-medium" title={preview?.name}>
+          {preview?.name || "\u00a0"}
         </p>
         <p
           className="min-w-0 truncate overflow-hidden break-all font-mono text-xs text-muted-foreground"
-          title={preview.infoHash}
+          title={preview?.infoHash}
         >
-          {preview.infoHash}
+          {preview?.infoHash || "\u00a0"}
         </p>
-        {preview.tree ? (
-          <p className="text-xs text-muted-foreground">
-            {fileCount} file{fileCount === 1 ? "" : "s"} · {formatBytes(infoTreeSize(preview.tree))}
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">File list is available after metadata is downloaded.</p>
-        )}
+        <p className="truncate text-xs text-muted-foreground">
+          {tree
+            ? `${fileCount} file${fileCount === 1 ? "" : "s"} · ${formatBytes(infoTreeSize(tree))}`
+            : preview
+              ? "File list is available after metadata is downloaded."
+              : "\u00a0"}
+        </p>
       </div>
-      {preview.tree ? (
-        <div className="max-h-56 min-w-0 overflow-auto rounded-md border bg-muted/30 px-2 py-1">
-          {Object.entries(preview.tree.contents).map(([childName, child]) => (
+      <div
+        className={cn(
+          "min-h-56 max-h-56 min-w-0 overflow-auto rounded-md border bg-muted/30 px-2 py-1",
+          (loading || emptyTree) && "flex items-center justify-center"
+        )}
+      >
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            {loadingLabel}
+          </div>
+        ) : tree ? (
+          Object.entries(tree.contents).map(([childName, child]) => (
             <AddFilesTree
               key={childName}
               name={childName}
@@ -587,9 +613,11 @@ function TorrentPreviewCard({
               priorities={priorities}
               onPriorities={onPriorities}
             />
-          ))}
-        </div>
-      ) : null}
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">File list will appear here</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -614,6 +642,8 @@ function AddFilesTree({
     const value = String(priorities[node.index] ?? 4);
     return (
       <div className="flex min-w-0 items-center gap-2 py-1 text-sm">
+        <span className="inline-block size-6 shrink-0" aria-hidden />
+        <FileKindIcon name={name} />
         <span className="min-w-0 flex-1 truncate overflow-hidden break-all" title={path}>
           {name}
         </span>
@@ -639,6 +669,7 @@ function AddFilesTree({
         >
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
+        <FolderTreeIcon open={open} />
         <span className="min-w-0 flex-1 truncate overflow-hidden break-all font-medium" title={path}>
           {name}
         </span>

@@ -1,49 +1,15 @@
 "use client";
 
-import {
-  Captions,
-  ChevronDown,
-  ChevronRight,
-  Disc3,
-  File,
-  FileArchive,
-  FileImage,
-  FileMusic,
-  Film,
-  Folder,
-  FolderOpen,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FileKindIcon, FolderTreeIcon } from "@/components/app/file-tree-icons";
 import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { rpc } from "@/lib/deluge/client";
-import {
-  defaultFolderExpanded,
-  fileIconKind,
-  isHugeFileTree,
-  type FileIconKind,
-} from "@/lib/deluge/file-tree-view";
+import { defaultFolderExpanded, isHugeFileTree } from "@/lib/deluge/file-tree-view";
 import { canonicalizeFilePriority, compactFilePriorities } from "@/lib/deluge/files-tree";
 import { formatBytes, formatProgress } from "@/lib/deluge/format";
 import type { FileNode } from "@/lib/deluge/types";
-
-const FILE_KIND_ICONS: Record<FileIconKind, LucideIcon> = {
-  video: Film,
-  audio: FileMusic,
-  image: FileImage,
-  archive: FileArchive,
-  subtitle: Captions,
-  disk: Disc3,
-  file: File,
-};
-
-const TREE_ICON_CLASS = "size-3.5 shrink-0 text-muted-foreground";
-
-function FileKindIcon({ name }: { name: string }) {
-  const Icon = FILE_KIND_ICONS[fileIconKind(name)];
-  return <Icon className={TREE_ICON_CLASS} aria-hidden />;
-}
 
 export function FileTree({
   node,
@@ -131,7 +97,7 @@ function FileTreeNode({
           >
             {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           </button>
-          {open ? <FolderOpen className={TREE_ICON_CLASS} aria-hidden /> : <Folder className={TREE_ICON_CLASS} aria-hidden />}
+          <FolderTreeIcon open={open} />
           <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
           <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(fileTreeSize(node))}</span>
           <span className="w-12" />
