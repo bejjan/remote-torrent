@@ -348,7 +348,7 @@ function FilterButton({
       className={cn(
         "flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm transition-colors",
         active
-          ? "bg-sidebar-accent font-medium text-sidebar-foreground dark:bg-sidebar-primary/20"
+          ? "bg-black/8 font-medium text-sidebar-foreground dark:bg-sidebar-primary/25"
           : "hover:bg-sidebar-accent/60"
       )}
     >
