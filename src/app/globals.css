@@ -167,3 +167,27 @@ mark.search-hit {
   background-color: oklch(0.68 0.14 85 / 0.55);
   color: oklch(0.99 0.03 95);
 }
+
+/* Neutral gray resize chrome for the filter sidebar and table column edges. */
+.col-resize-handle {
+  position: relative;
+}
+.col-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border);
+  pointer-events: none;
+}
+.col-resize-handle:hover::before,
+.col-resize-handle[data-active]::before {
+  width: 2px;
+  background: var(--muted-foreground);
+  opacity: 0.55;
+}
+.col-resize-handle[data-active]::before {
+  opacity: 0.8;
+}

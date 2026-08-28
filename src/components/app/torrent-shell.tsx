@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { Brand } from "@/components/app/brand";
 import { ConnectionManager } from "@/components/app/connection-manager";
+import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { HighlightText } from "@/components/app/highlight-text";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
@@ -90,6 +91,17 @@ import {
   type TorrentColumnId,
 } from "@/lib/deluge/torrent-columns";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
+import {
+  SELECT_COLUMN_ID,
+  SIDEBAR_DEFAULT_WIDTH,
+  clampColumnWidth,
+  clampSidebarWidth,
+  columnWidthFor,
+  loadSidebarWidth,
+  loadTorrentColumnWidths,
+  saveSidebarWidth,
+  saveTorrentColumnWidths,
+} from "@/lib/deluge/ui-layout";
 import { isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
@@ -129,15 +141,53 @@ export function TorrentShell({
   const [visibleColumnIds, setVisibleColumnIds] = useState<Set<TorrentColumnId>>(
     defaultVisibleTorrentColumns
   );
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const splitRef = useRef<HTMLDivElement>(null);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  const columnWidthsRef = useRef(columnWidths);
+  sidebarWidthRef.current = sidebarWidth;
+  columnWidthsRef.current = columnWidths;
 
   useEffect(() => {
     setVisibleColumnIds(loadTorrentColumnVisibility());
+    setSidebarWidth(loadSidebarWidth());
+    setColumnWidths(loadTorrentColumnWidths());
   }, []);
 
   const shownColumns = useMemo(
     () => visibleTorrentColumns(visibleColumnIds),
     [visibleColumnIds]
   );
+
+  const widthFor = useCallback(
+    (id: string) => columnWidthFor(id, columnWidths),
+    [columnWidths]
+  );
+
+  const tableMinWidth = useMemo(() => {
+    return widthFor(SELECT_COLUMN_ID) + shownColumns.reduce((sum, column) => sum + widthFor(column.id), 0);
+  }, [shownColumns, widthFor]);
+
+  const persistSidebarWidth = useCallback(() => {
+    saveSidebarWidth(sidebarWidthRef.current);
+  }, []);
+
+  const persistColumnWidths = useCallback(() => {
+    saveTorrentColumnWidths(columnWidthsRef.current);
+  }, []);
+
+  const resizeColumn = useCallback((id: string, dx: number) => {
+    setColumnWidths((prev) => ({
+      ...prev,
+      [id]: clampColumnWidth(columnWidthFor(id, prev) + dx, id),
+    }));
+  }, []);
+
+  const resizeSidebar = useCallback((dx: number) => {
+    const containerWidth = splitRef.current?.getBoundingClientRect().width;
+    setSidebarWidth((width) => clampSidebarWidth(width + dx, containerWidth));
+  }, []);
 
   function setColumnVisible(id: TorrentColumnId, visible: boolean) {
     setVisibleColumnIds((prev) => {
@@ -398,19 +448,33 @@ export function TorrentShell({
           </Button>
         </div>
       ) : (
-        <table className="w-full min-w-max text-sm">
+        <table
+          className="table-fixed text-sm"
+          style={{ width: tableMinWidth, minWidth: tableMinWidth }}
+        >
+          <colgroup>
+            <col style={{ width: widthFor(SELECT_COLUMN_ID) }} />
+            {shownColumns.map((column) => (
+              <col key={column.id} style={{ width: widthFor(column.id) }} />
+            ))}
+          </colgroup>
           <ContextMenu>
             <ContextMenuTrigger
               render={<thead className="sticky top-0 z-10 border-b bg-background" />}
             >
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="w-8 px-2 py-2">
+              <tr className="text-left text-xs">
+                <th className="relative px-2 py-2">
                   <Checkbox
                     checked={ids.length > 0 && selectedIds.length === ids.length}
                     indeterminate={selectedIds.length > 0 && selectedIds.length < ids.length}
                     onCheckedChange={(v) => {
                       setSelected(v ? new Set(ids) : new Set());
                     }}
+                  />
+                  <DragResizeHandle
+                    ariaLabel="Resize selection column"
+                    onDelta={(dx) => resizeColumn(SELECT_COLUMN_ID, dx)}
+                    onDragEnd={persistColumnWidths}
                   />
                 </th>
                 {shownColumns.map((column) => (
@@ -419,6 +483,8 @@ export function TorrentShell({
                     onClick={() => toggleSort(column.sortKey)}
                     active={sortKey === column.sortKey}
                     dir={sortDir}
+                    onResize={(dx) => resizeColumn(column.id, dx)}
+                    onResizeEnd={persistColumnWidths}
                   >
                     {column.label}
                   </Th>
@@ -477,7 +543,13 @@ export function TorrentShell({
                       />
                     </td>
                     {shownColumns.map((column) => (
-                      <TorrentColumnCell key={column.id} column={column} torrent={t} query={search} />
+                      <TorrentColumnCell
+                        key={column.id}
+                        column={column}
+                        torrent={t}
+                        query={search}
+                        sorted={sortKey === column.sortKey}
+                      />
                     ))}
                   </ContextMenuTrigger>
                   <ContextMenuContent className="min-w-48">
@@ -602,21 +674,32 @@ export function TorrentShell({
         <div className="border-b bg-destructive/10 px-3 py-1.5 text-sm text-destructive">{error}</div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1">
+      <div ref={splitRef} className="flex min-h-0 flex-1">
         {!mobile && showSidebar ? (
-          <aside className="w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground">
-            <FilterSidebar
-              filters={ui?.filters ?? null}
-              selected={filters}
-              onSelect={setFilters}
-              showZero={showZeroFilters}
-              onLabelsChanged={() => {
-                void refreshLabels();
-                void poll();
-              }}
-              className="h-full"
+          <>
+            <aside
+              style={{ width: sidebarWidth }}
+              className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground"
+            >
+              <FilterSidebar
+                filters={ui?.filters ?? null}
+                selected={filters}
+                onSelect={setFilters}
+                showZero={showZeroFilters}
+                onLabelsChanged={() => {
+                  void refreshLabels();
+                  void poll();
+                }}
+                className="h-full min-w-0"
+              />
+            </aside>
+            <DragResizeHandle
+              variant="sidebar"
+              ariaLabel="Resize filter sidebar"
+              onDelta={resizeSidebar}
+              onDragEnd={persistSidebarWidth}
             />
-          </aside>
+          </>
         ) : null}
         <div className="flex min-w-0 flex-1 flex-col">
           {table}
@@ -738,27 +821,45 @@ function Th({
   onClick,
   active,
   dir,
+  onResize,
+  onResizeEnd,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   active: boolean;
   dir: "asc" | "desc";
+  onResize: (dx: number) => void;
+  onResizeEnd: () => void;
 }) {
   return (
-    <th className="px-2 py-2">
+    <th
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={cn(
+        "relative overflow-hidden px-2 py-2",
+        active ? "bg-muted/40 text-foreground" : "text-muted-foreground"
+      )}
+    >
       <button
         type="button"
         onClick={(e) => {
           if (e.button !== 0) return;
           onClick();
         }}
-        className="inline-flex items-center gap-1 font-medium"
+        className={cn(
+          "inline-flex max-w-full items-center gap-1 truncate",
+          active ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+        )}
       >
         {children}
         {active ? (
-          <span className="text-[10px] text-primary">{dir === "asc" ? "▲" : "▼"}</span>
+          <span className="text-[10px] text-foreground">{dir === "asc" ? "▲" : "▼"}</span>
         ) : null}
       </button>
+      <DragResizeHandle
+        ariaLabel="Resize column"
+        onDelta={onResize}
+        onDragEnd={onResizeEnd}
+      />
     </th>
   );
 }
