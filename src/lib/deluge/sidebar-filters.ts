@@ -17,6 +17,8 @@ export interface SidebarFilterRow {
   count: number;
   /** Clears this group's filter (at most one per group). */
   isAll: boolean;
+  /** Defined labels from `label.get_labels` stay listed at count 0. */
+  keepZero?: boolean;
 }
 
 /** Coerce JSON from `web.update_ui` into `[name, count]` rows. */
@@ -55,16 +57,30 @@ function coerceFilterTuple(item: unknown): FilterTuple | null {
 }
 
 /** Hide empty rows unless Deluge's "show zero" preference is on. */
-export function isVisibleFilterRow(name: string, count: number, showZero: boolean, alwaysShow = false): boolean {
-  return alwaysShow || showZero || Number(count) > 0;
+export function isVisibleFilterRow(
+  name: string,
+  count: unknown,
+  showZero: boolean,
+  alwaysShow = false
+): boolean {
+  if (alwaysShow) return true;
+  if (showZero) return true;
+  const n = Number(count);
+  return Number.isFinite(n) && n > 0;
 }
 
+/**
+ * Drop count === 0 unless `showZero` / `alwaysShow`. Normalizes first so a live
+ * Deluge catalog (tuples, dict, or `{filter,count}` objects) cannot skip the gate.
+ */
 export function visibleFilterTuples(
-  items: FilterTuple[],
+  items: unknown,
   showZero: boolean,
   alwaysShow: (name: string) => boolean = () => false
 ): FilterTuple[] {
-  return items.filter(([name, count]) => isVisibleFilterRow(name, count, showZero, alwaysShow(name)));
+  return normalizeFilterTuples(items).filter(([name, count]) =>
+    isVisibleFilterRow(name, count, showZero, alwaysShow(name))
+  );
 }
 
 /**
@@ -153,6 +169,7 @@ export function sidebarGroupRows(
       label: name === FILTER_ALL ? options.namedAllLabel : name || options.emptyLabel,
       count,
       isAll: false,
+      keepZero: Boolean(name) && known.has(name),
     });
   }
   return rows;

@@ -33,7 +33,13 @@ import {
   labelRpcErrorMessage,
   normalizeLabelId,
 } from "@/lib/deluge/label-plugin";
-import { isVisibleFilterRow, sidebarGroupRows, stateAllCount, stateSidebarRows } from "@/lib/deluge/sidebar-filters";
+import {
+  FILTER_ALL,
+  completeStateFilters,
+  isVisibleFilterRow,
+  sidebarGroupRows,
+  stateAllCount,
+} from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -77,8 +83,9 @@ export function FilterSidebar({
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
-  const states = stateSidebarRows(filters?.state, showZero);
-  const torrentCount = stateAllCount(states);
+  // Live Deluge injects every state at 0. Paint the catalog; FilterButton drops zeros.
+  const stateCatalog = completeStateFilters(filters?.state);
+  const torrentCount = stateAllCount(stateCatalog);
   const trackers = sidebarGroupRows(filters?.tracker_host ?? EMPTY_TUPLES, {
     showZero,
     fallbackAllCount: torrentCount,
@@ -127,18 +134,18 @@ export function FilterSidebar({
     <ScrollArea className={cn("h-full", className)}>
       <div className="flex flex-col gap-5 p-3">
         <FilterGroup title="State">
-          {states.map(([name, count]) =>
-            isVisibleFilterRow(name, count, showZero, name === "All") ? (
-              <FilterButton
-                key={name}
-                label={name}
-                count={count}
-                active={selected.state === name}
-                icon={stateIcon(name)}
-                onClick={() => onSelect({ ...selected, state: name })}
-              />
-            ) : null
-          )}
+          {stateCatalog.map(([name, count]) => (
+            <FilterButton
+              key={name}
+              label={name}
+              count={count}
+              active={selected.state === name}
+              icon={stateIcon(name)}
+              showZero={showZero}
+              alwaysShow={name === FILTER_ALL}
+              onClick={() => onSelect({ ...selected, state: name })}
+            />
+          ))}
         </FilterGroup>
         <FilterGroup title="Trackers">
           {trackers.map((row) => (
@@ -147,6 +154,8 @@ export function FilterSidebar({
               label={row.label}
               count={row.count}
               active={selected.tracker === row.value}
+              showZero={showZero}
+              alwaysShow={row.isAll}
               onClick={() => onSelect({ ...selected, tracker: row.value })}
             />
           ))}
@@ -158,6 +167,8 @@ export function FilterSidebar({
                 label={row.label}
                 count={row.count}
                 active={selected.label === row.value}
+                showZero={showZero}
+                alwaysShow={row.isAll || Boolean(row.keepZero)}
                 onClick={() => onSelect({ ...selected, label: row.value })}
               />
             );
@@ -233,13 +244,20 @@ function FilterButton({
   active,
   onClick,
   icon,
+  showZero = false,
+  alwaysShow,
 }: {
   label: string;
   count: number;
   active: boolean;
   onClick: () => void;
   icon?: React.ReactNode;
+  showZero?: boolean;
+  alwaysShow?: boolean;
 }) {
+  if (!isVisibleFilterRow(label, count, showZero, alwaysShow ?? label === FILTER_ALL)) {
+    return null;
+  }
   return (
     <button
       type="button"
