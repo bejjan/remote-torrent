@@ -729,7 +729,7 @@ export function TorrentShell({
       </div>
 
       <footer className="min-w-0 shrink-0 border-t bg-sidebar text-xs text-muted-foreground">
-        <div className="flex items-center gap-x-3 gap-y-1 overflow-x-auto px-2 py-1.5 whitespace-nowrap [scrollbar-width:thin] sm:flex-wrap sm:px-3 sm:whitespace-normal">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 overflow-x-auto px-2 py-1.5 sm:px-3">
           <span className="shrink-0">
             {torrents.length} torrent{torrents.length === 1 ? "" : "s"}
             {selectedIds.length ? ` · ${selectedIds.length} selected` : ""}
@@ -743,7 +743,7 @@ export function TorrentShell({
           <span className="shrink-0">Connections {stats?.num_connections ?? 0}</span>
           <span className="shrink-0">DHT {stats?.dht_nodes ?? 0}</span>
           <span className="shrink-0">Free {formatBytes(stats?.free_space ?? 0)}</span>
-          <span className="ml-auto min-w-0 truncate font-mono">{stats?.external_ip || ""}</span>
+          <span className="min-w-0 max-w-full truncate font-mono sm:ml-auto">{stats?.external_ip || ""}</span>
         </div>
       </footer>
 

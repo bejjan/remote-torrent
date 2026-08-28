@@ -45,10 +45,9 @@ assert.match(header, /Move storage/);
 assert.match(header, /Force recheck/);
 
 assert.match(footer, /overflow-x-auto/);
-assert.match(footer, /whitespace-nowrap/);
-assert.match(footer, /sm:flex-wrap/);
+assert.match(footer, /flex-wrap/);
 assert.match(footer, /showSessionSpeed/);
-assert.match(footer, /ml-auto min-w-0 truncate/);
+assert.match(footer, /sm:ml-auto/);
 
 assert.match(shell, /show_session_speed|isWebSessionSpeedVisible|showSessionSpeed/);
 assert.match(shell, /w-\[min\(18rem,100%\)\]/);
