@@ -30,6 +30,7 @@ import {
   ContextMenu,
   ContextMenuCheckboxItem,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuLabel,
   ContextMenuSeparator,
@@ -358,17 +359,20 @@ export const TorrentTable = memo(function TorrentTable({
               ))}
             </ContextMenuTrigger>
             <ContextMenuContent className="min-w-52" side="bottom" align="start">
-              <ContextMenuLabel>Columns</ContextMenuLabel>
-              {TORRENT_COLUMNS.map((column) => (
-                <ContextMenuCheckboxItem
-                  key={column.id}
-                  checked={visibleColumnIds.has(column.id)}
-                  disabled={!column.hideable}
-                  onCheckedChange={(checked) => onSetColumnVisible(column.id, checked)}
-                >
-                  {column.label === "#" ? "# Queue" : column.label}
-                </ContextMenuCheckboxItem>
-              ))}
+              {/* GroupLabel throws without Group: "MenuGroupContext is missing". */}
+              <ContextMenuGroup>
+                <ContextMenuLabel>Columns</ContextMenuLabel>
+                {TORRENT_COLUMNS.map((column) => (
+                  <ContextMenuCheckboxItem
+                    key={column.id}
+                    checked={visibleColumnIds.has(column.id)}
+                    disabled={!column.hideable}
+                    onCheckedChange={(checked) => onSetColumnVisible(column.id, checked)}
+                  >
+                    {column.label === "#" ? "# Queue" : column.label}
+                  </ContextMenuCheckboxItem>
+                ))}
+              </ContextMenuGroup>
             </ContextMenuContent>
           </ContextMenu>
         </thead>
