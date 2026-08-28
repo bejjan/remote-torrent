@@ -168,7 +168,7 @@ mark.search-hit {
   color: oklch(0.99 0.03 95);
 }
 
-/* Neutral gray resize chrome for the filter sidebar and table column edges. */
+/* Neutral gray resize chrome for sidebar, table columns, and the details panel. */
 .col-resize-handle::before {
   content: "";
   position: absolute;
@@ -186,5 +186,25 @@ mark.search-hit {
   opacity: 0.55;
 }
 .col-resize-handle[data-active]::before {
+  opacity: 0.8;
+}
+
+.row-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: var(--border);
+  pointer-events: none;
+}
+.row-resize-handle:hover::before,
+.row-resize-handle[data-active]::before {
+  height: 2px;
+  background: var(--muted-foreground);
+  opacity: 0.55;
+}
+.row-resize-handle[data-active]::before {
   opacity: 0.8;
 }

@@ -89,11 +89,16 @@ import { mergeUiUpdate } from "@/lib/deluge/ui-merge";
 import {
   SELECT_COLUMN_ID,
   SIDEBAR_DEFAULT_WIDTH,
+  DETAILS_DEFAULT_HEIGHT,
+  DETAILS_MIN_HEIGHT,
   clampColumnWidth,
+  clampDetailsHeight,
   clampSidebarWidth,
   columnWidthFor,
+  loadDetailsHeight,
   loadSidebarWidth,
   loadTorrentColumnWidths,
+  saveDetailsHeight,
   saveSidebarWidth,
   saveTorrentColumnWidths,
 } from "@/lib/deluge/ui-layout";
@@ -137,8 +142,10 @@ export function TorrentShell({
   );
   const [columnOrder, setColumnOrder] = useState<TorrentColumnId[]>(defaultTorrentColumnOrder);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [detailsHeight, setDetailsHeight] = useState(DETAILS_DEFAULT_HEIGHT);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const splitRef = useRef<HTMLDivElement>(null);
+  const mainColRef = useRef<HTMLDivElement>(null);
   const searchValueRef = useRef(search);
   const selectedRef = useRef(selected);
   const activeIdRef = useRef(activeId);
@@ -150,6 +157,7 @@ export function TorrentShell({
     setVisibleColumnIds(loadTorrentColumnVisibility());
     setColumnOrder(loadTorrentColumnOrder());
     setSidebarWidth(loadSidebarWidth());
+    setDetailsHeight(loadDetailsHeight());
     setColumnWidths(loadTorrentColumnWidths());
   }, []);
 
@@ -183,6 +191,17 @@ export function TorrentShell({
     setSidebarWidth((width) => {
       const next = clampSidebarWidth(width + dx, containerWidth);
       saveSidebarWidth(next);
+      return next;
+    });
+  }, []);
+
+  const resizeDetails = useCallback((dy: number) => {
+    const containerHeight = mainColRef.current?.getBoundingClientRect().height;
+    const viewportHeight = typeof window !== "undefined" ? window.innerHeight : undefined;
+    setDetailsHeight((height) => {
+      // Top-edge handle: pointer up (negative dy) grows the bottom panel.
+      const next = clampDetailsHeight(height - dy, viewportHeight, containerHeight);
+      saveDetailsHeight(next);
       return next;
     });
   }, []);
@@ -559,11 +578,21 @@ export function TorrentShell({
             />
           </div>
         ) : null}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div ref={mainColRef} className="flex min-w-0 flex-1 flex-col">
           {table}
           {!mobile ? (
-            <div className="h-[min(16rem,36vh)] shrink-0 border-t">
-              <TorrentDetails torrentId={primary} torrent={primaryTorrent ?? null} className="h-full" />
+            <div
+              className="relative min-h-0 shrink-0 border-t"
+              style={{ height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }}
+            >
+              <DragResizeHandle
+                variant="row"
+                ariaLabel="Resize torrent details"
+                onDelta={resizeDetails}
+              />
+              <div className="h-full min-h-0 overflow-hidden">
+                <TorrentDetails torrentId={primary} torrent={primaryTorrent ?? null} className="h-full" />
+              </div>
             </div>
           ) : null}
         </div>
