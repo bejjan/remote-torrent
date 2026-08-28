@@ -312,6 +312,77 @@ function defaultConfig(): Record<string, unknown> {
   };
 }
 
+/** Extra in-memory torrents so the table can be exercised at 1000+ rows. Set `0` to keep the named set only. */
+function extraDemoTorrentCount(): number {
+  const raw = process.env.DELUGE_DEMO_EXTRA_TORRENTS;
+  if (raw == null || raw === "") return 1000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1000;
+}
+
+function extraSeedTorrents(count: number): Record<string, ExtraTorrent> {
+  const out: Record<string, ExtraTorrent> = {};
+  const distros = ["ubuntu", "debian", "fedora", "arch", "mint", "opensuse", "tails", "pop-os"];
+  const trackers = [
+    "https://torrent.ubuntu.com/announce",
+    "https://bttracker.debian.org:443/announce",
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://tracker.openbittorrent.com:6969/announce",
+  ];
+  for (let i = 0; i < count; i++) {
+    const distro = distros[i % distros.length];
+    const name = `${distro}-bulk-${String(i + 1).padStart(4, "0")}.iso`;
+    const size = Math.round((0.4 + (i % 11) * 0.35) * 1024 ** 3);
+    let state: TorrentStatus["state"] = "Seeding";
+    let progress = 100;
+    let down = 0;
+    let up = 64 * 1024;
+    let message: string | undefined;
+    if (i < 24) {
+      state = "Downloading";
+      progress = 8 + (i % 80);
+      down = 400 * 1024 + (i % 8) * 50 * 1024;
+      up = 20 * 1024;
+    } else if (i % 17 === 0) {
+      state = "Error";
+      progress = 12;
+      up = 0;
+      message = "Tracker unavailable";
+    } else if (i % 11 === 0) {
+      state = "Paused";
+      progress = 35 + (i % 40);
+      up = 0;
+    } else if (i % 13 === 0) {
+      state = "Queued";
+      progress = 0;
+      up = 0;
+    } else if (i % 19 === 0) {
+      state = "Checking";
+      progress = 40 + (i % 50);
+      up = 0;
+    }
+    const queue = state === "Seeding" || state === "Checking" ? -1 : 8 + i;
+    const label = i % 5 === 0 ? "linux" : i % 5 === 1 ? "movies" : undefined;
+    out[fakeHash(`bulk-${i}-${name}`)] = makeTorrent({
+      name,
+      size,
+      progress,
+      state,
+      down,
+      up,
+      label,
+      tracker: trackers[i % trackers.length],
+      queue,
+      message,
+      files: {
+        type: "dir",
+        contents: { [name]: fileLeaf(0, size, progress / 100) },
+      },
+    });
+  }
+  return out;
+}
+
 function seedTorrents(): Record<string, ExtraTorrent> {
   const ubuntu = fakeHash("ubuntu");
   const debian = fakeHash("debian");
@@ -467,6 +538,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
         },
       },
     }),
+    ...extraSeedTorrents(extraDemoTorrentCount()),
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -24,9 +24,7 @@ import { Brand } from "@/components/app/brand";
 import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
-import { HighlightText } from "@/components/app/highlight-text";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
-import { StateBadge, stateBarClass } from "@/components/app/state-badge";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
 import {
@@ -34,20 +32,8 @@ import {
   MoveTorrentDialog,
   RemoveTorrentDialog,
 } from "@/components/app/torrent-dialogs";
+import { TorrentTable } from "@/components/app/torrent-table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ContextMenu,
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
   Dialog,
   DialogContent,
@@ -66,31 +52,23 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { rpc } from "@/lib/deluge/client";
-import {
-  compareQueue,
-  formatBytes,
-  formatDate,
-  formatDuration,
-  formatEta,
-  formatLimit,
-  formatProgress,
-  formatQueue,
-  formatRate,
-  formatRatio,
-} from "@/lib/deluge/format";
+import { formatBytes, formatRate } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import {
-  TORRENT_COLUMNS,
   applyColumnVisibility,
   defaultVisibleTorrentColumns,
   loadTorrentColumnVisibility,
   saveTorrentColumnVisibility,
   visibleTorrentColumns,
-  type TorrentColumn,
   type TorrentColumnId,
 } from "@/lib/deluge/torrent-columns";
+import {
+  filterAndSortTorrents,
+  type TorrentSortKey,
+} from "@/lib/deluge/torrent-list";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
+import { mergeUiUpdate } from "@/lib/deluge/ui-merge";
 import {
   SELECT_COLUMN_ID,
   SIDEBAR_DEFAULT_WIDTH,
@@ -103,9 +81,6 @@ import {
   saveTorrentColumnWidths,
 } from "@/lib/deluge/ui-layout";
 import { isWebSidebarVisible } from "@/lib/deluge/web-config";
-import { cn } from "@/lib/utils";
-
-type SortKey = keyof TorrentStatus | "id";
 
 export function TorrentShell({
   onLogout,
@@ -126,7 +101,7 @@ export function TorrentShell({
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("queue");
+  const [sortKey, setSortKey] = useState<TorrentSortKey>("queue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [addOpen, setAddOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -185,13 +160,13 @@ export function TorrentShell({
     });
   }, []);
 
-  function setColumnVisible(id: TorrentColumnId, visible: boolean) {
+  const setColumnVisible = useCallback((id: TorrentColumnId, visible: boolean) => {
     setVisibleColumnIds((prev) => {
       const next = applyColumnVisibility(prev, id, visible);
       saveTorrentColumnVisibility(next);
       return next;
     });
-  }
+  }, []);
 
   const applyWebUi = useCallback((web: Record<string, unknown> | null | undefined) => {
     setShowZeroFilters(Boolean(web?.sidebar_show_zero));
@@ -211,7 +186,7 @@ export function TorrentShell({
   const poll = useCallback(async () => {
     try {
       const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], filterDict]);
-      setUi(result);
+      setUi((prev) => mergeUiUpdate(prev, result));
       setError(null);
       if (!result.connected) setError("Daemon disconnected");
     } catch (err) {
@@ -275,97 +250,66 @@ export function TorrentShell({
     });
   }, [ui?.filters, showZeroFilters]);
 
-  const torrents = useMemo(() => {
-    const entries = Object.entries(ui?.torrents || {}) as [string, TorrentStatus][];
-    const q = search.trim().toLowerCase();
-    const filtered = q
-      ? entries.filter(([, t]) => t.name.toLowerCase().includes(q))
-      : entries;
-    filtered.sort((a, b) => {
-      if (sortKey === "queue") {
-        const cmp = compareQueue(a[1].queue, b[1].queue);
-        return sortDir === "asc" ? cmp : -cmp;
-      }
-      const av = a[1][sortKey as keyof TorrentStatus];
-      const bv = b[1][sortKey as keyof TorrentStatus];
-      if (typeof av === "number" && typeof bv === "number") {
-        return sortDir === "asc" ? av - bv : bv - av;
-      }
-      const as = String(av ?? "");
-      const bs = String(bv ?? "");
-      return sortDir === "asc" ? as.localeCompare(bs) : bs.localeCompare(as);
-    });
-    return filtered;
-  }, [ui, search, sortKey, sortDir]);
+  const torrents = useMemo(
+    () => filterAndSortTorrents(ui?.torrents, search, sortKey, sortDir),
+    [ui?.torrents, search, sortKey, sortDir]
+  );
 
-  const ids = useMemo(() => torrents.map(([id]) => id), [torrents]);
-  const selectedIds = [...selected];
+  const selectedIds = useMemo(() => [...selected], [selected]);
   const primary = activeId && ui?.torrents?.[activeId] ? activeId : selectedIds[0] ?? null;
   const primaryTorrent = primary ? (ui?.torrents?.[primary] as TorrentStatus | undefined) : null;
   const stats = ui?.stats as SessionStats | null;
 
-  function toggleSort(key: SortKey) {
+  const toggleSort = useCallback((key: TorrentSortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
       setSortKey(key);
       setSortDir(key === "name" || key === "queue" ? "asc" : "desc");
     }
-  }
+  }, [sortKey]);
 
-  function clickRow(id: string, e: React.MouseEvent) {
-    if (e.button !== 0) return;
-    if (e.metaKey || e.ctrlKey) {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-      setActiveId(id);
-      return;
-    }
-    if (e.shiftKey && activeId) {
-      const a = ids.indexOf(activeId);
-      const b = ids.indexOf(id);
-      if (a >= 0 && b >= 0) {
-        const [lo, hi] = a < b ? [a, b] : [b, a];
-        setSelected(new Set(ids.slice(lo, hi + 1)));
-        setActiveId(id);
-        return;
+  const act = useCallback(
+    async (method: string, torrentIds?: string[]) => {
+      const ids = torrentIds ?? [...selected];
+      if (!ids.length) return;
+      try {
+        await rpc(method, [ids]);
+        await poll();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Action failed");
       }
-    }
-    setSelected(new Set([id]));
+    },
+    [poll, selected]
+  );
+
+  const setLabel = useCallback(
+    async (label: string, torrentIds?: string[]) => {
+      const ids = torrentIds ?? [...selected];
+      if (!ids.length) return;
+      try {
+        for (const id of ids) await rpc("label.set_torrent", [id, label]);
+        await poll();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Label failed");
+      }
+    },
+    [poll, selected]
+  );
+
+  const openDetails = useCallback((id: string) => {
     setActiveId(id);
-    if (mobile) setDetailsOpen(true);
-  }
+    setDetailsOpen(true);
+  }, []);
 
-  /** Right-click on an already-selected row keeps the full selection; otherwise that row becomes the sole target. */
-  function selectForContext(rowId: string): string[] {
-    const ids = contextActionIds(selected, rowId);
-    if (!selected.has(rowId)) setSelected(new Set(ids));
-    setActiveId(rowId);
-    return ids;
-  }
+  const openRemove = useCallback((torrentIds: string[]) => {
+    setSelected(new Set(torrentIds));
+    setRemoveOpen(true);
+  }, []);
 
-  async function act(method: string, torrentIds: string[] = selectedIds) {
-    if (!torrentIds.length) return;
-    try {
-      await rpc(method, [torrentIds]);
-      await poll();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Action failed");
-    }
-  }
-
-  async function setLabel(label: string, torrentIds: string[] = selectedIds) {
-    if (!torrentIds.length) return;
-    try {
-      for (const id of torrentIds) await rpc("label.set_torrent", [id, label]);
-      await poll();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Label failed");
-    }
-  }
+  const openMove = useCallback((torrentIds: string[]) => {
+    setSelected(new Set(torrentIds));
+    setMoveOpen(true);
+  }, []);
 
   async function logout() {
     try {
@@ -375,6 +319,8 @@ export function TorrentShell({
     }
     onLogout();
   }
+
+  const openAdd = useCallback(() => setAddOpen(true), []);
 
   const downloadPath =
     primaryTorrent?.download_location || "/home/deluge/Downloads";
@@ -427,198 +373,35 @@ export function TorrentShell({
   );
 
   const table = (
-    <div className="min-h-0 flex-1 overflow-auto">
-      {loading && !ui ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          Loading torrents…
-        </div>
-      ) : torrents.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-          <p className="text-sm font-medium">No torrents match this view</p>
-          <p className="text-sm text-muted-foreground">
-            Add a torrent or clear filters to see the session.
-          </p>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus />
-            Add torrent
-          </Button>
-        </div>
-      ) : (
-        <table
-          className="table-fixed text-sm"
-          style={{ width: tableMinWidth, minWidth: tableMinWidth }}
-        >
-          <colgroup>
-            <col style={{ width: widthFor(SELECT_COLUMN_ID) }} />
-            {shownColumns.map((column) => (
-              <col key={column.id} style={{ width: widthFor(column.id) }} />
-            ))}
-          </colgroup>
-          <thead className="sticky top-0 z-10 border-b bg-background">
-            <ContextMenu>
-              <ContextMenuTrigger render={<tr className="text-left text-xs" />}>
-                <th className="relative px-2 py-2">
-                  <Checkbox
-                    checked={ids.length > 0 && selectedIds.length === ids.length}
-                    indeterminate={selectedIds.length > 0 && selectedIds.length < ids.length}
-                    onCheckedChange={(v) => {
-                      setSelected(v ? new Set(ids) : new Set());
-                    }}
-                  />
-                  <DragResizeHandle
-                    ariaLabel="Resize selection column"
-                    onDelta={(dx) => resizeColumn(SELECT_COLUMN_ID, dx)}
-                  />
-                </th>
-                {shownColumns.map((column) => (
-                  <Th
-                    key={column.id}
-                    onClick={() => toggleSort(column.sortKey)}
-                    active={sortKey === column.sortKey}
-                    dir={sortDir}
-                    onResize={(dx) => resizeColumn(column.id, dx)}
-                  >
-                    {column.label}
-                  </Th>
-                ))}
-              </ContextMenuTrigger>
-              <ContextMenuContent className="min-w-52" side="bottom" align="start">
-                <ContextMenuLabel>Columns</ContextMenuLabel>
-                {TORRENT_COLUMNS.map((column) => (
-                  <ContextMenuCheckboxItem
-                    key={column.id}
-                    checked={visibleColumnIds.has(column.id)}
-                    disabled={!column.hideable}
-                    onCheckedChange={(checked) => setColumnVisible(column.id, checked)}
-                  >
-                    {column.label === "#" ? "# Queue" : column.label}
-                  </ContextMenuCheckboxItem>
-                ))}
-              </ContextMenuContent>
-            </ContextMenu>
-          </thead>
-          <tbody>
-            {torrents.map(([id, t]) => {
-              const isSel = selected.has(id);
-              return (
-                <ContextMenu key={id}>
-                  <ContextMenuTrigger
-                    render={
-                      <tr
-                        className={cn(
-                          "cursor-pointer border-b hover:bg-muted/50",
-                          isSel && "bg-primary/10 hover:bg-primary/15"
-                        )}
-                        onClick={(e) => clickRow(id, e)}
-                        onContextMenu={() => {
-                          selectForContext(id);
-                        }}
-                        onDoubleClick={() => {
-                          setActiveId(id);
-                          setDetailsOpen(true);
-                        }}
-                      />
-                    }
-                  >
-                    <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={isSel}
-                        onCheckedChange={(v) => {
-                          setSelected((prev) => {
-                            const next = new Set(prev);
-                            if (v) next.add(id);
-                            else next.delete(id);
-                            return next;
-                          });
-                          setActiveId(id);
-                        }}
-                      />
-                    </td>
-                    {shownColumns.map((column) => (
-                      <TorrentColumnCell
-                        key={column.id}
-                        column={column}
-                        torrent={t}
-                        query={search}
-                        sorted={sortKey === column.sortKey}
-                      />
-                    ))}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="min-w-48">
-                    <ContextMenuItem
-                      onClick={() => {
-                        void act("core.pause_torrent", selectForContext(id));
-                      }}
-                    >
-                      <Pause /> Pause
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => {
-                        void act("core.resume_torrent", selectForContext(id));
-                      }}
-                    >
-                      <Play /> Resume
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => {
-                        selectForContext(id);
-                        setRemoveOpen(true);
-                      }}
-                    >
-                      <Trash2 /> Remove
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      onClick={() => void act("core.queue_top", selectForContext(id))}
-                    >
-                      <ChevronsUp /> Queue top
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => void act("core.queue_bottom", selectForContext(id))}
-                    >
-                      <ChevronsDown /> Queue bottom
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => {
-                        selectForContext(id);
-                        setMoveOpen(true);
-                      }}
-                    >
-                      <FolderInput /> Move storage
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => void act("core.force_recheck", selectForContext(id))}
-                    >
-                      <RefreshCw /> Force recheck
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuSub>
-                      <ContextMenuSubTrigger>
-                        Label
-                      </ContextMenuSubTrigger>
-                      <ContextMenuSubContent>
-                        <ContextMenuItem onClick={() => void setLabel("", selectForContext(id))}>
-                          No label
-                        </ContextMenuItem>
-                        {labels.map((lab) => (
-                          <ContextMenuItem
-                            key={lab}
-                            onClick={() => void setLabel(lab, selectForContext(id))}
-                          >
-                            {lab}
-                          </ContextMenuItem>
-                        ))}
-                      </ContextMenuSubContent>
-                    </ContextMenuSub>
-                  </ContextMenuContent>
-                </ContextMenu>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <TorrentTable
+      torrents={torrents}
+      selected={selected}
+      activeId={activeId}
+      sortKey={sortKey}
+      sortDir={sortDir}
+      search={search}
+      shownColumns={shownColumns}
+      visibleColumnIds={visibleColumnIds}
+      tableMinWidth={tableMinWidth}
+      widthFor={widthFor}
+      labels={labels}
+      loading={loading}
+      hasUi={Boolean(ui)}
+      mobile={mobile}
+      onToggleSort={toggleSort}
+      onResizeColumn={resizeColumn}
+      onSetColumnVisible={setColumnVisible}
+      onSelectedChange={setSelected}
+      onActiveIdChange={setActiveId}
+      onOpenDetails={openDetails}
+      onAddTorrent={openAdd}
+      onAct={act}
+      onSetLabel={setLabel}
+      onRemove={openRemove}
+      onMove={openMove}
+    />
   );
+
 
   return (
     <div className="flex h-svh min-h-0 flex-col bg-background">
@@ -800,184 +583,4 @@ function ToolBtn({
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
-}
-
-/** If the row is already selected, operate on the full selection; otherwise only that row. */
-function contextActionIds(selected: Set<string>, rowId: string): string[] {
-  return selected.has(rowId) ? [...selected] : [rowId];
-}
-
-function Th({
-  children,
-  onClick,
-  active,
-  dir,
-  onResize,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active: boolean;
-  dir: "asc" | "desc";
-  onResize: (dx: number) => void;
-}) {
-  return (
-    <th
-      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={cn(
-        "relative overflow-hidden px-2 py-2",
-        active ? "bg-muted/40 text-foreground" : "text-muted-foreground"
-      )}
-    >
-      <button
-        type="button"
-        onClick={(e) => {
-          if (e.button !== 0) return;
-          onClick();
-        }}
-        className={cn(
-          "inline-flex max-w-full items-center gap-1 truncate",
-          active ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
-        )}
-      >
-        {children}
-        {active ? (
-          <span className="text-[10px] text-foreground">{dir === "asc" ? "▲" : "▼"}</span>
-        ) : null}
-      </button>
-      <DragResizeHandle ariaLabel="Resize column" onDelta={onResize} />
-    </th>
-  );
-}
-
-function formatAvail(value: number): string {
-  if (!Number.isFinite(value) || value < 0) return "∞";
-  return value.toFixed(3);
-}
-
-function TorrentColumnCell({
-  column,
-  torrent: t,
-  query,
-  sorted,
-}: {
-  column: TorrentColumn;
-  torrent: TorrentStatus;
-  query: string;
-  sorted?: boolean;
-}) {
-  const hit = (text: string) => <HighlightText text={text} query={query} />;
-  const cell = (() => {
-    switch (column.id) {
-    case "queue":
-      return (
-        <td className="px-2 py-1.5 tabular text-muted-foreground">{hit(formatQueue(t.queue))}</td>
-      );
-    case "name":
-      return <td className="truncate px-2 py-1.5 font-medium">{hit(t.name)}</td>;
-    case "size":
-      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_wanted))}</td>;
-    case "progress":
-      return (
-        <td className="px-2 py-1.5">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn("h-full rounded-full", stateBarClass(t.state))}
-                style={{ width: `${Math.min(100, t.progress)}%` }}
-              />
-            </div>
-            <span className="tabular text-xs">{hit(formatProgress(t.progress))}</span>
-          </div>
-        </td>
-      );
-    case "status":
-      return (
-        <td className="px-2 py-1.5">
-          <StateBadge state={t.state} message={t.message}>
-            {hit(t.state)}
-          </StateBadge>
-        </td>
-      );
-    case "down":
-      return (
-        <td className="px-2 py-1.5 tabular text-[color:var(--downloading)]">
-          {hit(formatRate(t.download_payload_rate))}
-        </td>
-      );
-    case "up":
-      return (
-        <td className="px-2 py-1.5 tabular text-[color:var(--seeding)]">
-          {hit(formatRate(t.upload_payload_rate))}
-        </td>
-      );
-    case "eta":
-      return <td className="px-2 py-1.5 tabular">{hit(formatEta(t.eta))}</td>;
-    case "ratio":
-      return <td className="px-2 py-1.5 tabular">{hit(formatRatio(t.ratio))}</td>;
-    case "seeds":
-      return (
-        <td className="px-2 py-1.5 tabular text-muted-foreground">
-          {hit(`${t.num_seeds} (${t.total_seeds})`)}
-        </td>
-      );
-    case "peers":
-      return (
-        <td className="px-2 py-1.5 tabular text-muted-foreground">
-          {hit(`${t.num_peers} (${t.total_peers})`)}
-        </td>
-      );
-    case "label":
-      return <td className="px-2 py-1.5 text-muted-foreground">{hit(t.label || "—")}</td>;
-    case "avail":
-      return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.distributed_copies))}</td>;
-    case "added":
-      return (
-        <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.time_added))}</td>
-      );
-    case "tracker":
-      return (
-        <td className="truncate px-2 py-1.5 text-muted-foreground">
-          {hit(t.tracker_host || "—")}
-        </td>
-      );
-    case "save_path":
-      return (
-        <td className="truncate px-2 py-1.5 text-muted-foreground">
-          {hit(t.download_location || "—")}
-        </td>
-      );
-    case "downloaded":
-      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_done))}</td>;
-    case "uploaded":
-      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_uploaded))}</td>;
-    case "remaining":
-      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_remaining))}</td>;
-    case "complete_seen":
-      return (
-        <td className="px-2 py-1.5 tabular whitespace-nowrap">
-          {hit(formatDate(t.last_seen_complete))}
-        </td>
-      );
-    case "completed":
-      return (
-        <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.completed_time))}</td>
-      );
-    case "auto_managed":
-      return (
-        <td className="px-2 py-1.5 text-muted-foreground">{hit(t.is_auto_managed ? "Yes" : "No")}</td>
-      );
-    case "down_limit":
-      return <td className="px-2 py-1.5 tabular">{hit(formatLimit(t.max_download_speed))}</td>;
-    case "up_limit":
-      return <td className="px-2 py-1.5 tabular">{hit(formatLimit(t.max_upload_speed))}</td>;
-    case "seeds_peers":
-      return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.seeds_peers_ratio))}</td>;
-    case "last_transfer":
-      return <td className="px-2 py-1.5 tabular">{hit(formatDuration(t.time_since_transfer))}</td>;
-    }
-  })();
-  if (!cell) return null;
-  return cloneElement(cell, {
-    className: cn(cell.props.className, "overflow-hidden", sorted && "bg-muted/25"),
-  });
 }
