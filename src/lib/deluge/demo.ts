@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from "crypto";
 import { parseMagnetName, trackerHost } from "./format";
+import { isLtConfigPlugin } from "./plugin-pages";
 import {
   DEFAULT_FILE_PRIORITY,
   inventDemoFilesTree,
@@ -71,6 +72,12 @@ interface DemoState {
     state: string;
   };
   autoadd: Record<string, WatchDir>;
+  ltconfig: {
+    apply_on_start: boolean;
+    settings: Record<string, unknown>;
+    session: Record<string, unknown>;
+    original: Record<string, unknown>;
+  };
   uploads: Record<string, { name: string; size: number; filesTree: TorrentInfoDir; infoHash: string }>;
   lastTick: number;
 }
@@ -587,6 +594,7 @@ function createState(): DemoState {
       "Stats",
       "Toggle",
       "WebUi",
+      "ltConfig",
     ],
     enabledPlugins: [
       "Label",
@@ -642,6 +650,12 @@ function createState(): DemoState {
         label: "linux",
       },
     },
+    ltconfig: {
+      apply_on_start: false,
+      settings: {},
+      session: defaultLtSessionSettings(),
+      original: defaultLtSessionSettings(),
+    },
     uploads: {},
     lastTick: Date.now(),
   };
@@ -650,7 +664,18 @@ function createState(): DemoState {
 function getState(): DemoState {
   const g = globalThis as GlobalDemo;
   if (!g.__delugeNovaDemo) g.__delugeNovaDemo = createState();
-  return g.__delugeNovaDemo;
+  const state = g.__delugeNovaDemo;
+  if (!state.ltconfig) {
+    const session = defaultLtSessionSettings();
+    state.ltconfig = {
+      apply_on_start: false,
+      settings: {},
+      session,
+      original: defaultLtSessionSettings(),
+    };
+  }
+  if (!state.availablePlugins.includes("ltConfig")) state.availablePlugins.push("ltConfig");
+  return state;
 }
 
 function requireAuth(cookieHeader: string | null) {
@@ -899,8 +924,54 @@ function addTorrentFromName(
   return id;
 }
 
+function defaultLtSessionSettings(): Record<string, unknown> {
+  return {
+    connections_limit: 200,
+    active_downloads: 3,
+    active_seeds: 5,
+    active_checking: 1,
+    active_dht_limit: 88,
+    active_tracker_limit: 1600,
+    active_lsd_limit: 60,
+    active_limit: 8,
+    unchoke_slots_limit: -1,
+    connection_speed: 30,
+    send_buffer_watermark: 512000,
+    send_buffer_low_watermark: 10240,
+    send_buffer_watermark_factor: 50,
+    cache_size: 512,
+    cache_expiry: 60,
+    allow_multiple_connections_per_ip: false,
+    enable_outgoing_utp: true,
+    enable_incoming_utp: true,
+    enable_outgoing_tcp: true,
+    enable_incoming_tcp: true,
+    max_peerlist_size: 4000,
+    aio_threads: 4,
+    checking_mem_usage: 256,
+    request_timeout: 60,
+    peer_connect_timeout: 15,
+    inactivity_timeout: 600,
+    tick_interval: 500,
+    mixed_mode_algorithm: 0,
+    rate_limit_ip_overhead: true,
+    anonymous_mode: false,
+    strict_end_game_mode: true,
+    announce_to_all_trackers: false,
+    announce_to_all_tiers: false,
+    no_atime_storage: true,
+    close_redundant_connections: true,
+  };
+}
+
 function pluginEnabled(state: DemoState, name: string) {
-  return state.enabledPlugins.includes(name);
+  const target = name.toLowerCase();
+  return state.enabledPlugins.some((plugin) => plugin.toLowerCase() === target);
+}
+
+function alreadyEnabled(state: DemoState, name: string) {
+  if (isLtConfigPlugin(name)) return state.enabledPlugins.some(isLtConfigPlugin);
+  return pluginEnabled(state, name);
 }
 
 /** Match deluge-web JSON-RPC when a plugin method is not registered. */
@@ -908,6 +979,25 @@ function requirePlugin(state: DemoState, name: string) {
   if (!pluginEnabled(state, name)) {
     throw new Error("Unknown method");
   }
+}
+
+function requireLtConfig(state: DemoState) {
+  if (!state.enabledPlugins.some(isLtConfigPlugin)) {
+    throw new Error("Unknown method");
+  }
+}
+
+function currentLtSettings(state: DemoState) {
+  return { ...state.ltconfig.original, ...state.ltconfig.session };
+}
+
+function applyLtSettings(state: DemoState, settings: Record<string, unknown>) {
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(settings)) {
+    if (key in state.ltconfig.original) next[key] = value;
+  }
+  state.ltconfig.settings = next;
+  state.ltconfig.session = { ...state.ltconfig.original, ...next };
 }
 
 export interface DemoResult {
@@ -1066,13 +1156,15 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       case "web.enable_plugin":
       case "core.enable_plugin": {
         const name = String(params[0] ?? "");
-        if (name && !state.enabledPlugins.includes(name)) state.enabledPlugins.push(name);
+        if (name && !alreadyEnabled(state, name)) state.enabledPlugins.push(name);
         return { id, result: true, error: null };
       }
       case "web.disable_plugin":
       case "core.disable_plugin": {
         const name = String(params[0] ?? "");
-        state.enabledPlugins = state.enabledPlugins.filter((p) => p !== name);
+        state.enabledPlugins = isLtConfigPlugin(name)
+          ? state.enabledPlugins.filter((p) => !isLtConfigPlugin(p))
+          : state.enabledPlugins.filter((p) => p.toLowerCase() !== name.toLowerCase());
         return { id, result: true, error: null };
       }
       case "web.get_events":
@@ -1458,6 +1550,53 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         const watch = state.autoadd[String(params[0])];
         if (watch) watch.enabled = false;
         return { id, result: true, error: null };
+      }
+
+      case "ltconfig.get_settings":
+      case "itconfig.get_settings":
+      case "ltconfig.get_config":
+      case "itconfig.get_config":
+      case "ltconfig.get_lt_settings":
+      case "itconfig.get_lt_settings":
+        requireLtConfig(state);
+        return { id, result: currentLtSettings(state), error: null };
+      case "ltconfig.get_original_settings":
+      case "itconfig.get_original_settings":
+        requireLtConfig(state);
+        return { id, result: { ...state.ltconfig.original }, error: null };
+      case "ltconfig.get_preferences":
+      case "itconfig.get_preferences":
+        requireLtConfig(state);
+        return {
+          id,
+          result: {
+            apply_on_start: state.ltconfig.apply_on_start,
+            settings: { ...state.ltconfig.settings },
+          },
+          error: null,
+        };
+      case "ltconfig.set_preferences":
+      case "itconfig.set_preferences": {
+        requireLtConfig(state);
+        const prefs = (params[0] as { apply_on_start?: boolean; settings?: Record<string, unknown> }) || {};
+        if (typeof prefs.apply_on_start === "boolean") state.ltconfig.apply_on_start = prefs.apply_on_start;
+        applyLtSettings(state, prefs.settings || {});
+        return { id, result: null, error: null };
+      }
+      case "ltconfig.set_settings":
+      case "itconfig.set_settings":
+      case "ltconfig.set_config":
+      case "itconfig.set_config": {
+        requireLtConfig(state);
+        const body = (params[0] as Record<string, unknown>) || {};
+        if (body && typeof body === "object" && "settings" in body && body.settings && typeof body.settings === "object") {
+          const prefs = body as { apply_on_start?: boolean; settings: Record<string, unknown> };
+          if (typeof prefs.apply_on_start === "boolean") state.ltconfig.apply_on_start = prefs.apply_on_start;
+          applyLtSettings(state, prefs.settings);
+        } else {
+          applyLtSettings(state, body);
+        }
+        return { id, result: null, error: null };
       }
 
       default:

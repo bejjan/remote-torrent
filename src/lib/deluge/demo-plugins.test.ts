@@ -15,8 +15,10 @@ const webList = call(PLUGIN_RPC.webGetPlugins);
 assert.equal(webList.error, null, webList.error?.message);
 const webPlugins = webList.result as { available_plugins: string[]; enabled_plugins: string[] };
 assert.ok(webPlugins.available_plugins.includes("Stats"));
+assert.ok(webPlugins.available_plugins.includes("ltConfig"));
 assert.ok(webPlugins.enabled_plugins.includes("Label"));
 assert.equal(webPlugins.enabled_plugins.includes("Stats"), false);
+assert.equal(webPlugins.enabled_plugins.includes("ltConfig"), false);
 
 const available = call(PLUGIN_RPC.getAvailable);
 assert.equal(available.error, null);

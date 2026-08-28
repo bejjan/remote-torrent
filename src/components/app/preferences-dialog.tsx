@@ -21,32 +21,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LabelPrefPage, LtConfigPage, PluginStubPage } from "@/components/app/plugin-pref-pages";
 import { ProxyTypeSelect } from "@/components/app/proxy-type-select";
 import { rpc } from "@/lib/deluge/client";
+import {
+  LTCONFIG_PAGE_ID,
+  isUnknownPluginPage,
+  pluginNavItemForPage,
+  pluginPrefNavItems,
+} from "@/lib/deluge/plugin-pages";
 import { PLUGIN_RPC, pluginToggleErrorMessage, pluginToggleMethod } from "@/lib/deluge/plugins";
 import type { ExecuteCommand, WatchDir } from "@/lib/deluge/types";
 import { isWebSessionSpeedVisible, isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
-type Page =
-  | "downloads"
-  | "network"
-  | "bandwidth"
-  | "queue"
-  | "proxy"
-  | "cache"
-  | "daemon"
-  | "other"
-  | "interface"
-  | "plugins"
-  | "scheduler"
-  | "extractor"
-  | "execute"
-  | "notifications"
-  | "blocklist"
-  | "autoadd";
-
-const CORE_PAGES: { id: Page; label: string }[] = [
+const CORE_PAGES: { id: string; label: string }[] = [
   { id: "downloads", label: "Downloads" },
   { id: "network", label: "Network" },
   { id: "bandwidth", label: "Bandwidth" },
@@ -57,15 +46,6 @@ const CORE_PAGES: { id: Page; label: string }[] = [
   { id: "other", label: "Other" },
   { id: "interface", label: "Interface" },
   { id: "plugins", label: "Plugins" },
-];
-
-const PLUGIN_PAGES: { id: Page; label: string; plugin: string }[] = [
-  { id: "scheduler", label: "Scheduler", plugin: "Scheduler" },
-  { id: "extractor", label: "Extractor", plugin: "Extractor" },
-  { id: "execute", label: "Execute", plugin: "Execute" },
-  { id: "notifications", label: "Notifications", plugin: "Notifications" },
-  { id: "blocklist", label: "Blocklist", plugin: "Blocklist" },
-  { id: "autoadd", label: "AutoAdd", plugin: "AutoAdd" },
 ];
 
 async function fetchPluginLists(): Promise<{ available: string[]; enabled: string[] }> {
@@ -95,7 +75,7 @@ export function PreferencesDialog({
   onOpenChange: (open: boolean) => void;
   onWebConfigChange?: (web: Record<string, unknown>) => void;
 }) {
-  const [page, setPage] = useState<Page>("downloads");
+  const [page, setPage] = useState("downloads");
   const [core, setCore] = useState<Record<string, unknown>>({});
   const [web, setWeb] = useState<Record<string, unknown>>({});
   const [available, setAvailable] = useState<string[]>([]);
@@ -138,7 +118,8 @@ export function PreferencesDialog({
     }
   }
 
-  const pluginSet = new Set(enabled);
+  const pluginNav = pluginPrefNavItems(enabled);
+  const currentPlugin = pluginNavItemForPage(pluginNav, page);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,7 +137,7 @@ export function PreferencesDialog({
             <p className="mt-3 mb-1 px-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
               Plugins
             </p>
-            {PLUGIN_PAGES.filter((p) => pluginSet.has(p.plugin)).map((p) => (
+            {pluginNav.map((p) => (
               <NavBtn key={p.id} active={page === p.id} onClick={() => setPage(p.id)}>
                 {p.label}
               </NavBtn>
@@ -184,7 +165,7 @@ export function PreferencesDialog({
                       const lists = await fetchPluginLists();
                       setAvailable(lists.available);
                       setEnabled(lists.enabled);
-                      if (!on && PLUGIN_PAGES.some((p) => p.plugin === name && p.id === page)) {
+                      if (!on && !pluginPrefNavItems(lists.enabled).some((item) => item.id === page)) {
                         setPage("plugins");
                       }
                     } catch (err) {
@@ -193,12 +174,19 @@ export function PreferencesDialog({
                   }}
                 />
               )}
+              {page === "label" && <LabelPrefPage />}
               {page === "scheduler" && <SchedulerPage />}
               {page === "extractor" && <ExtractorPage />}
               {page === "execute" && <ExecutePage />}
               {page === "notifications" && <NotificationsPage />}
               {page === "blocklist" && <BlocklistPage />}
               {page === "autoadd" && <AutoAddPage />}
+              {page === LTCONFIG_PAGE_ID && currentPlugin && (
+                <LtConfigPage pluginName={currentPlugin.plugin} core={core} setCore={setCore} />
+              )}
+              {isUnknownPluginPage(page) && currentPlugin && (
+                <PluginStubPage name={currentPlugin.plugin} core={core} setCore={setCore} />
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -579,7 +567,7 @@ function PluginsPage({
   enabled: string[];
   onChange: (name: string, on: boolean) => void;
 }) {
-  const set = new Set(enabled);
+  const set = new Set(enabled.map((name) => name.toLowerCase()));
   return (
     <div className="grid gap-2">
       <p className="text-sm text-muted-foreground">
@@ -588,7 +576,7 @@ function PluginsPage({
       {available.map((name) => (
         <label key={name} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
           {name}
-          <Switch checked={set.has(name)} onCheckedChange={(v) => onChange(name, v)} />
+          <Switch checked={set.has(name.toLowerCase())} onCheckedChange={(v) => onChange(name, v)} />
         </label>
       ))}
     </div>
