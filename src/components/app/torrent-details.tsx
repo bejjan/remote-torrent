@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FilePrioritySelect } from "@/components/app/file-priority-select";
+import { OptionsForm } from "@/components/app/torrent-options-form";
 import { PeerCountry } from "@/components/app/peer-country";
 import { StateBadge } from "@/components/app/state-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rpc } from "@/lib/deluge/client";
 import { canonicalizeFilePriority, compactFilePriorities } from "@/lib/deluge/files-tree";
@@ -113,7 +112,7 @@ export function TorrentDetails({
         <PeerTable peers={peers} />
       </TabsContent>
       <TabsContent value="options" className="min-h-0 overflow-auto p-3">
-        <OptionsForm torrentId={torrentId} torrent={detail} />
+        <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
       </TabsContent>
       <TabsContent value="trackers" className="min-h-0 overflow-auto p-3">
         <TrackersForm torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
@@ -299,103 +298,6 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
         ))}
       </tbody>
     </table>
-  );
-}
-
-function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent: TorrentStatus }) {
-  const [maxDown, setMaxDown] = useState(String(torrent.max_download_speed));
-  const [maxUp, setMaxUp] = useState(String(torrent.max_upload_speed));
-  const [maxConn, setMaxConn] = useState(String(torrent.max_connections));
-  const [maxSlots, setMaxSlots] = useState(String(torrent.max_upload_slots));
-  const [auto, setAuto] = useState(torrent.is_auto_managed);
-  const [stopRatio, setStopRatio] = useState(torrent.stop_at_ratio);
-  const [ratio, setRatio] = useState(String(torrent.stop_ratio));
-  const [removeAt, setRemoveAt] = useState(torrent.remove_at_ratio);
-  const [move, setMove] = useState(torrent.move_completed);
-  const [movePath, setMovePath] = useState(torrent.move_completed_path);
-  const [superSeed, setSuperSeed] = useState(torrent.super_seeding);
-  const [firstLast, setFirstLast] = useState(torrent.prioritize_first_last);
-
-  async function save() {
-    try {
-      await rpc("core.set_torrent_options", [
-        [torrentId],
-        {
-          max_download_speed: Number(maxDown),
-          max_upload_speed: Number(maxUp),
-          max_connections: Number(maxConn),
-          max_upload_slots: Number(maxSlots),
-          is_auto_managed: auto,
-          stop_at_ratio: stopRatio,
-          stop_ratio: Number(ratio),
-          remove_at_ratio: removeAt,
-          move_completed: move,
-          move_completed_path: movePath,
-          super_seeding: superSeed,
-          prioritize_first_last: firstLast,
-        },
-      ]);
-      toast.success("Options saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
-    }
-  }
-
-  return (
-    <div className="grid max-w-xl gap-3">
-      <NumField label="Max download (KiB/s, −1 unlimited)" value={maxDown} onChange={setMaxDown} />
-      <NumField label="Max upload (KiB/s, −1 unlimited)" value={maxUp} onChange={setMaxUp} />
-      <NumField label="Max connections" value={maxConn} onChange={setMaxConn} />
-      <NumField label="Max upload slots" value={maxSlots} onChange={setMaxSlots} />
-      <Toggle label="Auto managed" checked={auto} onChange={setAuto} />
-      <Toggle label="Stop at ratio" checked={stopRatio} onChange={setStopRatio} />
-      <NumField label="Stop ratio" value={ratio} onChange={setRatio} />
-      <Toggle label="Remove at ratio" checked={removeAt} onChange={setRemoveAt} />
-      <Toggle label="Move completed" checked={move} onChange={setMove} />
-      <div className="grid gap-1.5">
-        <Label>Move completed path</Label>
-        <Input value={movePath} onChange={(e) => setMovePath(e.target.value)} />
-      </div>
-      <Toggle label="Super seeding" checked={superSeed} onChange={setSuperSeed} />
-      <Toggle label="Prioritize first/last" checked={firstLast} onChange={setFirstLast} />
-      <Button className="w-fit" onClick={() => void save()}>
-        Apply
-      </Button>
-    </div>
-  );
-}
-
-function NumField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <Switch checked={checked} onCheckedChange={onChange} />
-      {label}
-    </label>
   );
 }
 
