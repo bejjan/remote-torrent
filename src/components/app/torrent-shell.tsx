@@ -54,6 +54,12 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { rpc } from "@/lib/deluge/client";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
+import {
+  LABEL_RPC,
+  isLabelPluginEnabled,
+  isUnknownMethodMessage,
+  labelRpcErrorMessage,
+} from "@/lib/deluge/label-plugin";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import {
   applyColumnVisibility,
@@ -116,6 +122,7 @@ export function TorrentShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
+  const [labelPluginEnabled, setLabelPluginEnabled] = useState<boolean | null>(null);
   const [showZeroFilters, setShowZeroFilters] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [visibleColumnIds, setVisibleColumnIds] = useState<Set<TorrentColumnId>>(
@@ -220,19 +227,31 @@ export function TorrentShell({
 
   const refreshLabels = useCallback(async () => {
     try {
-      setLabels(await rpc<string[]>("label.get_labels"));
-    } catch {
+      let enabled = false;
+      try {
+        const plugins = await rpc<{ enabled_plugins?: string[] }>("web.get_plugins");
+        enabled = isLabelPluginEnabled(plugins);
+      } catch {
+        const list = await rpc<string[]>("core.get_enabled_plugins");
+        enabled = isLabelPluginEnabled(list);
+      }
+      setLabelPluginEnabled(enabled);
+      if (!enabled) {
+        setLabels([]);
+        return;
+      }
+      setLabels(await rpc<string[]>(LABEL_RPC.getLabels));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (isUnknownMethodMessage(message)) setLabelPluginEnabled(false);
       setLabels([]);
     }
   }, []);
 
   useEffect(() => {
-    void refreshLabels();
-  }, [refreshLabels]);
-
-  useEffect(() => {
     if (prefsOpen) return;
     let cancelled = false;
+    void refreshLabels();
     void rpc<Record<string, unknown>>("web.get_config")
       .then((web) => {
         if (!cancelled) applyWebUi(web);
@@ -246,7 +265,7 @@ export function TorrentShell({
     return () => {
       cancelled = true;
     };
-  }, [prefsOpen, applyWebUi]);
+  }, [prefsOpen, applyWebUi, refreshLabels]);
 
   useEffect(() => {
     const tree = ui?.filters;
@@ -257,14 +276,15 @@ export function TorrentShell({
         tree.state ?? [],
         tree.tracker_host ?? [],
         tree.label ?? [],
-        showZeroFilters
+        showZeroFilters,
+        labels
       );
       if (next.state === prev.state && next.tracker === prev.tracker && next.label === prev.label) {
         return prev;
       }
       return next;
     });
-  }, [ui?.filters, showZeroFilters]);
+  }, [ui?.filters, showZeroFilters, labels]);
 
   const torrents = useMemo(
     () => filterAndSortTorrents(ui?.torrents, search, sortKey, sortDir),
@@ -303,10 +323,10 @@ export function TorrentShell({
       const ids = torrentIds ?? [...selected];
       if (!ids.length) return;
       try {
-        for (const id of ids) await rpc("label.set_torrent", [id, label]);
+        for (const id of ids) await rpc(LABEL_RPC.setTorrent, [id, label]);
         await poll();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Label failed");
+        toast.error(labelRpcErrorMessage(err, "Label failed"));
       }
     },
     [poll, selected]
@@ -335,6 +355,11 @@ export function TorrentShell({
     }
     onLogout();
   }
+
+  const onLabelsChanged = useCallback(() => {
+    void refreshLabels();
+    void poll();
+  }, [refreshLabels, poll]);
 
   const openAdd = useCallback(() => setAddOpen(true), []);
 
@@ -478,10 +503,9 @@ export function TorrentShell({
                 selected={filters}
                 onSelect={setFilters}
                 showZero={showZeroFilters}
-                onLabelsChanged={() => {
-                  void refreshLabels();
-                  void poll();
-                }}
+                labelPluginEnabled={labelPluginEnabled}
+                definedLabels={labels}
+                onLabelsChanged={onLabelsChanged}
                 className="h-full min-w-0"
               />
             </aside>
@@ -530,10 +554,9 @@ export function TorrentShell({
               setSidebarOpen(false);
             }}
             showZero={showZeroFilters}
-            onLabelsChanged={() => {
-              void refreshLabels();
-              void poll();
-            }}
+            labelPluginEnabled={labelPluginEnabled}
+            definedLabels={labels}
+            onLabelsChanged={onLabelsChanged}
           />
         </SheetContent>
       </Sheet>

@@ -135,14 +135,19 @@ export function sidebarGroupRows(
     emptyLabel: string;
     namedAllLabel: string;
     emptyValue?: string;
+    /** Names that should appear even when count is 0 (e.g. labels from `label.get_labels`). */
+    knownNames?: string[];
   }
 ): SidebarFilterRow[] {
-  const { special, rest } = splitSpecialAll(normalizeFilterTuples(items));
+  const { special, rest } = splitSpecialAll(mergeKnownFilterNames(items, options.knownNames));
   const allCount = special ? special[1] : options.fallbackAllCount;
+  const known = new Set(options.knownNames ?? []);
   const rows: SidebarFilterRow[] = [
     { value: options.allValue, label: FILTER_ALL, count: allCount, isAll: true },
   ];
-  for (const [name, count] of visibleFilterTuples(rest, options.showZero)) {
+  for (const [name, count] of visibleFilterTuples(rest, options.showZero, (name) =>
+    Boolean(name) && known.has(name)
+  )) {
     rows.push({
       value: name ? name : (options.emptyValue ?? name),
       label: name === FILTER_ALL ? options.namedAllLabel : name || options.emptyLabel,
@@ -153,16 +158,34 @@ export function sidebarGroupRows(
   return rows;
 }
 
+/** Insert known filter names missing from `web.update_ui` so a fresh label still lists. */
+export function mergeKnownFilterNames(tree: unknown, names: string[] | undefined): FilterTuple[] {
+  const tuples = normalizeFilterTuples(tree);
+  if (!names?.length) return tuples;
+  const seen = new Set(tuples.map(([name]) => name));
+  const extra: FilterTuple[] = [];
+  for (const name of names) {
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      extra.push([name, 0]);
+    }
+  }
+  return extra.length ? [...tuples, ...extra] : tuples;
+}
+
 export function clampSidebarSelection(
   selected: SidebarFilterSelection,
   states: unknown,
   trackers: unknown,
   labels: unknown,
-  showZero: boolean
+  showZero: boolean,
+  knownLabels: string[] = []
 ): SidebarFilterSelection {
   const visStates = stateSidebarRows(states, showZero);
   const visTrackers = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(trackers)).rest, showZero);
-  const visLabels = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(labels)).rest, showZero);
+  const labelRest = splitSpecialAll(mergeKnownFilterNames(labels, knownLabels)).rest;
+  const keep = new Set(knownLabels);
+  const visLabels = visibleFilterTuples(labelRest, showZero, (name) => Boolean(name) && keep.has(name));
 
   const next: SidebarFilterSelection = { ...selected };
   if (!visStates.some(([name]) => name === selected.state)) next.state = FILTER_ALL;

@@ -26,6 +26,13 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { rpc } from "@/lib/deluge/client";
+import {
+  LABEL_PLUGIN_ENABLE_HINT,
+  LABEL_RPC,
+  invalidLabelIdMessage,
+  labelRpcErrorMessage,
+  normalizeLabelId,
+} from "@/lib/deluge/label-plugin";
 import { isVisibleFilterRow, sidebarGroupRows, stateAllCount, stateSidebarRows } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
@@ -37,6 +44,7 @@ export interface SidebarFilters {
 }
 
 const EMPTY_TUPLES: FilterTuple[] = [];
+const EMPTY_LABELS: string[] = [];
 
 const STATE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
   All: { Icon: ListFilter, className: "text-muted-foreground" },
@@ -55,6 +63,8 @@ export function FilterSidebar({
   onSelect,
   onLabelsChanged,
   showZero = false,
+  labelPluginEnabled = null,
+  definedLabels = EMPTY_LABELS,
   className,
 }: {
   filters: Record<string, FilterTuple[]> | null;
@@ -62,6 +72,8 @@ export function FilterSidebar({
   onSelect: (next: SidebarFilters) => void;
   onLabelsChanged?: () => void;
   showZero?: boolean;
+  labelPluginEnabled?: boolean | null;
+  definedLabels?: string[];
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
@@ -81,28 +93,33 @@ export function FilterSidebar({
     emptyLabel: "(no label)",
     namedAllLabel: "All (label)",
     emptyValue: "__none__",
+    knownNames: definedLabels,
   });
 
   async function addLabel() {
-    const name = newLabel.trim().toLowerCase();
-    if (!name) return;
+    const name = normalizeLabelId(newLabel);
+    const invalid = invalidLabelIdMessage(name);
+    if (invalid) {
+      if (name) toast.error(invalid);
+      return;
+    }
     try {
-      await rpc("label.add", [name]);
+      await rpc(LABEL_RPC.add, [name]);
       setNewLabel("");
       onLabelsChanged?.();
       toast.success(`Label “${name}” added`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not add label");
+      toast.error(labelRpcErrorMessage(err, "Could not add label"));
     }
   }
 
   async function removeLabel(name: string) {
     try {
-      await rpc("label.remove", [name]);
+      await rpc(LABEL_RPC.remove, [name]);
       if (selected.label === name) onSelect({ ...selected, label: "__all__" });
       onLabelsChanged?.();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not remove label");
+      toast.error(labelRpcErrorMessage(err, "Could not remove label"));
     }
   }
 
@@ -144,8 +161,8 @@ export function FilterSidebar({
                 onClick={() => onSelect({ ...selected, label: row.value })}
               />
             );
-            if (row.isAll || row.value === "__none__") {
-              return <div key={row.isAll ? "__all__" : "none"}>{item}</div>;
+            if (row.isAll || row.value === "__none__" || !labelPluginEnabled) {
+              return <div key={row.isAll ? "__all__" : row.value || "none"}>{item}</div>;
             }
             return (
               <ContextMenu key={row.value}>
@@ -159,27 +176,33 @@ export function FilterSidebar({
               </ContextMenu>
             );
           })}
-          <form
-            className="mt-1 flex gap-1"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void addLabel();
-            }}
-          >
-            <Input
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="New label"
-              className="h-7 text-xs"
-            />
-            <Button type="submit" size="icon-sm" variant="outline" aria-label="Add label">
-              <Plus />
-            </Button>
-          </form>
-          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Tag className="size-3" />
-            Right-click a label to remove it
-          </p>
+          {labelPluginEnabled ? (
+            <>
+              <form
+                className="mt-1 flex gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void addLabel();
+                }}
+              >
+                <Input
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder="New label"
+                  className="h-7 text-xs"
+                />
+                <Button type="submit" size="icon-sm" variant="outline" aria-label="Add label">
+                  <Plus />
+                </Button>
+              </form>
+              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Tag className="size-3" />
+                Right-click a label to remove it
+              </p>
+            </>
+          ) : labelPluginEnabled === false ? (
+            <p className="px-1 text-[11px] text-muted-foreground">{LABEL_PLUGIN_ENABLE_HINT}</p>
+          ) : null}
         </FilterGroup>
       </div>
     </ScrollArea>

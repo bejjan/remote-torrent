@@ -892,6 +892,13 @@ function pluginEnabled(state: DemoState, name: string) {
   return state.enabledPlugins.includes(name);
 }
 
+/** Match deluge-web JSON-RPC when a plugin method is not registered. */
+function requirePlugin(state: DemoState, name: string) {
+  if (!pluginEnabled(state, name)) {
+    throw new Error("Unknown method");
+  }
+}
+
 export interface DemoResult {
   id: number | string;
   result: unknown;
@@ -1296,16 +1303,23 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: sessionStats(state), error: null };
 
       case "label.get_labels":
-        if (!pluginEnabled(state, "Label")) throw new Error("Plugin not enabled");
+        requirePlugin(state, "Label");
         return { id, result: Object.keys(state.labels), error: null };
       case "label.add": {
+        requirePlugin(state, "Label");
         const name = String(params[0] ?? "").trim().toLowerCase();
-        if (!name) throw new Error("Invalid label");
+        if (!name) throw new Error("Empty Label");
+        if (!/^[a-z0-9_.-]+$/.test(name)) {
+          throw new Error("Invalid label, valid characters:[a-z0-9_-]");
+        }
+        if (name in state.labels) throw new Error("Label already exists");
         state.labels[name] = defaultLabelOptions();
         return { id, result: null, error: null };
       }
       case "label.remove": {
+        requirePlugin(state, "Label");
         const name = String(params[0]);
+        if (!(name in state.labels)) throw new Error("Unknown Label");
         delete state.labels[name];
         for (const t of Object.values(state.torrents)) {
           if (t.status.label === name) t.status.label = "";
@@ -1313,17 +1327,20 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: null, error: null };
       }
       case "label.set_torrent": {
+        requirePlugin(state, "Label");
         const extra = state.torrents[String(params[0])];
         if (extra) extra.status.label = String(params[1] ?? "") || undefined;
         return { id, result: null, error: null };
       }
       case "label.get_options":
+        requirePlugin(state, "Label");
         return {
           id,
           result: state.labels[String(params[0])] ?? defaultLabelOptions(),
           error: null,
         };
       case "label.set_options": {
+        requirePlugin(state, "Label");
         const name = String(params[0]);
         state.labels[name] = {
           ...defaultLabelOptions(),

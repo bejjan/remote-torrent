@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   clampSidebarSelection,
   completeStateFilters,
+  mergeKnownFilterNames,
   sidebarGroupRows,
   splitSpecialAll,
   stateAllCount,
@@ -339,6 +340,49 @@ const liveStates: FilterTuple[] = [
     false
   );
   assert.equal(next.state, "All");
+}
+
+{
+  const merged = mergeKnownFilterNames(
+    [
+      ["All", 10],
+      ["linux", 4],
+    ],
+    ["linux", "fresh"]
+  );
+  assert.ok(merged.some(([name, count]) => name === "fresh" && count === 0));
+  assert.equal(merged.find(([name]) => name === "linux")?.[1], 4);
+}
+
+{
+  const rows = sidebarGroupRows(
+    [
+      ["All", 10],
+      ["linux", 4],
+    ],
+    {
+      showZero: false,
+      fallbackAllCount: 10,
+      allValue: "__all__",
+      emptyLabel: "(no label)",
+      namedAllLabel: "All (label)",
+      emptyValue: "__none__",
+      knownNames: ["linux", "fresh"],
+    }
+  );
+  assert.ok(rows.some((row) => row.value === "fresh" && row.count === 0));
+}
+
+{
+  const next = clampSidebarSelection(
+    { state: "All", tracker: "", label: "fresh" },
+    states,
+    trackersWithAll,
+    [["linux", 200]],
+    false,
+    ["fresh"]
+  );
+  assert.equal(next.label, "fresh");
 }
 
 console.log("sidebar-filters tests passed");
