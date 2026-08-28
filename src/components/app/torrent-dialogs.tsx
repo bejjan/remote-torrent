@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,6 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,8 +36,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { rpc, uploadTorrent } from "@/lib/deluge/client";
+import { DelugeError, rpc, uploadTorrent } from "@/lib/deluge/client";
+import { formatBytes } from "@/lib/deluge/format";
+import {
+  FILE_PRIORITY_OPTIONS,
+  commonPriority,
+  compactFilePriorities,
+  infoFileIndexes,
+  infoTreeSize,
+  initialFilePriorities,
+  isMagnetUri,
+  normalizeFilesTree,
+  setPrioritiesForIndexes,
+  type TorrentFileInfo,
+  type TorrentInfoDir,
+  type TorrentInfoNode,
+} from "@/lib/deluge/files-tree";
 import type { AddTorrentOptions } from "@/lib/deluge/types";
+import { cn } from "@/lib/utils";
+
+const ADD_CONFIG_KEYS = [
+  "add_paused",
+  "download_location",
+  "move_completed",
+  "move_completed_path",
+  "prioritize_first_last_pieces",
+  "sequential_download",
+  "max_download_speed_per_torrent",
+  "max_upload_speed_per_torrent",
+] as const;
+
+type AddTab = "file" | "magnet" | "url";
+
+interface TorrentPreview {
+  path: string;
+  name: string;
+  infoHash: string;
+  tree: TorrentInfoDir | null;
+}
+
+function errMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export function AddTorrentDialog({
   open,
@@ -39,92 +88,334 @@ export function AddTorrentDialog({
   onOpenChange: (open: boolean) => void;
   defaultPath: string;
 }) {
-  const [tab, setTab] = useState("file");
+  const [tab, setTab] = useState<AddTab>("file");
   const [file, setFile] = useState<File | null>(null);
   const [magnet, setMagnet] = useState("");
+  const [url, setUrl] = useState("");
   const [downloadLocation, setDownloadLocation] = useState(defaultPath);
+  const [moveCompleted, setMoveCompleted] = useState(false);
+  const [moveCompletedPath, setMoveCompletedPath] = useState("");
   const [addPaused, setAddPaused] = useState(false);
   const [sequential, setSequential] = useState(false);
   const [firstLast, setFirstLast] = useState(false);
+  const [maxDown, setMaxDown] = useState("-1");
+  const [maxUp, setMaxUp] = useState("-1");
+  const [preview, setPreview] = useState<TorrentPreview | null>(null);
+  const [priorities, setPriorities] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loadingInfo, setLoadingInfo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
-    setBusy(true);
-    const options: AddTorrentOptions = {
+  useEffect(() => {
+    if (!open) return;
+    setTab("file");
+    setFile(null);
+    setMagnet("");
+    setUrl("");
+    setPreview(null);
+    setPriorities([]);
+    setError(null);
+    setBusy(false);
+    setLoadingInfo(false);
+    setDownloadLocation(defaultPath);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const cfg = await rpc<Record<string, unknown>>("core.get_config_values", [
+          [...ADD_CONFIG_KEYS],
+        ]);
+        if (cancelled) return;
+        if (typeof cfg.download_location === "string" && cfg.download_location) {
+          setDownloadLocation(cfg.download_location);
+        } else if (defaultPath) {
+          setDownloadLocation(defaultPath);
+        }
+        setMoveCompleted(Boolean(cfg.move_completed));
+        setMoveCompletedPath(
+          typeof cfg.move_completed_path === "string" ? cfg.move_completed_path : ""
+        );
+        setAddPaused(Boolean(cfg.add_paused));
+        setSequential(Boolean(cfg.sequential_download));
+        setFirstLast(Boolean(cfg.prioritize_first_last_pieces));
+        if (typeof cfg.max_download_speed_per_torrent === "number") {
+          setMaxDown(String(cfg.max_download_speed_per_torrent));
+        }
+        if (typeof cfg.max_upload_speed_per_torrent === "number") {
+          setMaxUp(String(cfg.max_upload_speed_per_torrent));
+        }
+      } catch {
+        if (!cancelled && defaultPath) setDownloadLocation(defaultPath);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, defaultPath]);
+
+  function applyInfo(path: string, info: TorrentFileInfo | false | null | Record<string, unknown>) {
+    if (!info || typeof info !== "object" || !("info_hash" in info) || !info.info_hash) {
+      throw new DelugeError("Not a valid torrent");
+    }
+    const typed = info as TorrentFileInfo;
+    const tree = normalizeFilesTree(typed.files_tree);
+    setPreview({
+      path,
+      name: typed.name || path.split("/").pop() || "Torrent",
+      infoHash: String(typed.info_hash),
+      tree,
+    });
+    setPriorities(initialFilePriorities(tree));
+  }
+
+  async function onPickFile(next: File | null) {
+    setFile(next);
+    setPreview(null);
+    setPriorities([]);
+    setError(null);
+    if (!next) return;
+    setLoadingInfo(true);
+    try {
+      const path = await uploadTorrent(next);
+      const info = await rpc<TorrentFileInfo | false>("web.get_torrent_info", [path]);
+      applyInfo(path, info);
+    } catch (err) {
+      setPreview(null);
+      setError(errMessage(err, "Failed to upload torrent"));
+    } finally {
+      setLoadingInfo(false);
+    }
+  }
+
+  async function loadMagnetInfo(uri: string) {
+    const trimmed = uri.trim();
+    setError(null);
+    setPreview(null);
+    setPriorities([]);
+    if (!trimmed) return;
+    if (!isMagnetUri(trimmed)) {
+      setError("Paste a magnet URI starting with magnet:?xt=urn:btih:");
+      return;
+    }
+    setLoadingInfo(true);
+    try {
+      const info = await rpc<TorrentFileInfo | Record<string, never>>("web.get_magnet_info", [
+        trimmed,
+      ]);
+      if (!info || typeof info !== "object" || !("info_hash" in info) || !info.info_hash) {
+        throw new DelugeError("Invalid magnet URI");
+      }
+      setPreview({
+        path: trimmed,
+        name: info.name || "Magnet download",
+        infoHash: String(info.info_hash),
+        tree: normalizeFilesTree(info.files_tree),
+      });
+      setPriorities([]);
+    } catch (err) {
+      setError(errMessage(err, "Failed to parse magnet URI"));
+    } finally {
+      setLoadingInfo(false);
+    }
+  }
+
+  async function loadUrlInfo(source: string): Promise<TorrentPreview> {
+    const trimmed = source.trim();
+    if (!trimmed) throw new DelugeError("Paste an HTTP(S) URL to a .torrent file");
+    if (isMagnetUri(trimmed)) {
+      throw new DelugeError("Use the Magnet tab for magnet URIs");
+    }
+    const path = await rpc<string>("web.download_torrent_from_url", [trimmed]);
+    if (!path) throw new DelugeError("Failed to download torrent from URL");
+    const info = await rpc<TorrentFileInfo | false>("web.get_torrent_info", [path]);
+    if (!info || typeof info !== "object" || !info.info_hash) {
+      throw new DelugeError("Not a valid torrent");
+    }
+    const tree = normalizeFilesTree(info.files_tree);
+    const next: TorrentPreview = {
+      path,
+      name: info.name || trimmed.split("/").pop() || "Torrent",
+      infoHash: String(info.info_hash),
+      tree,
+    };
+    setPreview(next);
+    setPriorities(initialFilePriorities(tree));
+    return next;
+  }
+
+  async function fetchUrl() {
+    setError(null);
+    setLoadingInfo(true);
+    try {
+      await loadUrlInfo(url);
+    } catch (err) {
+      setPreview(null);
+      setError(errMessage(err, "Failed to download torrent from URL"));
+    } finally {
+      setLoadingInfo(false);
+    }
+  }
+
+  function optionsFromForm(): AddTorrentOptions {
+    const down = Number(maxDown);
+    const up = Number(maxUp);
+    return {
       download_location: downloadLocation,
+      move_completed: moveCompleted,
+      move_completed_path: moveCompleted ? moveCompletedPath : undefined,
       add_paused: addPaused,
       sequential_download: sequential,
       prioritize_first_last_pieces: firstLast,
+      max_download_speed: Number.isFinite(down) ? down : -1,
+      max_upload_speed: Number.isFinite(up) ? up : -1,
+      file_priorities: compactFilePriorities(priorities),
     };
+  }
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    const options = optionsFromForm();
     try {
       if (tab === "file") {
-        if (!file) {
-          toast.error("Choose a .torrent file");
-          return;
-        }
-        const path = await uploadTorrent(file);
-        await rpc("web.add_torrents", [[{ path, options }]]);
-      } else {
+        if (!file) throw new DelugeError("Choose a .torrent file");
+        if (!preview) throw new DelugeError("Wait for the torrent contents to load, or pick the file again");
+        await rpc("web.add_torrents", [[{ path: preview.path, options }]]);
+      } else if (tab === "magnet") {
         const lines = magnet
           .split(/\n+/)
           .map((s) => s.trim())
           .filter(Boolean);
-        if (!lines.length) {
-          toast.error("Paste a magnet URI or HTTP URL");
-          return;
-        }
+        if (!lines.length) throw new DelugeError("Paste a magnet URI");
         for (const line of lines) {
-          if (line.startsWith("magnet:")) {
-            await rpc("core.add_torrent_magnet", [line, options]);
-          } else {
-            await rpc("core.add_torrent_url", [line, options]);
+          if (!isMagnetUri(line)) {
+            throw new DelugeError("Invalid magnet URI");
           }
+          await rpc("core.add_torrent_magnet", [line, options]);
         }
+      } else {
+        const ready = preview ?? (await loadUrlInfo(url));
+        await rpc("web.add_torrents", [[{ path: ready.path, options }]]);
       }
       toast.success("Torrent added");
       onOpenChange(false);
-      setFile(null);
-      setMagnet("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Add failed");
+      const message = errMessage(err, "Failed to add torrent");
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
 
+  const canAdd =
+    !busy &&
+    !loadingInfo &&
+    (tab === "file" ? Boolean(preview) : tab === "magnet" ? magnet.trim().length > 0 : url.trim().length > 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add torrent</DialogTitle>
-          <DialogDescription>Upload a torrent file or paste a magnet / URL.</DialogDescription>
+          <DialogDescription>
+            Upload a .torrent, paste a magnet, or fetch from a URL. File contents and options match
+            the official Deluge Web add dialog.
+          </DialogDescription>
         </DialogHeader>
-        <Tabs value={tab} onValueChange={setTab}>
+        <Tabs
+          value={tab}
+          onValueChange={(value) => {
+            setTab(value as AddTab);
+            setError(null);
+            if (value !== tab) {
+              setPreview(null);
+              setPriorities([]);
+            }
+          }}
+        >
           <TabsList className="w-full">
             <TabsTrigger value="file">File</TabsTrigger>
-            <TabsTrigger value="magnet">Magnet / URL</TabsTrigger>
+            <TabsTrigger value="magnet">Magnet</TabsTrigger>
+            <TabsTrigger value="url">URL</TabsTrigger>
           </TabsList>
-          <TabsContent value="file" className="pt-3">
+          <TabsContent value="file" className="grid gap-3 pt-3">
             <Input
               type="file"
               accept=".torrent,application/x-bittorrent"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
             />
+            {file ? (
+              <p className="text-xs text-muted-foreground">
+                {file.name} · {formatBytes(file.size)}
+              </p>
+            ) : null}
           </TabsContent>
-          <TabsContent value="magnet" className="pt-3">
+          <TabsContent value="magnet" className="grid gap-3 pt-3">
             <Textarea
               rows={4}
-              placeholder="magnet:?xt=urn:btih:… or https://example.com/file.torrent"
+              placeholder="magnet:?xt=urn:btih:…"
               value={magnet}
               onChange={(e) => setMagnet(e.target.value)}
+              onBlur={() => {
+                const first = magnet.split(/\n+/).map((s) => s.trim()).find(Boolean);
+                if (first) void loadMagnetInfo(first);
+              }}
             />
           </TabsContent>
+          <TabsContent value="url" className="grid gap-3 pt-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://example.com/file.torrent"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void fetchUrl();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" disabled={loadingInfo || !url.trim()} onClick={() => void fetchUrl()}>
+                Load
+              </Button>
+            </div>
+          </TabsContent>
         </Tabs>
+        {loadingInfo ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            {tab === "file" ? "Uploading and reading torrent…" : tab === "url" ? "Downloading torrent…" : "Reading magnet…"}
+          </div>
+        ) : null}
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {preview ? <TorrentPreviewCard preview={preview} priorities={priorities} onPriorities={setPriorities} /> : null}
         <div className="grid gap-3">
           <div className="grid gap-1.5">
-            <Label>Download location</Label>
-            <Input value={downloadLocation} onChange={(e) => setDownloadLocation(e.target.value)} />
+            <Label htmlFor="add-download-location">Download location</Label>
+            <Input
+              id="add-download-location"
+              value={downloadLocation}
+              onChange={(e) => setDownloadLocation(e.target.value)}
+            />
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={moveCompleted} onCheckedChange={setMoveCompleted} />
+            Move completed
+          </label>
+          {moveCompleted ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor="add-move-completed">Move completed path</Label>
+              <Input
+                id="add-move-completed"
+                value={moveCompletedPath}
+                onChange={(e) => setMoveCompletedPath(e.target.value)}
+              />
+            </div>
+          ) : null}
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={addPaused} onCheckedChange={setAddPaused} />
             Add in paused state
@@ -137,17 +428,169 @@ export function AddTorrentDialog({
             <Switch checked={firstLast} onCheckedChange={setFirstLast} />
             Prioritize first and last pieces
           </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="add-max-down">Max download (KiB/s, −1 unlimited)</Label>
+              <Input id="add-max-down" value={maxDown} onChange={(e) => setMaxDown(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="add-max-up">Max upload (KiB/s, −1 unlimited)</Label>
+              <Input id="add-max-up" value={maxUp} onChange={(e) => setMaxUp(e.target.value)} />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={busy} onClick={() => void submit()}>
-            Add
+          <Button disabled={!canAdd} onClick={() => void submit()}>
+            {busy ? "Adding…" : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TorrentPreviewCard({
+  preview,
+  priorities,
+  onPriorities,
+}: {
+  preview: TorrentPreview;
+  priorities: number[];
+  onPriorities: (next: number[]) => void;
+}) {
+  const fileCount = preview.tree ? infoFileIndexes(preview.tree).length : 0;
+  return (
+    <div className="grid gap-2 rounded-lg border p-3">
+      <div className="grid gap-1">
+        <p className="truncate font-medium">{preview.name}</p>
+        <p className="truncate font-mono text-xs text-muted-foreground">{preview.infoHash}</p>
+        {preview.tree ? (
+          <p className="text-xs text-muted-foreground">
+            {fileCount} file{fileCount === 1 ? "" : "s"} · {formatBytes(infoTreeSize(preview.tree))}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">File list is available after metadata is downloaded.</p>
+        )}
+      </div>
+      {preview.tree ? (
+        <div className="max-h-56 overflow-auto rounded-md border bg-muted/30 px-2 py-1">
+          <AddFilesTree
+            name={preview.name}
+            node={preview.tree}
+            path=""
+            depth={0}
+            priorities={priorities}
+            onPriorities={onPriorities}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AddFilesTree({
+  name,
+  node,
+  path,
+  depth,
+  priorities,
+  onPriorities,
+}: {
+  name: string;
+  node: TorrentInfoNode;
+  path: string;
+  depth: number;
+  priorities: number[];
+  onPriorities: (next: number[]) => void;
+}) {
+  const [open, setOpen] = useState(depth < 2);
+  if (node.type === "file") {
+    const value = String(priorities[node.index] ?? 4);
+    return (
+      <div className="flex items-center gap-2 py-1 text-sm">
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(node.length)}</span>
+        <PrioritySelect
+          value={value}
+          onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, [node.index], next))}
+        />
+      </div>
+    );
+  }
+  const indexes = infoFileIndexes(node);
+  const shared = commonPriority(priorities, indexes);
+  return (
+    <div className="text-sm">
+      <div className="flex items-center gap-2 py-1">
+        <button
+          type="button"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </button>
+        <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+        <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
+        <PrioritySelect
+          value={shared == null ? "mixed" : String(shared)}
+          mixed={shared == null}
+          onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, indexes, next))}
+        />
+      </div>
+      <div className={cn(open ? "ml-3 border-l pl-3" : "hidden")}>
+        {Object.entries(node.contents).map(([childName, child]) => (
+          <AddFilesTree
+            key={childName}
+            name={childName}
+            node={child}
+            path={`${path}/${childName}`}
+            depth={depth + 1}
+            priorities={priorities}
+            onPriorities={onPriorities}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PrioritySelect({
+  value,
+  mixed,
+  onChange,
+}: {
+  value: string;
+  mixed?: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        if (v == null || v === "mixed") return;
+        onChange(Number(v));
+      }}
+    >
+      <SelectTrigger size="sm" className="w-36">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {mixed ? (
+          <SelectItem value="mixed" disabled>
+            Mixed
+          </SelectItem>
+        ) : null}
+        {FILE_PRIORITY_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={String(opt.value)}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
