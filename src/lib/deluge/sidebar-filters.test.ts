@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { FilterSidebar } from "../../components/app/filter-sidebar";
 import {
   clampSidebarSelection,
   completeStateFilters,
+  isVisibleFilterRow,
   mergeKnownFilterNames,
   sidebarGroupRows,
   splitSpecialAll,
@@ -383,6 +390,72 @@ const liveStates: FilterTuple[] = [
     ["fresh"]
   );
   assert.equal(next.label, "fresh");
+}
+
+/** Same decision FilterButton makes after injecting the live catalog. */
+function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
+  return completeStateFilters(tree).filter(([name, count]) =>
+    isVisibleFilterRow(name, count, showZero, name === "All")
+  );
+}
+
+{
+  const painted = paintStateRows(liveStates, false);
+  assert.ok(!painted.some(([name]) => name === "Paused"), "Paused:0 must be hidden at render");
+  assert.ok(!painted.some(([name]) => name === "Checking"));
+  assert.ok(!painted.some(([name, count]) => name !== "All" && count === 0));
+  assert.ok(painted.some(([name, count]) => name === "All" && count === 42));
+  assert.deepEqual(
+    painted.map(([name]) => name),
+    ["All", "Downloading", "Seeding", "Queued", "Active"]
+  );
+}
+
+{
+  const painted = paintStateRows(liveStates, true);
+  assert.ok(painted.some(([name, count]) => name === "Paused" && count === 0));
+}
+
+{
+  const src = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../../components/app/filter-sidebar.tsx"),
+    "utf8"
+  );
+  assert.match(src, /completeStateFilters\(filters\?\.state\)/, "paint the injected catalog");
+  assert.match(
+    src,
+    /function FilterButton\([\s\S]*isVisibleFilterRow/,
+    "zeros must be dropped in FilterButton, not only in helpers"
+  );
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: {
+        state: liveStates,
+        tracker_host: [
+          ["All", 42],
+          ["dead.example", 0],
+          ["live.example", 12],
+        ],
+        label: [
+          ["All", 42],
+          ["linux", 4],
+          ["movies", 0],
+        ],
+      },
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      showZero: false,
+    })
+  );
+  assert.equal(html.includes("Paused"), false, "live Paused:0 must not appear in the DOM");
+  assert.equal(html.includes("Checking"), false);
+  assert.equal(html.includes("Downloading"), true);
+  assert.match(html, />All</);
+  assert.equal(html.includes("movies"), false);
+  assert.equal(html.includes("dead.example"), false);
 }
 
 console.log("sidebar-filters tests passed");
