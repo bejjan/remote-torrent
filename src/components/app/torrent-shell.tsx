@@ -471,15 +471,15 @@ export function TorrentShell({
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Session menu" />}>
             <MoreHorizontal />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setHostsOpen(true)}>
+          <DropdownMenuContent align="end" className="min-w-52">
+            <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
               <Server /> Connection Manager
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onManageHosts()}>
+            <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
               <Server /> Open hosts page
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void logout()}>
+            <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
               <LogOut /> Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
