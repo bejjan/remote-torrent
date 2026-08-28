@@ -144,10 +144,6 @@ export function TorrentShell({
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const splitRef = useRef<HTMLDivElement>(null);
-  const sidebarWidthRef = useRef(sidebarWidth);
-  const columnWidthsRef = useRef(columnWidths);
-  sidebarWidthRef.current = sidebarWidth;
-  columnWidthsRef.current = columnWidths;
 
   useEffect(() => {
     setVisibleColumnIds(loadTorrentColumnVisibility());
@@ -169,24 +165,24 @@ export function TorrentShell({
     return widthFor(SELECT_COLUMN_ID) + shownColumns.reduce((sum, column) => sum + widthFor(column.id), 0);
   }, [shownColumns, widthFor]);
 
-  const persistSidebarWidth = useCallback(() => {
-    saveSidebarWidth(sidebarWidthRef.current);
-  }, []);
-
-  const persistColumnWidths = useCallback(() => {
-    saveTorrentColumnWidths(columnWidthsRef.current);
-  }, []);
-
   const resizeColumn = useCallback((id: string, dx: number) => {
-    setColumnWidths((prev) => ({
-      ...prev,
-      [id]: clampColumnWidth(columnWidthFor(id, prev) + dx, id),
-    }));
+    setColumnWidths((prev) => {
+      const next = {
+        ...prev,
+        [id]: clampColumnWidth(columnWidthFor(id, prev) + dx, id),
+      };
+      saveTorrentColumnWidths(next);
+      return next;
+    });
   }, []);
 
   const resizeSidebar = useCallback((dx: number) => {
     const containerWidth = splitRef.current?.getBoundingClientRect().width;
-    setSidebarWidth((width) => clampSidebarWidth(width + dx, containerWidth));
+    setSidebarWidth((width) => {
+      const next = clampSidebarWidth(width + dx, containerWidth);
+      saveSidebarWidth(next);
+      return next;
+    });
   }, []);
 
   function setColumnVisible(id: TorrentColumnId, visible: boolean) {
@@ -474,7 +470,6 @@ export function TorrentShell({
                   <DragResizeHandle
                     ariaLabel="Resize selection column"
                     onDelta={(dx) => resizeColumn(SELECT_COLUMN_ID, dx)}
-                    onDragEnd={persistColumnWidths}
                   />
                 </th>
                 {shownColumns.map((column) => (
@@ -484,7 +479,6 @@ export function TorrentShell({
                     active={sortKey === column.sortKey}
                     dir={sortDir}
                     onResize={(dx) => resizeColumn(column.id, dx)}
-                    onResizeEnd={persistColumnWidths}
                   >
                     {column.label}
                   </Th>
@@ -697,7 +691,6 @@ export function TorrentShell({
               variant="sidebar"
               ariaLabel="Resize filter sidebar"
               onDelta={resizeSidebar}
-              onDragEnd={persistSidebarWidth}
             />
           </>
         ) : null}
@@ -822,14 +815,12 @@ function Th({
   active,
   dir,
   onResize,
-  onResizeEnd,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   active: boolean;
   dir: "asc" | "desc";
   onResize: (dx: number) => void;
-  onResizeEnd: () => void;
 }) {
   return (
     <th
@@ -855,11 +846,7 @@ function Th({
           <span className="text-[10px] text-foreground">{dir === "asc" ? "▲" : "▼"}</span>
         ) : null}
       </button>
-      <DragResizeHandle
-        ariaLabel="Resize column"
-        onDelta={onResize}
-        onDragEnd={onResizeEnd}
-      />
+      <DragResizeHandle ariaLabel="Resize column" onDelta={onResize} />
     </th>
   );
 }
