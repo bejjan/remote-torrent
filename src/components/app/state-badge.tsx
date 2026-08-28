@@ -22,14 +22,23 @@ export function StateBadge({
   state,
   children,
   message,
+  className,
 }: {
   state: TorrentState;
   children?: ReactNode;
   /** Deluge torrent `message`; shown when `state` is Error. */
   message?: string | null;
+  className?: string;
 }) {
   const badge = (
-    <Badge variant="outline" className={cn("font-medium", STYLES[state] || STYLES.Paused)}>
+    <Badge
+      variant="outline"
+      className={cn(
+        "inline-block max-w-full min-w-0 font-medium truncate",
+        STYLES[state] || STYLES.Paused,
+        className
+      )}
+    >
       {children ?? state}
     </Badge>
   );
@@ -38,7 +47,10 @@ export function StateBadge({
 
   return (
     <Tooltip>
-      <TooltipTrigger delay={200} render={<span className="inline-flex cursor-help" />}>
+      <TooltipTrigger
+        delay={200}
+        render={<span className="inline-flex max-w-full min-w-0 cursor-help" />}
+      >
         {badge}
       </TooltipTrigger>
       <TooltipContent className="max-w-sm text-left whitespace-normal break-words">

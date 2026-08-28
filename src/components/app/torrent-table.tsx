@@ -595,7 +595,7 @@ const TorrentRow = memo(function TorrentRow({
           />
         }
       >
-        <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+        <td className="overflow-hidden px-2 py-1.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={selected}
             onCheckedChange={(v) => {
@@ -783,20 +783,20 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
           <td className="px-2 py-1.5 tabular text-muted-foreground">{hit(formatQueue(t.queue))}</td>
         );
       case "name":
-        return <td className="truncate px-2 py-1.5 font-medium">{hit(t.name)}</td>;
+        return <td className="px-2 py-1.5 font-medium">{hit(t.name)}</td>;
       case "size":
         return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_wanted))}</td>;
       case "progress":
         return (
           <td className="px-2 py-1.5">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn("h-full rounded-full", stateBarClass(t.state))}
                   style={{ width: `${Math.min(100, t.progress)}%` }}
                 />
               </div>
-              <span className="tabular text-xs">{hit(formatProgress(t.progress))}</span>
+              <span className="shrink-0 tabular text-xs">{hit(formatProgress(t.progress))}</span>
             </div>
           </td>
         );
@@ -841,18 +841,14 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       case "avail":
         return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.distributed_copies))}</td>;
       case "added":
-        return (
-          <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.time_added))}</td>
-        );
+        return <td className="px-2 py-1.5 tabular">{hit(formatDate(t.time_added))}</td>;
       case "tracker":
         return (
-          <td className="truncate px-2 py-1.5 text-muted-foreground">
-            {hit(t.tracker_host || "—")}
-          </td>
+          <td className="px-2 py-1.5 text-muted-foreground">{hit(t.tracker_host || "—")}</td>
         );
       case "save_path":
         return (
-          <td className="truncate px-2 py-1.5 text-muted-foreground">
+          <td className="px-2 py-1.5 text-muted-foreground">
             {hit(t.download_location || "—")}
           </td>
         );
@@ -863,15 +859,9 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       case "remaining":
         return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_remaining))}</td>;
       case "complete_seen":
-        return (
-          <td className="px-2 py-1.5 tabular whitespace-nowrap">
-            {hit(formatDate(t.last_seen_complete))}
-          </td>
-        );
+        return <td className="px-2 py-1.5 tabular">{hit(formatDate(t.last_seen_complete))}</td>;
       case "completed":
-        return (
-          <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.completed_time))}</td>
-        );
+        return <td className="px-2 py-1.5 tabular">{hit(formatDate(t.completed_time))}</td>;
       case "auto_managed":
         return (
           <td className="px-2 py-1.5 text-muted-foreground">{hit(t.is_auto_managed ? "Yes" : "No")}</td>
@@ -887,7 +877,14 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
     }
   })();
   if (!cell) return null;
-  return cloneElement(cell as ReactElement<{ className?: string }>, {
-    className: cn(cell.props.className, "overflow-hidden", sorted && "bg-muted/25"),
+  const typed = cell as ReactElement<{ className?: string; children?: React.ReactNode }>;
+  return cloneElement(typed, {
+    className: cn(
+      typed.props.className,
+      // table-layout:fixed still lets min-content wrap; max-w-0 + nowrap/ellipsis clips to the col width.
+      "max-w-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap",
+      sorted && "bg-muted/25"
+    ),
+    children: <div className="min-w-0 truncate">{typed.props.children}</div>,
   });
 });
