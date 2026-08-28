@@ -78,7 +78,7 @@ export function AboutDialog({
           <DialogDescription>{ABOUT_TAGLINE}</DialogDescription>
         </DialogHeader>
         <dl className="grid gap-1.5 text-sm">
-          <VersionRow label={ABOUT_APP_NAME} value={info?.uiVersion ?? UI_VERSION} />
+          <VersionRow label="This UI" value={info?.uiVersion ?? UI_VERSION} />
           <VersionRow label="Deluge" value={info?.daemonVersion ?? null} loading={loading} />
           <VersionRow label="libtorrent" value={info?.libtorrentVersion ?? null} loading={loading} />
         </dl>

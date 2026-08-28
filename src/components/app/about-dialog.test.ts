@@ -19,6 +19,7 @@ assert.match(shell, /disabled:opacity-40/);
 assert.match(shell, /core\.get_enabled_plugins/);
 
 const dialog = readFileSync(join(dir, "about-dialog.tsx"), "utf8");
+assert.match(dialog, /This UI/);
 assert.match(dialog, /ABOUT_TAGLINE/);
 assert.match(dialog, /core\.get_version|ABOUT_RPC|loadAboutInfo/);
 assert.match(dialog, /GPL-3\.0|ABOUT_LICENSE/);
