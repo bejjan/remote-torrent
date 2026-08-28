@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FilePrioritySelect } from "@/components/app/file-priority-select";
@@ -72,6 +72,19 @@ function errMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
 }
 
+function torrentFileFromList(files: FileList | null): File | null {
+  if (!files?.length) return null;
+  const listed = Array.from(files);
+  return (
+    listed.find(
+      (item) =>
+        item.name.toLowerCase().endsWith(".torrent") || item.type === "application/x-bittorrent"
+    ) ??
+    listed[0] ??
+    null
+  );
+}
+
 export function AddTorrentDialog({
   open,
   onOpenChange,
@@ -98,11 +111,15 @@ export function AddTorrentDialog({
   const [busy, setBusy] = useState(false);
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileDragOver, setFileDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setTab("file");
     setFile(null);
+    setFileDragOver(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setMagnet("");
     setUrl("");
     setPreview(null);
@@ -328,16 +345,63 @@ export function AddTorrentDialog({
             <TabsTrigger value="url">URL</TabsTrigger>
           </TabsList>
           <TabsContent value="file" className="grid gap-3 pt-3">
-            <Input
-              type="file"
-              accept=".torrent,application/x-bittorrent"
-              onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
-            />
-            {file ? (
-              <p className="text-xs text-muted-foreground">
-                {file.name} · {formatBytes(file.size)}
-              </p>
-            ) : null}
+            <div
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setFileDragOver(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                setFileDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                const next = e.relatedTarget;
+                if (next instanceof Node && e.currentTarget.contains(next)) return;
+                setFileDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setFileDragOver(false);
+                const next = torrentFileFromList(e.dataTransfer.files);
+                if (!next) return;
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                void onPickFile(next);
+              }}
+              className={cn(
+                "grid gap-2 rounded-lg border border-dashed p-3 transition-colors",
+                fileDragOver
+                  ? "border-foreground/35 bg-muted/70 dark:bg-input/50"
+                  : "border-input bg-muted/25 dark:bg-input/20"
+              )}
+            >
+              <input
+                ref={fileInputRef}
+                id="add-torrent-file"
+                type="file"
+                accept=".torrent,application/x-bittorrent"
+                className="hidden"
+                tabIndex={-1}
+                onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
+              />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-describedby="add-torrent-file-name"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload />
+                  Choose torrent file
+                </Button>
+                <p
+                  id="add-torrent-file-name"
+                  className="min-w-0 truncate text-sm text-muted-foreground"
+                >
+                  {file ? `${file.name} · ${formatBytes(file.size)}` : "No file chosen"}
+                </p>
+              </div>
+            </div>
           </TabsContent>
           <TabsContent value="magnet" className="grid gap-3 pt-3">
             <Textarea
