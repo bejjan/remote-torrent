@@ -310,10 +310,6 @@ export function AddTorrentDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add torrent</DialogTitle>
-          <DialogDescription>
-            Upload a .torrent, paste a magnet, or fetch from a URL. File contents and options match
-            the official Deluge Web add dialog.
-          </DialogDescription>
         </DialogHeader>
         <Tabs
           value={tab}
