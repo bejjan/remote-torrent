@@ -120,7 +120,7 @@ export function TorrentDetails({
         <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
       </TabsContent>
       <TabsContent value="trackers" className="min-h-0 overflow-auto p-3">
-        <TrackersForm torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
+        <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
       </TabsContent>
     </Tabs>
   );
@@ -187,8 +187,8 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
         </tr>
       </thead>
       <tbody>
-        {peers.map((p) => (
-          <tr key={p.ip} className="border-t">
+        {peers.map((p, i) => (
+          <tr key={`${p.ip}-${i}`} className="border-t">
             <td className="py-1 font-mono text-xs">{p.ip}</td>
             <td className="py-1">{p.client}</td>
             <td className="py-1">

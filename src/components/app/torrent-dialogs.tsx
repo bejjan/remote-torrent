@@ -115,9 +115,14 @@ export function AddTorrentDialog({
   const [fileDragOver, setFileDragOver] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadGen = useRef(0);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      loadGen.current += 1;
+      return;
+    }
+    const gen = ++loadGen.current;
     setTab("file");
     setFile(null);
     setFileDragOver(false);
@@ -137,7 +142,7 @@ export function AddTorrentDialog({
         const cfg = await rpc<Record<string, unknown>>("core.get_config_values", [
           [...ADD_CONFIG_KEYS],
         ]);
-        if (cancelled) return;
+        if (cancelled || gen !== loadGen.current) return;
         if (typeof cfg.download_location === "string" && cfg.download_location) {
           setDownloadLocation(cfg.download_location);
         } else if (defaultPath) {
@@ -181,6 +186,7 @@ export function AddTorrentDialog({
   }
 
   async function onPickFile(next: File | null) {
+    const gen = ++loadGen.current;
     setFile(next);
     setPreview(null);
     setPriorities([]);
@@ -190,17 +196,20 @@ export function AddTorrentDialog({
     try {
       const path = await uploadTorrent(next);
       const info = await rpc<TorrentFileInfo | false>("web.get_torrent_info", [path]);
+      if (gen !== loadGen.current) return;
       applyInfo(path, info);
     } catch (err) {
+      if (gen !== loadGen.current) return;
       setPreview(null);
       setError(errMessage(err, "Failed to upload torrent"));
     } finally {
-      setLoadingInfo(false);
+      if (gen === loadGen.current) setLoadingInfo(false);
     }
   }
 
   async function loadMagnetInfo(uri: string) {
     const trimmed = uri.trim();
+    const gen = ++loadGen.current;
     setError(null);
     setPreview(null);
     setPriorities([]);
@@ -214,6 +223,7 @@ export function AddTorrentDialog({
       const info = await rpc<TorrentFileInfo | Record<string, never>>("web.get_magnet_info", [
         trimmed,
       ]);
+      if (gen !== loadGen.current) return;
       if (!info || typeof info !== "object" || !("info_hash" in info) || !info.info_hash) {
         throw new DelugeError("Invalid magnet URI");
       }
@@ -225,21 +235,25 @@ export function AddTorrentDialog({
       });
       setPriorities([]);
     } catch (err) {
+      if (gen !== loadGen.current) return;
       setError(errMessage(err, "Failed to parse magnet URI"));
     } finally {
-      setLoadingInfo(false);
+      if (gen === loadGen.current) setLoadingInfo(false);
     }
   }
 
   async function loadUrlInfo(source: string): Promise<TorrentPreview> {
     const trimmed = source.trim();
+    const gen = loadGen.current;
     if (!trimmed) throw new DelugeError("Paste an HTTP(S) URL to a .torrent file");
     if (isMagnetUri(trimmed)) {
       throw new DelugeError("Use the Magnet tab for magnet URIs");
     }
     const path = await rpc<string>("web.download_torrent_from_url", [trimmed]);
+    if (gen !== loadGen.current) throw new DelugeError("Cancelled");
     if (!path) throw new DelugeError("Failed to download torrent from URL");
     const info = await rpc<TorrentFileInfo | false>("web.get_torrent_info", [path]);
+    if (gen !== loadGen.current) throw new DelugeError("Cancelled");
     if (!info || typeof info !== "object" || !info.info_hash) {
       throw new DelugeError("Not a valid torrent");
     }
@@ -256,15 +270,18 @@ export function AddTorrentDialog({
   }
 
   async function fetchUrl() {
+    const gen = ++loadGen.current;
     setError(null);
     setLoadingInfo(true);
     try {
       await loadUrlInfo(url);
+      if (gen !== loadGen.current) return;
     } catch (err) {
+      if (gen !== loadGen.current) return;
       setPreview(null);
       setError(errMessage(err, "Failed to download torrent from URL"));
     } finally {
-      setLoadingInfo(false);
+      if (gen === loadGen.current) setLoadingInfo(false);
     }
   }
 
@@ -338,8 +355,10 @@ export function AddTorrentDialog({
             setTab(value as AddTab);
             setError(null);
             if (value !== tab) {
+              loadGen.current += 1;
               setPreview(null);
               setPriorities([]);
+              setLoadingInfo(false);
             }
           }}
         >
@@ -711,6 +730,10 @@ export function RemoveTorrentDialog({
 }) {
   const [removeData, setRemoveData] = useState(false);
 
+  useEffect(() => {
+    if (open) setRemoveData(false);
+  }, [open]);
+
   async function confirm() {
     try {
       if (ids.length === 1) {
@@ -765,6 +788,10 @@ export function MoveTorrentDialog({
   currentPath: string;
 }) {
   const [path, setPath] = useState(currentPath);
+
+  useEffect(() => {
+    if (open) setPath(currentPath);
+  }, [open, currentPath]);
 
   async function submit() {
     try {

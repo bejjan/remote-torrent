@@ -20,8 +20,9 @@ assert.deepEqual(
 );
 
 assert.equal(PROXY_TYPE_OPTIONS.length, 6);
+const proxyLabels: Record<string, string> = PROXY_TYPE_SELECT_ITEMS;
 for (const opt of PROXY_TYPE_OPTIONS) {
-  assert.equal(PROXY_TYPE_SELECT_ITEMS[String(opt.value)], opt.label);
+  assert.equal(proxyLabels[String(opt.value)], opt.label);
 }
 
 assert.equal(canonicalizeProxyType(0), 0);
