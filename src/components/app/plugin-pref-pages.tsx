@@ -32,7 +32,7 @@ export function SettingValueInput({
   onChange: (next: unknown) => void;
 }) {
   if (typeof value === "boolean") {
-    return <Switch checked={value} onCheckedChange={onChange} />;
+    return <Switch checked={value === true} onCheckedChange={(v) => onChange(v === true)} />;
   }
   if (typeof value === "number") {
     return (
@@ -197,7 +197,7 @@ export function LtConfigPage({
         Libtorrent session settings. Changing these can affect swarm behavior.
       </p>
       <label className="flex items-center gap-2 text-sm">
-        <Switch checked={applyOnStart} onCheckedChange={setApplyOnStart} />
+        <Switch checked={applyOnStart === true} onCheckedChange={(v) => setApplyOnStart(v === true)} />
         Apply on start
       </label>
       <Field label="Filter settings">
