@@ -105,9 +105,11 @@ import {
 } from "@/lib/deluge/ui-layout";
 import {
   DEFAULT_DOCUMENT_TITLE,
+  holdLastSessionRates,
   isWebSessionSpeedVisible,
   isWebSidebarVisible,
   sessionSpeedDocumentTitle,
+  writeDocumentTitleIfChanged,
 } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
@@ -302,7 +304,6 @@ export function TorrentShell({
         if (!cancelled) {
           setShowZeroFilters(false);
           setShowSidebar(true);
-          setShowSessionSpeed(true);
         }
       });
     return () => {
@@ -338,15 +339,22 @@ export function TorrentShell({
   const primary = activeId && ui?.torrents?.[activeId] ? activeId : selectedIds[0] ?? null;
   const primaryTorrent = primary ? (ui?.torrents?.[primary] as TorrentStatus | undefined) : null;
   const stats = ui?.stats as SessionStats | null;
-  const downloadRate = stats?.download_rate ?? 0;
-  const uploadRate = stats?.upload_rate ?? 0;
+  const lastRatesRef = useRef({ download: 0, upload: 0 });
+  const rates = holdLastSessionRates(lastRatesRef.current, stats);
+  lastRatesRef.current = rates;
+  const downloadRate = rates.download;
+  const uploadRate = rates.upload;
+  const speedTitle = sessionSpeedDocumentTitle(downloadRate, uploadRate, showSessionSpeed);
 
   useEffect(() => {
-    document.title = sessionSpeedDocumentTitle(downloadRate, uploadRate, showSessionSpeed);
+    writeDocumentTitleIfChanged(document, speedTitle);
+  }, [speedTitle]);
+
+  useEffect(() => {
     return () => {
       document.title = DEFAULT_DOCUMENT_TITLE;
     };
-  }, [downloadRate, uploadRate, showSessionSpeed]);
+  }, []);
 
   const toggleSort = useCallback((key: TorrentSortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));

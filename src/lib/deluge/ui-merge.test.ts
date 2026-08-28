@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mergeUiUpdate, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
+import { mergeSessionStats, mergeUiUpdate, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
 import type { SessionStats, TorrentStatus, UiUpdate } from "./types";
 
 function torrent(partial: Partial<TorrentStatus> & Pick<TorrentStatus, "name">): TorrentStatus {
@@ -134,6 +134,45 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
   const merged = mergeUiUpdate(prev, next);
   assert.notEqual(merged.torrents, prev.torrents);
   assert.equal(merged.torrents?.ida.progress, 50);
+}
+
+{
+  const prevStats: SessionStats = {
+    max_download: -1,
+    max_upload: -1,
+    max_num_connections: 200,
+    num_connections: 4,
+    upload_rate: 2048,
+    download_rate: 4096,
+    download_protocol_rate: 0,
+    upload_protocol_rate: 0,
+    dht_nodes: 12,
+    has_incoming_connections: true,
+    free_space: 1,
+    external_ip: "1.1.1.1",
+  };
+  assert.equal(mergeSessionStats(prevStats, null), prevStats);
+  assert.equal(mergeSessionStats(null, null), null);
+  assert.notEqual(
+    mergeSessionStats(prevStats, { ...prevStats, download_rate: 1 }),
+    prevStats
+  );
+
+  const prev: UiUpdate = {
+    connected: true,
+    torrents: { ida: a },
+    filters: null,
+    stats: prevStats,
+  };
+  const next: UiUpdate = {
+    connected: false,
+    torrents: { ida: a },
+    filters: null,
+    stats: null,
+  };
+  const merged = mergeUiUpdate(prev, next);
+  assert.equal(merged.stats, prevStats);
+  assert.equal(merged.connected, false);
 }
 
 console.log("ui-merge tests passed");

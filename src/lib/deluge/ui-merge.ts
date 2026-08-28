@@ -39,6 +39,19 @@ export function reuseTorrentMap(
   return out;
 }
 
+/**
+ * A poll with `stats: null` is a missed frame (in-flight, disconnected, or
+ * partial update) — keep the previous snapshot instead of wiping rates to 0.
+ */
+export function mergeSessionStats(
+  prev: SessionStats | null | undefined,
+  next: SessionStats | null | undefined
+): SessionStats | null {
+  if (!next) return prev ?? null;
+  if (prev && statsEqual(prev, next)) return prev;
+  return next;
+}
+
 function statsEqual(a: SessionStats, b: SessionStats): boolean {
   if (a === b) return true;
   return (
@@ -65,8 +78,7 @@ export function mergeUiUpdate(prev: UiUpdate | null, next: UiUpdate): UiUpdate {
   if (!prev) return next;
 
   const torrents = reuseTorrentMap(prev.torrents, next.torrents);
-  const stats =
-    prev.stats && next.stats && statsEqual(prev.stats, next.stats) ? prev.stats : next.stats;
+  const stats = mergeSessionStats(prev.stats, next.stats);
   const filters = next.filters;
 
   if (
