@@ -437,6 +437,15 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     src,
     /function allTrackersIcon\([\s\S]*<ListFilter className="size-3\.5 text-muted-foreground" \/>/
   );
+  assert.match(src, /loadSidebarCollapsedGroups/);
+  assert.match(src, /saveSidebarCollapsedGroups/);
+  assert.match(src, /aria-expanded=\{!collapsed\}/);
+  assert.match(src, /ChevronDown/);
+  assert.match(src, /ChevronRight/);
+  assert.match(src, /id="state"/);
+  assert.match(src, /id="trackers"/);
+  assert.match(src, /id="labels"/);
+  assert.match(src, /useState\(\(\) => new Set<string>\(\)\)/, "default all expanded");
   assert.match(formatSrc, /icons\.duckduckgo\.com\/ip3/);
   assert.match(formatSrc, /s2\/favicons/);
   assert.match(formatSrc, /favicon\.yandex\.net\/favicon/);
@@ -481,6 +490,15 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     false,
     "the Trackers All row must not fetch a favicon"
   );
+  assert.match(html, /aria-expanded="true"/, "groups default to expanded");
+  assert.equal(html.includes("aria-expanded=\"false\""), false, "no group starts collapsed");
+  assert.match(html, />State</);
+  assert.match(html, />Trackers</);
+  assert.match(html, />Labels</);
+  assert.match(html, /id="sidebar-group-state"/);
+  assert.match(html, /id="sidebar-group-trackers"/);
+  assert.match(html, /id="sidebar-group-labels"/);
+  assert.match(html, /lucide-chevron-down/, "expanded headers show a down chevron");
 }
 
 {

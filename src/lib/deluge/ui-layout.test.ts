@@ -11,6 +11,7 @@ import {
   DETAILS_MIN_HEIGHT,
   MAIN_MIN_WIDTH,
   SELECT_COLUMN_ID,
+  SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
@@ -21,9 +22,12 @@ import {
   columnWidthFor,
   defaultColumnWidth,
   minColumnWidth,
+  parseStoredCollapsedGroups,
   parseStoredColumnWidths,
   parseStoredDetailsHeight,
   parseStoredSidebarWidth,
+  serializeCollapsedGroups,
+  toggleCollapsedGroup,
 } from "./ui-layout";
 
 assert.equal(clampSidebarWidth(Number.NaN), SIDEBAR_DEFAULT_WIDTH);
@@ -62,6 +66,23 @@ assert.deepEqual(parseStoredColumnWidths(JSON.stringify({ name: "wide" })), {});
 assert.equal(columnWidthFor("name", {}), defaultColumnWidth("name"));
 assert.equal(columnWidthFor("name", { name: 400 }), 400);
 assert.equal(defaultColumnWidth("unknown-col"), 100);
+
+assert.equal(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY, "deluge-nova:sidebar-collapsed-groups");
+assert.deepEqual([...parseStoredCollapsedGroups(null)], []);
+assert.deepEqual([...parseStoredCollapsedGroups("")], []);
+assert.deepEqual([...parseStoredCollapsedGroups("not-json")], []);
+assert.deepEqual([...parseStoredCollapsedGroups("{}")], []);
+assert.deepEqual([...parseStoredCollapsedGroups("[]")], []);
+assert.deepEqual([...parseStoredCollapsedGroups(JSON.stringify(["state", "", 3, "labels"]))], [
+  "state",
+  "labels",
+]);
+assert.deepEqual(serializeCollapsedGroups(["labels", "state", "labels", ""]), ["labels", "state"]);
+{
+  const collapsed = toggleCollapsedGroup(new Set(), "trackers");
+  assert.deepEqual([...collapsed], ["trackers"]);
+  assert.deepEqual([...toggleCollapsedGroup(collapsed, "trackers")], []);
+}
 
 assert.equal(DETAILS_HEIGHT_STORAGE_KEY, "deluge-nova:details-height");
 assert.equal(clampDetailsHeight(Number.NaN), DETAILS_DEFAULT_HEIGHT);

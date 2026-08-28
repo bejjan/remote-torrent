@@ -5,6 +5,8 @@ import {
   Activity,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ChevronDown,
+  ChevronRight,
   CircleAlert,
   Clock,
   Globe,
@@ -47,6 +49,11 @@ import {
   stateAllCount,
 } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
+import {
+  loadSidebarCollapsedGroups,
+  saveSidebarCollapsedGroups,
+  toggleCollapsedGroup,
+} from "@/lib/deluge/ui-layout";
 import { cn } from "@/lib/utils";
 
 export interface SidebarFilters {
@@ -89,6 +96,7 @@ export function FilterSidebar({
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set<string>());
   // Live Deluge injects every state at 0. Paint the catalog; FilterButton drops zeros.
   const stateCatalog = completeStateFilters(filters?.state);
   const torrentCount = stateAllCount(stateCatalog);
@@ -108,6 +116,18 @@ export function FilterSidebar({
     emptyValue: "__none__",
     knownNames: definedLabels,
   });
+
+  useEffect(() => {
+    setCollapsedGroups(loadSidebarCollapsedGroups());
+  }, []);
+
+  function toggleGroup(id: string) {
+    setCollapsedGroups((current) => {
+      const next = toggleCollapsedGroup(current, id);
+      saveSidebarCollapsedGroups(next);
+      return next;
+    });
+  }
 
   async function addLabel() {
     const name = normalizeLabelId(newLabel);
@@ -139,7 +159,13 @@ export function FilterSidebar({
   return (
     <ScrollArea className={cn("h-full", className)}>
       <div className="flex flex-col gap-5 p-3">
-        <FilterGroup title="State">
+        <FilterGroup
+          id="state"
+          title="State"
+          collapsed={collapsedGroups.has("state")}
+          onToggle={() => toggleGroup("state")}
+          count={torrentCount}
+        >
           {stateCatalog.map(([name, count]) => (
             <FilterButton
               key={name}
@@ -153,7 +179,13 @@ export function FilterSidebar({
             />
           ))}
         </FilterGroup>
-        <FilterGroup title="Trackers">
+        <FilterGroup
+          id="trackers"
+          title="Trackers"
+          collapsed={collapsedGroups.has("trackers")}
+          onToggle={() => toggleGroup("trackers")}
+          count={torrentCount}
+        >
           {trackers.map((row) => (
             <FilterButton
               key={row.isAll ? "__all__" : row.value || "(empty)"}
@@ -167,7 +199,13 @@ export function FilterSidebar({
             />
           ))}
         </FilterGroup>
-        <FilterGroup title="Labels">
+        <FilterGroup
+          id="labels"
+          title="Labels"
+          collapsed={collapsedGroups.has("labels")}
+          onToggle={() => toggleGroup("labels")}
+          count={torrentCount}
+        >
           {labels.map((row) => {
             const item = (
               <FilterButton
@@ -310,13 +348,46 @@ function LetterAvatar({ letter }: { letter: string }) {
   );
 }
 
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function FilterGroup({
+  id,
+  title,
+  collapsed,
+  onToggle,
+  count,
+  children,
+}: {
+  id: string;
+  title: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  const panelId = `sidebar-group-${id}`;
   return (
     <section>
-      <h3 className="mb-1.5 px-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        {title}
+      <h3 className="mb-1.5">
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          aria-controls={panelId}
+          onClick={onToggle}
+          className="flex w-full items-center gap-1 rounded-md px-1 py-0.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          {collapsed ? (
+            <ChevronRight className="size-3 shrink-0" aria-hidden />
+          ) : (
+            <ChevronDown className="size-3 shrink-0" aria-hidden />
+          )}
+          <span className="min-w-0 flex-1 truncate">{title}</span>
+          {count != null ? (
+            <span className="tabular-nums font-normal normal-case tracking-normal">{count}</span>
+          ) : null}
+        </button>
       </h3>
-      <div className="flex flex-col gap-0.5">{children}</div>
+      <div id={panelId} hidden={collapsed} className={collapsed ? "hidden" : "flex flex-col gap-0.5"}>
+        {children}
+      </div>
     </section>
   );
 }

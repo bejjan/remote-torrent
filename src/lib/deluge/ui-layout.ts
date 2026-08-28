@@ -3,6 +3,8 @@
 export const SIDEBAR_WIDTH_STORAGE_KEY = "deluge-nova:sidebar-width";
 export const DETAILS_HEIGHT_STORAGE_KEY = "deluge-nova:details-height";
 export const TORRENT_COLUMN_WIDTHS_STORAGE_KEY = "deluge-nova:torrent-column-widths";
+/** Collapsed filter-sidebar group ids. Default is all expanded (empty set). */
+export const SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY = "deluge-nova:sidebar-collapsed-groups";
 
 export const SELECT_COLUMN_ID = "select";
 
@@ -130,6 +132,51 @@ export function parseStoredColumnWidths(
     return out;
   } catch {
     return {};
+  }
+}
+
+export function parseStoredCollapsedGroups(raw: string | null | undefined): Set<string> {
+  if (!raw) return new Set();
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed.filter((value): value is string => typeof value === "string" && value.length > 0)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+export function serializeCollapsedGroups(ids: Iterable<string>): string[] {
+  return [...new Set([...ids].filter((id) => id.length > 0))].sort();
+}
+
+export function toggleCollapsedGroup(collapsed: ReadonlySet<string>, id: string): Set<string> {
+  const next = new Set(collapsed);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+export function loadSidebarCollapsedGroups(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    return parseStoredCollapsedGroups(localStorage.getItem(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY));
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveSidebarCollapsedGroups(ids: Iterable<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
+      JSON.stringify(serializeCollapsedGroups(ids))
+    );
+  } catch {
+    /* quota / private mode */
   }
 }
 
