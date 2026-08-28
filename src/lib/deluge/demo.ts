@@ -517,7 +517,15 @@ function seedTorrents(): Record<string, ExtraTorrent> {
             contents: {
               "bbb_sunflower_1080p.mp4": fileLeaf(0, 800 * 1024 ** 2, 1),
               "poster.jpg": fileLeaf(1, 2 * 1024 ** 2, 1, 1, 800 * 1024 ** 2),
-              "README.txt": fileLeaf(2, 4096, 1, 1, 802 * 1024 ** 2),
+              "bbb.en.srt": fileLeaf(2, 48 * 1024, 1, 1, 802 * 1024 ** 2),
+              "README.txt": fileLeaf(3, 4096, 1, 1, 802 * 1024 ** 2 + 48 * 1024),
+              extras: {
+                type: "dir",
+                contents: {
+                  "soundtrack.flac": fileLeaf(4, 6 * 1024 ** 2, 1),
+                  "stills.zip": fileLeaf(5, 2 * 1024 ** 2, 1),
+                },
+              },
             },
           },
         },
