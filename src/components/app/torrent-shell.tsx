@@ -615,7 +615,14 @@ function ToolBtn({
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button variant="ghost" size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick} />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+            className="disabled:opacity-40 disabled:text-muted-foreground"
+          />
         }
       >
         {children}
