@@ -25,9 +25,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { STATE_FILTERS } from "@/lib/deluge/keys";
 import { rpc } from "@/lib/deluge/client";
-import { sidebarGroupRows, stateAllCount, visibleFilterTuples } from "@/lib/deluge/sidebar-filters";
+import { isVisibleFilterRow, sidebarGroupRows, stateAllCount, stateSidebarRows } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +36,6 @@ export interface SidebarFilters {
   label: string;
 }
 
-const EMPTY_STATES: FilterTuple[] = STATE_FILTERS.map((s) => [s, 0]);
 const EMPTY_TUPLES: FilterTuple[] = [];
 
 const STATE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
@@ -67,7 +65,7 @@ export function FilterSidebar({
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
-  const states = visibleFilterTuples(filters?.state ?? EMPTY_STATES, showZero, (name) => name === "All");
+  const states = stateSidebarRows(filters?.state, showZero);
   const torrentCount = stateAllCount(states);
   const trackers = sidebarGroupRows(filters?.tracker_host ?? EMPTY_TUPLES, {
     showZero,
@@ -112,16 +110,18 @@ export function FilterSidebar({
     <ScrollArea className={cn("h-full", className)}>
       <div className="flex flex-col gap-5 p-3">
         <FilterGroup title="State">
-          {states.map(([name, count]) => (
-            <FilterButton
-              key={name}
-              label={name}
-              count={count}
-              active={selected.state === name}
-              icon={stateIcon(name)}
-              onClick={() => onSelect({ ...selected, state: name })}
-            />
-          ))}
+          {states.map(([name, count]) =>
+            isVisibleFilterRow(name, count, showZero, name === "All") ? (
+              <FilterButton
+                key={name}
+                label={name}
+                count={count}
+                active={selected.state === name}
+                icon={stateIcon(name)}
+                onClick={() => onSelect({ ...selected, state: name })}
+              />
+            ) : null
+          )}
         </FilterGroup>
         <FilterGroup title="Trackers">
           {trackers.map((row) => (

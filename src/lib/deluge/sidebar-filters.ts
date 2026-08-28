@@ -1,3 +1,4 @@
+import { STATE_FILTERS } from "./keys";
 import type { FilterTuple } from "./types";
 
 export const FILTER_ALL = "All";
@@ -18,13 +19,82 @@ export interface SidebarFilterRow {
   isAll: boolean;
 }
 
-/** Hide empty rows unless Deluge's "show zero" preference is on. "All" stays visible. */
+/** Coerce JSON from `web.update_ui` into `[name, count]` rows. */
+export function normalizeFilterTuples(items: unknown): FilterTuple[] {
+  if (items == null) return [];
+  if (Array.isArray(items)) {
+    const out: FilterTuple[] = [];
+    for (const item of items) {
+      const tuple = coerceFilterTuple(item);
+      if (tuple) out.push(tuple);
+    }
+    return out;
+  }
+  if (typeof items === "object") {
+    return Object.entries(items as Record<string, unknown>).flatMap((entry) => {
+      const tuple = coerceFilterTuple(entry);
+      return tuple ? [tuple] : [];
+    });
+  }
+  return [];
+}
+
+function coerceFilterTuple(item: unknown): FilterTuple | null {
+  if (Array.isArray(item) && item.length >= 2 && item[0] != null) {
+    const n = Number(item[1]);
+    return [String(item[0]), Number.isFinite(n) ? n : 0];
+  }
+  if (item && typeof item === "object") {
+    const rec = item as Record<string, unknown>;
+    if ("filter" in rec && "count" in rec && rec.filter != null) {
+      const n = Number(rec.count);
+      return [String(rec.filter), Number.isFinite(n) ? n : 0];
+    }
+  }
+  return null;
+}
+
+/** Hide empty rows unless Deluge's "show zero" preference is on. */
+export function isVisibleFilterRow(name: string, count: number, showZero: boolean, alwaysShow = false): boolean {
+  return alwaysShow || showZero || Number(count) > 0;
+}
+
 export function visibleFilterTuples(
   items: FilterTuple[],
   showZero: boolean,
   alwaysShow: (name: string) => boolean = () => false
 ): FilterTuple[] {
-  return items.filter(([name, count]) => showZero || count > 0 || alwaysShow(name));
+  return items.filter(([name, count]) => isVisibleFilterRow(name, count, showZero, alwaysShow(name)));
+}
+
+/**
+ * Live Deluge `core.get_filter_tree` always injects every known state at 0
+ * (`_init_state_tree`). Keep that full catalog, then hide zeros unless
+ * `sidebar_show_zero` is on. Extra live states (Allocating, Moving) stay.
+ */
+export function completeStateFilters(
+  items: unknown,
+  catalog: readonly string[] = STATE_FILTERS
+): FilterTuple[] {
+  const counts = new Map<string, number>();
+  for (const [name, count] of normalizeFilterTuples(items)) {
+    counts.set(name, count);
+  }
+  const rows: FilterTuple[] = [];
+  const seen = new Set<string>();
+  for (const name of catalog) {
+    seen.add(name);
+    rows.push([name, counts.get(name) ?? 0]);
+  }
+  for (const [name, count] of counts) {
+    if (!seen.has(name)) rows.push([name, count]);
+  }
+  return rows;
+}
+
+/** State sidebar rows: inject the full catalog, then drop count === 0. */
+export function stateSidebarRows(items: unknown, showZero: boolean): FilterTuple[] {
+  return visibleFilterTuples(completeStateFilters(items), showZero, (name) => name === FILTER_ALL);
 }
 
 export function stateAllCount(states: FilterTuple[]): number {
@@ -57,7 +127,7 @@ export function splitSpecialAll(items: FilterTuple[]): {
  * `web.update_ui` when present; only synthesizes All when the list omits it.
  */
 export function sidebarGroupRows(
-  items: FilterTuple[],
+  items: unknown,
   options: {
     showZero: boolean;
     fallbackAllCount: number;
@@ -67,7 +137,7 @@ export function sidebarGroupRows(
     emptyValue?: string;
   }
 ): SidebarFilterRow[] {
-  const { special, rest } = splitSpecialAll(items);
+  const { special, rest } = splitSpecialAll(normalizeFilterTuples(items));
   const allCount = special ? special[1] : options.fallbackAllCount;
   const rows: SidebarFilterRow[] = [
     { value: options.allValue, label: FILTER_ALL, count: allCount, isAll: true },
@@ -85,14 +155,14 @@ export function sidebarGroupRows(
 
 export function clampSidebarSelection(
   selected: SidebarFilterSelection,
-  states: FilterTuple[],
-  trackers: FilterTuple[],
-  labels: FilterTuple[],
+  states: unknown,
+  trackers: unknown,
+  labels: unknown,
   showZero: boolean
 ): SidebarFilterSelection {
-  const visStates = visibleFilterTuples(states, showZero, (name) => name === FILTER_ALL);
-  const visTrackers = visibleFilterTuples(splitSpecialAll(trackers).rest, showZero);
-  const visLabels = visibleFilterTuples(splitSpecialAll(labels).rest, showZero);
+  const visStates = stateSidebarRows(states, showZero);
+  const visTrackers = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(trackers)).rest, showZero);
+  const visLabels = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(labels)).rest, showZero);
 
   const next: SidebarFilterSelection = { ...selected };
   if (!visStates.some(([name]) => name === selected.state)) next.state = FILTER_ALL;

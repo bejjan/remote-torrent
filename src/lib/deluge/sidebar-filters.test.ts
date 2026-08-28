@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import {
   clampSidebarSelection,
+  completeStateFilters,
   sidebarGroupRows,
   splitSpecialAll,
   stateAllCount,
+  stateSidebarRows,
   visibleFilterTuples,
   type SidebarFilterRow,
 } from "./sidebar-filters";
@@ -269,5 +271,74 @@ assert.deepEqual(
   visibleFilterTuples(states, false, (name) => name === "All").map(([name]) => name),
   ["All", "Downloading", "Seeding", "Paused"]
 );
+
+// --- Live Deluge injects every state at 0; hide those rows ---
+const liveStates: FilterTuple[] = [
+  ["Active", 2],
+  ["All", 42],
+  ["Allocating", 0],
+  ["Checking", 0],
+  ["Downloading", 5],
+  ["Error", 0],
+  ["Moving", 0],
+  ["Paused", 0],
+  ["Queued", 1],
+  ["Seeding", 34],
+];
+
+{
+  const completed = completeStateFilters(liveStates);
+  assert.equal(completed.find(([name]) => name === "Paused")?.[1], 0);
+  assert.equal(completed.find(([name]) => name === "Checking")?.[1], 0);
+  assert.ok(completed.some(([name]) => name === "Allocating"));
+}
+
+{
+  const rows = stateSidebarRows(liveStates, false);
+  assert.deepEqual(
+    rows.map(([name]) => name),
+    ["All", "Downloading", "Seeding", "Queued", "Active"]
+  );
+  assert.ok(!rows.some(([name, count]) => name !== "All" && count === 0));
+  assert.ok(!rows.some(([name]) => name === "Paused"));
+  assert.ok(!rows.some(([name]) => name === "Checking"));
+  assert.ok(!rows.some(([name]) => name === "Error"));
+  assert.equal(rows.find(([name]) => name === "All")?.[1], 42);
+}
+
+{
+  const rows = stateSidebarRows(liveStates, true);
+  assert.ok(rows.some(([name, count]) => name === "Paused" && count === 0));
+  assert.ok(rows.some(([name, count]) => name === "Checking" && count === 0));
+  assert.ok(rows.some(([name]) => name === "All"));
+}
+
+{
+  const rows = stateSidebarRows(undefined, false);
+  assert.deepEqual(
+    rows.map(([name, count]) => [name, count]),
+    [["All", 0]]
+  );
+}
+
+{
+  const dict = { All: 10, Downloading: 4, Paused: 0, Checking: 0, Seeding: 6, Error: 0 };
+  const rows = stateSidebarRows(dict, false);
+  assert.deepEqual(
+    rows.map(([name]) => name),
+    ["All", "Downloading", "Seeding"]
+  );
+}
+
+{
+  const next = clampSidebarSelection(
+    { state: "Paused", tracker: "", label: "__all__" },
+    liveStates,
+    trackersWithAll,
+    [["linux", 200]],
+    false
+  );
+  assert.equal(next.state, "All");
+}
 
 console.log("sidebar-filters tests passed");
