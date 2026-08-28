@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FilePrioritySelect } from "@/components/app/file-priority-select";
+import { PeerCountry } from "@/components/app/peer-country";
 import { StateBadge } from "@/components/app/state-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -287,7 +288,9 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
           <tr key={p.ip} className="border-t">
             <td className="py-1 font-mono text-xs">{p.ip}</td>
             <td className="py-1">{p.client}</td>
-            <td className="py-1">{p.country}</td>
+            <td className="py-1">
+              <PeerCountry country={p.country} />
+            </td>
             <td className="py-1 tabular">{formatProgress(p.progress * 100)}</td>
             <td className="py-1 tabular">{formatRate(p.down_speed)}</td>
             <td className="py-1 tabular">{formatRate(p.up_speed)}</td>
