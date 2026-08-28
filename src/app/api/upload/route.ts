@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleDemoUpload } from "@/lib/deluge/demo";
 import { proxyDeluge, resolveDelugeTarget, uploadError } from "@/lib/deluge/proxy";
+import { encodeTorrentUpload, findUploadedFile } from "@/lib/deluge/upload-multipart";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,16 +13,28 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const file = findUploadedFile(form);
+  const name = file?.name || "upload.torrent";
+  const size = file instanceof File ? file.size : 0;
 
   if (resolved.demo) {
-    const file = form.get("file");
-    const name = file instanceof File ? file.name : "upload.torrent";
-    const size = file instanceof File ? file.size : 0;
     return NextResponse.json(handleDemoUpload(name, size));
   }
 
+  if (!file) {
+    return uploadError(
+      "Failed to upload torrent: no file in the multipart body (expected field name \"file\").",
+      400
+    );
+  }
+
+  const encoded = await encodeTorrentUpload(file, name);
   return proxyDeluge(req, resolved.target, "/upload", {
     method: "POST",
-    body: form,
+    headers: {
+      "Content-Type": encoded.contentType,
+      Accept: "application/json, text/html;q=0.9, */*;q=0.8",
+    },
+    body: encoded.body,
   });
 }

@@ -1,5 +1,10 @@
+"use client";
+
+import type { ReactNode } from "react";
 import type { TorrentState } from "@/lib/deluge/types";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { errorStatusTooltip } from "@/lib/deluge/error-status";
 import { cn } from "@/lib/utils";
 
 const STYLES: Record<TorrentState, string> = {
@@ -13,11 +18,33 @@ const STYLES: Record<TorrentState, string> = {
   Moving: "bg-[color:var(--queued)]/15 text-[color:var(--queued)] border-transparent",
 };
 
-export function StateBadge({ state }: { state: TorrentState }) {
-  return (
+export function StateBadge({
+  state,
+  children,
+  message,
+}: {
+  state: TorrentState;
+  children?: ReactNode;
+  /** Deluge torrent `message`; shown when `state` is Error. */
+  message?: string | null;
+}) {
+  const badge = (
     <Badge variant="outline" className={cn("font-medium", STYLES[state] || STYLES.Paused)}>
-      {state}
+      {children ?? state}
     </Badge>
+  );
+
+  if (state !== "Error") return badge;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger delay={200} render={<span className="inline-flex cursor-help" />}>
+        {badge}
+      </TooltipTrigger>
+      <TooltipContent className="max-w-sm text-left whitespace-normal break-words">
+        {errorStatusTooltip(message)}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -152,3 +152,18 @@
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Find-in-page torrent search hits. Light yellow in both themes; readable on selected rows. */
+mark.search-hit {
+  background-color: oklch(0.90 0.12 95);
+  color: oklch(0.28 0.06 75);
+  border-radius: 0.15em;
+  padding-inline: 1px;
+  font: inherit;
+  font-weight: inherit;
+}
+
+.dark mark.search-hit {
+  background-color: oklch(0.68 0.14 85 / 0.55);
+  color: oklch(0.99 0.03 95);
+}

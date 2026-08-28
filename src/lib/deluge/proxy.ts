@@ -212,7 +212,7 @@ export async function proxyDeluge(
   init: {
     method: string;
     headers?: Record<string, string>;
-    body: string | FormData;
+    body: string | FormData | Buffer | Uint8Array;
     rpcId?: unknown;
   }
 ): Promise<NextResponse> {

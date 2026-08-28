@@ -1,0 +1,25 @@
+import { splitHighlightParts } from "@/lib/highlight-text";
+
+/**
+ * Renders `text` with case-insensitive, literal substring matches wrapped in
+ * `<mark class="search-hit">`. Empty queries render the original string.
+ */
+export function HighlightText({ text, query }: { text: string; query: string }) {
+  const parts = splitHighlightParts(text, query);
+  if (parts.length === 1 && !parts[0]?.match) {
+    return text;
+  }
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.match ? (
+          <mark key={index} className="search-hit">
+            {part.text}
+          </mark>
+        ) : (
+          part.text
+        )
+      )}
+    </>
+  );
+}

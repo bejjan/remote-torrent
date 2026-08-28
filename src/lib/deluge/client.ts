@@ -111,7 +111,7 @@ export async function rpc<T = unknown>(method: string, params: unknown[] = []): 
 
 export async function uploadTorrent(file: File): Promise<string> {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", file, file.name || "upload.torrent");
 
   const res = await fetch("/api/upload", {
     method: "POST",
@@ -127,10 +127,17 @@ export async function uploadTorrent(file: File): Promise<string> {
     data = null;
   }
   if (!res.ok) {
-    throw new DelugeError(data?.error || messageFromBody(text) || "Torrent upload failed.");
+    throw new DelugeError(
+      data?.error ||
+        messageFromBody(text) ||
+        `Failed to upload torrent (HTTP ${res.status}).`
+    );
   }
   if (!data?.success || !data.files?.[0]) {
-    throw new DelugeError(data?.error || "Torrent upload failed.");
+    throw new DelugeError(
+      data?.error ||
+        "Failed to upload torrent. Deluge Web /upload did not return a saved file path."
+    );
   }
   return data.files[0];
 }

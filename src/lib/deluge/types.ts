@@ -143,8 +143,10 @@ export interface AddTorrentOptions {
   max_connections?: number;
   max_upload_slots?: number;
   pre_allocated?: boolean;
+  pre_allocate_storage?: boolean;
   seed_mode?: boolean;
   super_seeding?: boolean;
+  file_priorities?: number[];
 }
 
 export interface LabelOptions {

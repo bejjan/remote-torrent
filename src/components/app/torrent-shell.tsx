@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Brand } from "@/components/app/brand";
 import { ConnectionManager } from "@/components/app/connection-manager";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
+import { HighlightText } from "@/components/app/highlight-text";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
 import { StateBadge, stateBarClass } from "@/components/app/state-badge";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -36,8 +37,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
+  ContextMenuCheckboxItem,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuLabel,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
@@ -65,7 +68,10 @@ import { rpc } from "@/lib/deluge/client";
 import {
   compareQueue,
   formatBytes,
+  formatDate,
+  formatDuration,
   formatEta,
+  formatLimit,
   formatProgress,
   formatQueue,
   formatRate,
@@ -73,6 +79,16 @@ import {
 } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
+import {
+  TORRENT_COLUMNS,
+  applyColumnVisibility,
+  defaultVisibleTorrentColumns,
+  loadTorrentColumnVisibility,
+  saveTorrentColumnVisibility,
+  visibleTorrentColumns,
+  type TorrentColumn,
+  type TorrentColumnId,
+} from "@/lib/deluge/torrent-columns";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
 import { isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
@@ -110,6 +126,26 @@ export function TorrentShell({
   const [labels, setLabels] = useState<string[]>([]);
   const [showZeroFilters, setShowZeroFilters] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<Set<TorrentColumnId>>(
+    defaultVisibleTorrentColumns
+  );
+
+  useEffect(() => {
+    setVisibleColumnIds(loadTorrentColumnVisibility());
+  }, []);
+
+  const shownColumns = useMemo(
+    () => visibleTorrentColumns(visibleColumnIds),
+    [visibleColumnIds]
+  );
+
+  function setColumnVisible(id: TorrentColumnId, visible: boolean) {
+    setVisibleColumnIds((prev) => {
+      const next = applyColumnVisibility(prev, id, visible);
+      saveTorrentColumnVisibility(next);
+      return next;
+    });
+  }
 
   const applyWebUi = useCallback((web: Record<string, unknown> | null | undefined) => {
     setShowZeroFilters(Boolean(web?.sidebar_show_zero));
@@ -362,60 +398,47 @@ export function TorrentShell({
           </Button>
         </div>
       ) : (
-        <table className="w-full min-w-[64rem] text-sm">
-          <thead className="sticky top-0 z-10 border-b bg-background">
-            <tr className="text-left text-xs text-muted-foreground">
-              <th className="w-8 px-2 py-2">
-                <Checkbox
-                  checked={ids.length > 0 && selectedIds.length === ids.length}
-                  indeterminate={selectedIds.length > 0 && selectedIds.length < ids.length}
-                  onCheckedChange={(v) => {
-                    setSelected(v ? new Set(ids) : new Set());
-                  }}
-                />
-              </th>
-              <Th onClick={() => toggleSort("queue")} active={sortKey === "queue"} dir={sortDir}>
-                #
-              </Th>
-              <Th onClick={() => toggleSort("name")} active={sortKey === "name"} dir={sortDir}>
-                Name
-              </Th>
-              <Th onClick={() => toggleSort("total_wanted")} active={sortKey === "total_wanted"} dir={sortDir}>
-                Size
-              </Th>
-              <Th onClick={() => toggleSort("progress")} active={sortKey === "progress"} dir={sortDir}>
-                Progress
-              </Th>
-              <Th onClick={() => toggleSort("state")} active={sortKey === "state"} dir={sortDir}>
-                Status
-              </Th>
-              <Th
-                onClick={() => toggleSort("download_payload_rate")}
-                active={sortKey === "download_payload_rate"}
-                dir={sortDir}
-              >
-                Down
-              </Th>
-              <Th
-                onClick={() => toggleSort("upload_payload_rate")}
-                active={sortKey === "upload_payload_rate"}
-                dir={sortDir}
-              >
-                Up
-              </Th>
-              <Th onClick={() => toggleSort("eta")} active={sortKey === "eta"} dir={sortDir}>
-                ETA
-              </Th>
-              <Th onClick={() => toggleSort("ratio")} active={sortKey === "ratio"} dir={sortDir}>
-                Ratio
-              </Th>
-              <th className="px-2 py-2 font-medium">Seeds</th>
-              <th className="px-2 py-2 font-medium">Peers</th>
-              <Th onClick={() => toggleSort("label")} active={sortKey === "label"} dir={sortDir}>
-                Label
-              </Th>
-            </tr>
-          </thead>
+        <table className="w-full min-w-max text-sm">
+          <ContextMenu>
+            <ContextMenuTrigger
+              render={<thead className="sticky top-0 z-10 border-b bg-background" />}
+            >
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="w-8 px-2 py-2">
+                  <Checkbox
+                    checked={ids.length > 0 && selectedIds.length === ids.length}
+                    indeterminate={selectedIds.length > 0 && selectedIds.length < ids.length}
+                    onCheckedChange={(v) => {
+                      setSelected(v ? new Set(ids) : new Set());
+                    }}
+                  />
+                </th>
+                {shownColumns.map((column) => (
+                  <Th
+                    key={column.id}
+                    onClick={() => toggleSort(column.sortKey)}
+                    active={sortKey === column.sortKey}
+                    dir={sortDir}
+                  >
+                    {column.label}
+                  </Th>
+                ))}
+              </tr>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="min-w-52" side="bottom" align="start">
+              <ContextMenuLabel>Columns</ContextMenuLabel>
+              {TORRENT_COLUMNS.map((column) => (
+                <ContextMenuCheckboxItem
+                  key={column.id}
+                  checked={visibleColumnIds.has(column.id)}
+                  disabled={!column.hideable}
+                  onCheckedChange={(checked) => setColumnVisible(column.id, checked)}
+                >
+                  {column.label === "#" ? "# Queue" : column.label}
+                </ContextMenuCheckboxItem>
+              ))}
+            </ContextMenuContent>
+          </ContextMenu>
           <tbody>
             {torrents.map(([id, t]) => {
               const isSel = selected.has(id);
@@ -453,38 +476,9 @@ export function TorrentShell({
                         }}
                       />
                     </td>
-                    <td className="px-2 py-1.5 tabular text-muted-foreground">{formatQueue(t.queue)}</td>
-                    <td className="max-w-[20rem] truncate px-2 py-1.5 font-medium">{t.name}</td>
-                    <td className="px-2 py-1.5 tabular">{formatBytes(t.total_wanted)}</td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={cn("h-full rounded-full", stateBarClass(t.state))}
-                            style={{ width: `${Math.min(100, t.progress)}%` }}
-                          />
-                        </div>
-                        <span className="tabular text-xs">{formatProgress(t.progress)}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <StateBadge state={t.state} />
-                    </td>
-                    <td className="px-2 py-1.5 tabular text-[color:var(--downloading)]">
-                      {formatRate(t.download_payload_rate)}
-                    </td>
-                    <td className="px-2 py-1.5 tabular text-[color:var(--seeding)]">
-                      {formatRate(t.upload_payload_rate)}
-                    </td>
-                    <td className="px-2 py-1.5 tabular">{formatEta(t.eta)}</td>
-                    <td className="px-2 py-1.5 tabular">{formatRatio(t.ratio)}</td>
-                    <td className="px-2 py-1.5 tabular text-muted-foreground">
-                      {t.num_seeds} ({t.total_seeds})
-                    </td>
-                    <td className="px-2 py-1.5 tabular text-muted-foreground">
-                      {t.num_peers} ({t.total_peers})
-                    </td>
-                    <td className="px-2 py-1.5 text-muted-foreground">{t.label || "—"}</td>
+                    {shownColumns.map((column) => (
+                      <TorrentColumnCell key={column.id} column={column} torrent={t} query={search} />
+                    ))}
                   </ContextMenuTrigger>
                   <ContextMenuContent className="min-w-48">
                     <ContextMenuItem
@@ -752,7 +746,14 @@ function Th({
 }) {
   return (
     <th className="px-2 py-2">
-      <button type="button" onClick={onClick} className="inline-flex items-center gap-1 font-medium">
+      <button
+        type="button"
+        onClick={(e) => {
+          if (e.button !== 0) return;
+          onClick();
+        }}
+        className="inline-flex items-center gap-1 font-medium"
+      >
         {children}
         {active ? (
           <span className="text-[10px] text-primary">{dir === "asc" ? "▲" : "▼"}</span>
@@ -760,4 +761,129 @@ function Th({
       </button>
     </th>
   );
+}
+
+function formatAvail(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "∞";
+  return value.toFixed(3);
+}
+
+function TorrentColumnCell({
+  column,
+  torrent: t,
+  query,
+}: {
+  column: TorrentColumn;
+  torrent: TorrentStatus;
+  query: string;
+}) {
+  const hit = (text: string) => <HighlightText text={text} query={query} />;
+  switch (column.id) {
+    case "queue":
+      return (
+        <td className="px-2 py-1.5 tabular text-muted-foreground">{hit(formatQueue(t.queue))}</td>
+      );
+    case "name":
+      return <td className="max-w-[20rem] truncate px-2 py-1.5 font-medium">{hit(t.name)}</td>;
+    case "size":
+      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_wanted))}</td>;
+    case "progress":
+      return (
+        <td className="px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn("h-full rounded-full", stateBarClass(t.state))}
+                style={{ width: `${Math.min(100, t.progress)}%` }}
+              />
+            </div>
+            <span className="tabular text-xs">{hit(formatProgress(t.progress))}</span>
+          </div>
+        </td>
+      );
+    case "status":
+      return (
+        <td className="px-2 py-1.5">
+          <StateBadge state={t.state} message={t.message}>
+            {hit(t.state)}
+          </StateBadge>
+        </td>
+      );
+    case "down":
+      return (
+        <td className="px-2 py-1.5 tabular text-[color:var(--downloading)]">
+          {hit(formatRate(t.download_payload_rate))}
+        </td>
+      );
+    case "up":
+      return (
+        <td className="px-2 py-1.5 tabular text-[color:var(--seeding)]">
+          {hit(formatRate(t.upload_payload_rate))}
+        </td>
+      );
+    case "eta":
+      return <td className="px-2 py-1.5 tabular">{hit(formatEta(t.eta))}</td>;
+    case "ratio":
+      return <td className="px-2 py-1.5 tabular">{hit(formatRatio(t.ratio))}</td>;
+    case "seeds":
+      return (
+        <td className="px-2 py-1.5 tabular text-muted-foreground">
+          {hit(`${t.num_seeds} (${t.total_seeds})`)}
+        </td>
+      );
+    case "peers":
+      return (
+        <td className="px-2 py-1.5 tabular text-muted-foreground">
+          {hit(`${t.num_peers} (${t.total_peers})`)}
+        </td>
+      );
+    case "label":
+      return <td className="px-2 py-1.5 text-muted-foreground">{hit(t.label || "—")}</td>;
+    case "avail":
+      return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.distributed_copies))}</td>;
+    case "added":
+      return (
+        <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.time_added))}</td>
+      );
+    case "tracker":
+      return (
+        <td className="max-w-[12rem] truncate px-2 py-1.5 text-muted-foreground">
+          {hit(t.tracker_host || "—")}
+        </td>
+      );
+    case "save_path":
+      return (
+        <td className="max-w-[16rem] truncate px-2 py-1.5 text-muted-foreground">
+          {hit(t.download_location || "—")}
+        </td>
+      );
+    case "downloaded":
+      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_done))}</td>;
+    case "uploaded":
+      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_uploaded))}</td>;
+    case "remaining":
+      return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_remaining))}</td>;
+    case "complete_seen":
+      return (
+        <td className="px-2 py-1.5 tabular whitespace-nowrap">
+          {hit(formatDate(t.last_seen_complete))}
+        </td>
+      );
+    case "completed":
+      return (
+        <td className="px-2 py-1.5 tabular whitespace-nowrap">{hit(formatDate(t.completed_time))}</td>
+      );
+    case "auto_managed":
+      return (
+        <td className="px-2 py-1.5 text-muted-foreground">{hit(t.is_auto_managed ? "Yes" : "No")}</td>
+      );
+    case "down_limit":
+      return <td className="px-2 py-1.5 tabular">{hit(formatLimit(t.max_download_speed))}</td>;
+    case "up_limit":
+      return <td className="px-2 py-1.5 tabular">{hit(formatLimit(t.max_upload_speed))}</td>;
+    case "seeds_peers":
+      return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.seeds_peers_ratio))}</td>;
+    case "last_transfer":
+      return <td className="px-2 py-1.5 tabular">{hit(formatDuration(t.time_since_transfer))}</td>;
+  }
 }

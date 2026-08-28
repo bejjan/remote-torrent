@@ -126,7 +126,7 @@ function Muted({ children }: { children: React.ReactNode }) {
 function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
   const rows: [string, React.ReactNode][] = [
     ["Name", torrent.name],
-    ["State", <StateBadge key="s" state={torrent.state} />],
+    ["State", <StateBadge key="s" state={torrent.state} message={torrent.message} />],
     ["Progress", formatProgress(torrent.progress)],
     ["Size", `${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`],
     ["Downloaded", formatBytes(torrent.total_payload_download)],
