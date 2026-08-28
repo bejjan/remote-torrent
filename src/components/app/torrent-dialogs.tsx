@@ -477,14 +477,17 @@ function TorrentPreviewCard({
       </div>
       {preview.tree ? (
         <div className="max-h-56 overflow-auto rounded-md border bg-muted/30 px-2 py-1">
-          <AddFilesTree
-            name={preview.name}
-            node={preview.tree}
-            path=""
-            depth={0}
-            priorities={priorities}
-            onPriorities={onPriorities}
-          />
+          {Object.entries(preview.tree.contents).map(([childName, child]) => (
+            <AddFilesTree
+              key={childName}
+              name={childName}
+              node={child}
+              path={childName}
+              depth={0}
+              priorities={priorities}
+              onPriorities={onPriorities}
+            />
+          ))}
         </div>
       ) : null}
     </div>
