@@ -17,14 +17,14 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
   const [maxUp, setMaxUp] = useState(String(torrent.max_upload_speed));
   const [maxConn, setMaxConn] = useState(String(torrent.max_connections));
   const [maxSlots, setMaxSlots] = useState(String(torrent.max_upload_slots));
-  const [auto, setAuto] = useState(torrent.is_auto_managed);
-  const [stopRatio, setStopRatio] = useState(torrent.stop_at_ratio);
-  const [ratio, setRatio] = useState(String(torrent.stop_ratio));
-  const [removeAt, setRemoveAt] = useState(torrent.remove_at_ratio);
-  const [move, setMove] = useState(torrent.move_completed);
-  const [movePath, setMovePath] = useState(torrent.move_completed_path);
-  const [superSeed, setSuperSeed] = useState(torrent.super_seeding);
-  const [firstLast, setFirstLast] = useState(torrent.prioritize_first_last);
+  const [auto, setAuto] = useState(Boolean(torrent.is_auto_managed));
+  const [stopRatio, setStopRatio] = useState(Boolean(torrent.stop_at_ratio));
+  const [ratio, setRatio] = useState(String(torrent.stop_ratio ?? ""));
+  const [removeAt, setRemoveAt] = useState(Boolean(torrent.remove_at_ratio));
+  const [move, setMove] = useState(Boolean(torrent.move_completed));
+  const [movePath, setMovePath] = useState(torrent.move_completed_path ?? "");
+  const [superSeed, setSuperSeed] = useState(Boolean(torrent.super_seeding));
+  const [firstLast, setFirstLast] = useState(Boolean(torrent.prioritize_first_last));
 
   async function save() {
     try {
@@ -98,7 +98,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
       <OptionSection title="Queue / ratio">
         <OptionRow htmlFor={`${uid}-stop`} label="Stop at ratio">
-          <Switch id={`${uid}-stop`} size="sm" checked={stopRatio} onCheckedChange={setStopRatio} />
+          <Switch id={`${uid}-stop`} size="sm" checked={Boolean(stopRatio)} onCheckedChange={setStopRatio} />
         </OptionRow>
         <OptionRow htmlFor={`${uid}-ratio`} label="Stop ratio">
           <NumInput
@@ -112,7 +112,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
           <Switch
             id={`${uid}-remove`}
             size="sm"
-            checked={removeAt}
+            checked={Boolean(removeAt)}
             onCheckedChange={setRemoveAt}
             disabled={!stopRatio}
           />
@@ -121,7 +121,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
       <OptionSection title="Location">
         <OptionRow htmlFor={`${uid}-move`} label="Move completed">
-          <Switch id={`${uid}-move`} size="sm" checked={move} onCheckedChange={setMove} />
+          <Switch id={`${uid}-move`} size="sm" checked={Boolean(move)} onCheckedChange={setMove} />
         </OptionRow>
         <div className="grid gap-1">
           <Label htmlFor={`${uid}-move-path`} className="text-xs font-normal text-muted-foreground">
@@ -139,16 +139,16 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
       <OptionSection title="Flags">
         <OptionRow htmlFor={`${uid}-auto`} label="Auto managed">
-          <Switch id={`${uid}-auto`} size="sm" checked={auto} onCheckedChange={setAuto} />
+          <Switch id={`${uid}-auto`} size="sm" checked={Boolean(auto)} onCheckedChange={setAuto} />
         </OptionRow>
         <OptionRow htmlFor={`${uid}-private`} label="Private">
-          <Switch id={`${uid}-private`} size="sm" checked={torrent.private} disabled />
+          <Switch id={`${uid}-private`} size="sm" checked={Boolean(torrent.private)} disabled />
         </OptionRow>
         <OptionRow htmlFor={`${uid}-super`} label="Super seeding">
-          <Switch id={`${uid}-super`} size="sm" checked={superSeed} onCheckedChange={setSuperSeed} />
+          <Switch id={`${uid}-super`} size="sm" checked={Boolean(superSeed)} onCheckedChange={setSuperSeed} />
         </OptionRow>
         <OptionRow htmlFor={`${uid}-first-last`} label="Prioritize first/last">
-          <Switch id={`${uid}-first-last`} size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
+          <Switch id={`${uid}-first-last`} size="sm" checked={Boolean(firstLast)} onCheckedChange={setFirstLast} />
         </OptionRow>
       </OptionSection>
 

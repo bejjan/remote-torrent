@@ -696,7 +696,7 @@ function ExtractorPage() {
       </Field>
       <label className="flex items-center gap-2 text-sm">
         <Switch
-          checked={cfg.use_name_folder}
+          checked={Boolean(cfg.use_name_folder)}
           onCheckedChange={(v) => setCfg({ ...cfg, use_name_folder: v })}
         />
         Create folder named after the torrent
