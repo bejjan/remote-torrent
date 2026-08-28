@@ -326,11 +326,12 @@ export function AddTorrentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] min-w-0 max-w-[calc(100%-2rem)] grid-cols-1 overflow-x-hidden overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add torrent</DialogTitle>
         </DialogHeader>
         <Tabs
+          className="min-w-0"
           value={tab}
           onValueChange={(value) => {
             setTab(value as AddTab);
@@ -346,7 +347,7 @@ export function AddTorrentDialog({
             <TabsTrigger value="magnet">Magnet</TabsTrigger>
             <TabsTrigger value="url">URL</TabsTrigger>
           </TabsList>
-          <TabsContent value="file" className="grid gap-3 pt-3">
+          <TabsContent value="file" className="grid min-w-0 gap-3 pt-3">
             <div
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -371,7 +372,7 @@ export function AddTorrentDialog({
                 void onPickFile(next);
               }}
               className={cn(
-                "grid gap-2 rounded-lg border border-dashed p-3 transition-colors",
+                "grid min-w-0 gap-2 overflow-hidden rounded-lg border border-dashed p-3 transition-colors",
                 fileDragOver
                   ? "border-foreground/35 bg-muted/70 dark:bg-input/50"
                   : "border-input bg-muted/25 dark:bg-input/20"
@@ -386,10 +387,11 @@ export function AddTorrentDialog({
                 tabIndex={-1}
                 onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
               />
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <div className="flex min-w-0 items-center gap-x-3 gap-y-1.5">
                 <Button
                   type="button"
                   variant="outline"
+                  className="shrink-0"
                   aria-describedby="add-torrent-file-name"
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -398,7 +400,8 @@ export function AddTorrentDialog({
                 </Button>
                 <p
                   id="add-torrent-file-name"
-                  className="min-w-0 truncate text-sm text-muted-foreground"
+                  className="min-w-0 flex-1 truncate overflow-hidden text-sm text-muted-foreground"
+                  title={file ? file.name : undefined}
                 >
                   {file ? `${file.name} · ${formatBytes(file.size)}` : "No file chosen"}
                 </p>
@@ -417,8 +420,8 @@ export function AddTorrentDialog({
               }}
             />
           </TabsContent>
-          <TabsContent value="url" className="grid gap-3 pt-3">
-            <div className="flex gap-2">
+          <TabsContent value="url" className="grid min-w-0 gap-3 pt-3">
+            <div className="flex min-w-0 gap-2">
               <Input
                 placeholder="https://example.com/file.torrent"
                 value={url}
@@ -448,7 +451,7 @@ export function AddTorrentDialog({
           </Alert>
         ) : null}
         {preview ? <TorrentPreviewCard preview={preview} priorities={priorities} onPriorities={setPriorities} /> : null}
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           <div className="grid gap-1">
             <Label htmlFor="add-download-location">Download location</Label>
             <Input
@@ -553,10 +556,17 @@ function TorrentPreviewCard({
 }) {
   const fileCount = preview.tree ? infoFileIndexes(preview.tree).length : 0;
   return (
-    <div className="grid gap-2 rounded-lg border p-3">
-      <div className="grid gap-1">
-        <p className="truncate font-medium">{preview.name}</p>
-        <p className="truncate font-mono text-xs text-muted-foreground">{preview.infoHash}</p>
+    <div className="grid min-w-0 gap-2 overflow-hidden rounded-lg border p-3">
+      <div className="grid min-w-0 gap-1 overflow-hidden">
+        <p className="min-w-0 truncate overflow-hidden font-medium" title={preview.name}>
+          {preview.name}
+        </p>
+        <p
+          className="min-w-0 truncate overflow-hidden break-all font-mono text-xs text-muted-foreground"
+          title={preview.infoHash}
+        >
+          {preview.infoHash}
+        </p>
         {preview.tree ? (
           <p className="text-xs text-muted-foreground">
             {fileCount} file{fileCount === 1 ? "" : "s"} · {formatBytes(infoTreeSize(preview.tree))}
@@ -566,7 +576,7 @@ function TorrentPreviewCard({
         )}
       </div>
       {preview.tree ? (
-        <div className="max-h-56 overflow-auto rounded-md border bg-muted/30 px-2 py-1">
+        <div className="max-h-56 min-w-0 overflow-auto rounded-md border bg-muted/30 px-2 py-1">
           {Object.entries(preview.tree.contents).map(([childName, child]) => (
             <AddFilesTree
               key={childName}
@@ -603,10 +613,13 @@ function AddFilesTree({
   if (node.type === "file") {
     const value = String(priorities[node.index] ?? 4);
     return (
-      <div className="flex items-center gap-2 py-1 text-sm">
-        <span className="min-w-0 flex-1 truncate">{name}</span>
-        <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(node.length)}</span>
+      <div className="flex min-w-0 items-center gap-2 py-1 text-sm">
+        <span className="min-w-0 flex-1 truncate overflow-hidden break-all" title={path}>
+          {name}
+        </span>
+        <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(node.length)}</span>
         <FilePrioritySelect
+          className="w-36 shrink-0"
           value={value}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, [node.index], next))}
         />
@@ -616,25 +629,28 @@ function AddFilesTree({
   const indexes = infoFileIndexes(node);
   const shared = commonPriority(priorities, indexes);
   return (
-    <div className="text-sm">
-      <div className="flex items-center gap-2 py-1">
+    <div className="min-w-0 text-sm">
+      <div className="flex min-w-0 items-center gap-2 py-1">
         <button
           type="button"
-          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
-        <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
-        <span className="tabular w-20 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
+        <span className="min-w-0 flex-1 truncate overflow-hidden break-all font-medium" title={path}>
+          {name}
+        </span>
+        <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
         <FilePrioritySelect
+          className="w-36 shrink-0"
           value={shared == null ? "mixed" : String(shared)}
           mixed={shared == null}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, indexes, next))}
         />
       </div>
-      <div className={cn(open ? "ml-3 border-l pl-3" : "hidden")}>
+      <div className={cn(open ? "ml-3 min-w-0 overflow-hidden border-l pl-3" : "hidden")}>
         {Object.entries(node.contents).map(([childName, child]) => (
           <AddFilesTree
             key={childName}
