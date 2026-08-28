@@ -180,6 +180,7 @@ export function TorrentShell({
   }
 
   function clickRow(id: string, e: React.MouseEvent) {
+    if (e.button !== 0) return;
     if (e.metaKey || e.ctrlKey) {
       setSelected((prev) => {
         const next = new Set(prev);
@@ -205,19 +206,28 @@ export function TorrentShell({
     if (mobile) setDetailsOpen(true);
   }
 
-  async function act(method: string, params: unknown[] = [selectedIds]) {
-    if (!selectedIds.length) return;
+  /** Right-click on an already-selected row keeps the full selection; otherwise that row becomes the sole target. */
+  function selectForContext(rowId: string): string[] {
+    const ids = contextActionIds(selected, rowId);
+    if (!selected.has(rowId)) setSelected(new Set(ids));
+    setActiveId(rowId);
+    return ids;
+  }
+
+  async function act(method: string, torrentIds: string[] = selectedIds) {
+    if (!torrentIds.length) return;
     try {
-      await rpc(method, params);
+      await rpc(method, [torrentIds]);
       await poll();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
     }
   }
 
-  async function setLabel(label: string) {
+  async function setLabel(label: string, torrentIds: string[] = selectedIds) {
+    if (!torrentIds.length) return;
     try {
-      for (const id of selectedIds) await rpc("label.set_torrent", [id, label]);
+      for (const id of torrentIds) await rpc("label.set_torrent", [id, label]);
       await poll();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Label failed");
@@ -368,6 +378,9 @@ export function TorrentShell({
                           isSel && "bg-primary/10 hover:bg-primary/15"
                         )}
                         onClick={(e) => clickRow(id, e)}
+                        onContextMenu={() => {
+                          selectForContext(id);
+                        }}
                         onDoubleClick={() => {
                           setActiveId(id);
                           setDetailsOpen(true);
@@ -425,45 +438,48 @@ export function TorrentShell({
                   <ContextMenuContent className="min-w-48">
                     <ContextMenuItem
                       onClick={() => {
-                        setSelected(new Set([id]));
-                        setActiveId(id);
-                        void act("core.pause_torrent", [[id]]);
+                        void act("core.pause_torrent", selectForContext(id));
                       }}
                     >
                       <Pause /> Pause
                     </ContextMenuItem>
                     <ContextMenuItem
                       onClick={() => {
-                        setSelected(new Set([id]));
-                        void act("core.resume_torrent", [[id]]);
+                        void act("core.resume_torrent", selectForContext(id));
                       }}
                     >
                       <Play /> Resume
                     </ContextMenuItem>
                     <ContextMenuItem
                       onClick={() => {
-                        setSelected(new Set([id]));
+                        selectForContext(id);
                         setRemoveOpen(true);
                       }}
                     >
                       <Trash2 /> Remove
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => void act("core.queue_top", [[id]])}>
+                    <ContextMenuItem
+                      onClick={() => void act("core.queue_top", selectForContext(id))}
+                    >
                       <ChevronsUp /> Queue top
                     </ContextMenuItem>
-                    <ContextMenuItem onClick={() => void act("core.queue_bottom", [[id]])}>
+                    <ContextMenuItem
+                      onClick={() => void act("core.queue_bottom", selectForContext(id))}
+                    >
                       <ChevronsDown /> Queue bottom
                     </ContextMenuItem>
                     <ContextMenuItem
                       onClick={() => {
-                        setSelected(new Set([id]));
+                        selectForContext(id);
                         setMoveOpen(true);
                       }}
                     >
                       <FolderInput /> Move storage
                     </ContextMenuItem>
-                    <ContextMenuItem onClick={() => void act("core.force_recheck", [[id]])}>
+                    <ContextMenuItem
+                      onClick={() => void act("core.force_recheck", selectForContext(id))}
+                    >
                       <RefreshCw /> Force recheck
                     </ContextMenuItem>
                     <ContextMenuSeparator />
@@ -472,9 +488,14 @@ export function TorrentShell({
                         Label
                       </ContextMenuSubTrigger>
                       <ContextMenuSubContent>
-                        <ContextMenuItem onClick={() => void setLabel("")}>No label</ContextMenuItem>
+                        <ContextMenuItem onClick={() => void setLabel("", selectForContext(id))}>
+                          No label
+                        </ContextMenuItem>
                         {labels.map((lab) => (
-                          <ContextMenuItem key={lab} onClick={() => void setLabel(lab)}>
+                          <ContextMenuItem
+                            key={lab}
+                            onClick={() => void setLabel(lab, selectForContext(id))}
+                          >
                             {lab}
                           </ContextMenuItem>
                         ))}
@@ -654,6 +675,11 @@ function ToolBtn({
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
+}
+
+/** If the row is already selected, operate on the full selection; otherwise only that row. */
+function contextActionIds(selected: Set<string>, rowId: string): string[] {
+  return selected.has(rowId) ? [...selected] : [rowId];
 }
 
 function Th({
