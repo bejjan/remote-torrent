@@ -22,6 +22,7 @@ import {
   columnWidthFor,
   defaultColumnWidth,
   minColumnWidth,
+  emptyCollapsedGroups,
   parseStoredCollapsedGroups,
   parseStoredColumnWidths,
   parseStoredDetailsHeight,
@@ -68,6 +69,7 @@ assert.equal(columnWidthFor("name", { name: 400 }), 400);
 assert.equal(defaultColumnWidth("unknown-col"), 100);
 
 assert.equal(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY, "deluge-nova:sidebar-collapsed-groups");
+assert.deepEqual([...emptyCollapsedGroups()], []);
 assert.deepEqual([...parseStoredCollapsedGroups(null)], []);
 assert.deepEqual([...parseStoredCollapsedGroups("")], []);
 assert.deepEqual([...parseStoredCollapsedGroups("not-json")], []);

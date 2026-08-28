@@ -445,7 +445,13 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /id="state"/);
   assert.match(src, /id="trackers"/);
   assert.match(src, /id="labels"/);
-  assert.match(src, /useState\(\(\) => new Set<string>\(\)\)/, "default all expanded");
+  assert.match(src, /useState\(emptyCollapsedGroups\)/, "default all expanded");
+  assert.doesNotMatch(src, /count=\{torrentCount\}/, "group headers do not take a torrent total");
+  assert.match(
+    src,
+    /function FilterGroup\([\s\S]*?<span className="min-w-0 flex-1 truncate">\{title\}<\/span>\s*<\/button>/,
+    "fold headers are title + chevron only"
+  );
   assert.match(formatSrc, /icons\.duckduckgo\.com\/ip3/);
   assert.match(formatSrc, /s2\/favicons/);
   assert.match(formatSrc, /favicon\.yandex\.net\/favicon/);
@@ -499,6 +505,24 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(html, /id="sidebar-group-trackers"/);
   assert.match(html, /id="sidebar-group-labels"/);
   assert.match(html, /lucide-chevron-down/, "expanded headers show a down chevron");
+  const headerInners = [
+    ...html.matchAll(
+      /aria-controls="sidebar-group-(?:state|trackers|labels)"[^>]*>([\s\S]*?)<\/button>/g
+    ),
+  ].map((match) => match[1]);
+  assert.equal(headerInners.length, 3, "State, Trackers, and Labels are fold buttons");
+  assert.deepEqual(
+    headerInners.map((inner) => inner.match(/>(State|Trackers|Labels)</)?.[1]),
+    ["State", "Trackers", "Labels"]
+  );
+  for (const inner of headerInners) {
+    assert.equal(
+      />\d+</.test(inner),
+      false,
+      "group headers must not show a total torrent count"
+    );
+  }
+  assert.match(html, />42</, "row counts such as All remain");
 }
 
 {

@@ -50,6 +50,7 @@ import {
 } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import {
+  emptyCollapsedGroups,
   loadSidebarCollapsedGroups,
   saveSidebarCollapsedGroups,
   toggleCollapsedGroup,
@@ -96,7 +97,7 @@ export function FilterSidebar({
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
-  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set<string>());
+  const [collapsedGroups, setCollapsedGroups] = useState(emptyCollapsedGroups);
   // Live Deluge injects every state at 0. Paint the catalog; FilterButton drops zeros.
   const stateCatalog = completeStateFilters(filters?.state);
   const torrentCount = stateAllCount(stateCatalog);
@@ -164,7 +165,6 @@ export function FilterSidebar({
           title="State"
           collapsed={collapsedGroups.has("state")}
           onToggle={() => toggleGroup("state")}
-          count={torrentCount}
         >
           {stateCatalog.map(([name, count]) => (
             <FilterButton
@@ -184,7 +184,6 @@ export function FilterSidebar({
           title="Trackers"
           collapsed={collapsedGroups.has("trackers")}
           onToggle={() => toggleGroup("trackers")}
-          count={torrentCount}
         >
           {trackers.map((row) => (
             <FilterButton
@@ -204,7 +203,6 @@ export function FilterSidebar({
           title="Labels"
           collapsed={collapsedGroups.has("labels")}
           onToggle={() => toggleGroup("labels")}
-          count={torrentCount}
         >
           {labels.map((row) => {
             const item = (
@@ -353,14 +351,12 @@ function FilterGroup({
   title,
   collapsed,
   onToggle,
-  count,
   children,
 }: {
   id: string;
   title: string;
   collapsed: boolean;
   onToggle: () => void;
-  count?: number;
   children: React.ReactNode;
 }) {
   const panelId = `sidebar-group-${id}`;
@@ -380,9 +376,6 @@ function FilterGroup({
             <ChevronDown className="size-3 shrink-0" aria-hidden />
           )}
           <span className="min-w-0 flex-1 truncate">{title}</span>
-          {count != null ? (
-            <span className="tabular-nums font-normal normal-case tracking-normal">{count}</span>
-          ) : null}
         </button>
       </h3>
       <div id={panelId} hidden={collapsed} className={collapsed ? "hidden" : "flex flex-col gap-0.5"}>
