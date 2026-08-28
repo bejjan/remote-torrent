@@ -87,6 +87,7 @@ import {
 } from "@/lib/deluge/torrent-list";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
 import { mergeUiUpdate } from "@/lib/deluge/ui-merge";
+import { pruneActiveId, pruneSelectedIds } from "@/lib/deluge/selection";
 import {
   SELECT_COLUMN_ID,
   SIDEBAR_DEFAULT_WIDTH,
@@ -160,6 +161,7 @@ export function TorrentShell({
   const searchValueRef = useRef(search);
   const selectedRef = useRef(selected);
   const activeIdRef = useRef(activeId);
+  const pollGen = useRef(0);
   searchValueRef.current = search;
   selectedRef.current = selected;
   activeIdRef.current = activeId;
@@ -251,22 +253,28 @@ export function TorrentShell({
   }, [filters]);
 
   const poll = useCallback(async () => {
+    const gen = ++pollGen.current;
     try {
       const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], filterDict]);
+      if (gen !== pollGen.current) return;
       setUi((prev) => mergeUiUpdate(prev, result));
       setError(null);
       if (!result.connected) setError("Daemon disconnected");
     } catch (err) {
+      if (gen !== pollGen.current) return;
       setError(err instanceof Error ? err.message : "Update failed");
     } finally {
-      setLoading(false);
+      if (gen === pollGen.current) setLoading(false);
     }
   }, [filterDict]);
 
   useEffect(() => {
     void poll();
     const id = setInterval(() => void poll(), 1000);
-    return () => clearInterval(id);
+    return () => {
+      pollGen.current += 1;
+      clearInterval(id);
+    };
   }, [poll]);
 
   const refreshLabels = useCallback(async () => {
@@ -329,6 +337,13 @@ export function TorrentShell({
       return next;
     });
   }, [ui?.filters, showZeroFilters, labels]);
+
+  useEffect(() => {
+    const map = ui?.torrents;
+    if (!map) return;
+    setSelected((prev) => pruneSelectedIds(prev, map));
+    setActiveId((id) => pruneActiveId(id, map));
+  }, [ui?.torrents]);
 
   const torrents = useMemo(
     () => filterAndSortTorrents(ui?.torrents, search, sortKey, sortDir),

@@ -173,6 +173,45 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
   const merged = mergeUiUpdate(prev, next);
   assert.equal(merged.stats, prevStats);
   assert.equal(merged.connected, false);
+  assert.equal(merged.torrents, prev.torrents);
+}
+
+{
+  const prevFilters: [string, number][] = [["All", 1]];
+  const prev: UiUpdate = {
+    connected: true,
+    torrents: { ida: a },
+    filters: { state: prevFilters },
+    stats: null,
+  };
+  const next: UiUpdate = {
+    connected: false,
+    torrents: null,
+    filters: null,
+    stats: null,
+  };
+  const merged = mergeUiUpdate(prev, next);
+  assert.equal(merged.torrents, prev.torrents);
+  assert.equal(merged.filters, prev.filters);
+  assert.equal(merged.connected, false);
+}
+
+{
+  const prev: UiUpdate = {
+    connected: true,
+    torrents: { ida: a, idb: b },
+    filters: null,
+    stats: null,
+  };
+  const next: UiUpdate = {
+    connected: true,
+    torrents: { ida: a },
+    filters: { state: [["All", 1]] },
+    stats: null,
+  };
+  const merged = mergeUiUpdate(prev, next);
+  assert.equal(merged.torrents && "idb" in merged.torrents, false);
+  assert.ok(merged.torrents && "ida" in merged.torrents);
 }
 
 console.log("ui-merge tests passed");

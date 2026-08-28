@@ -69,6 +69,7 @@ import {
 } from "@/lib/deluge/torrent-empty-state";
 import type { TorrentSortKey } from "@/lib/deluge/torrent-list";
 import type { TorrentStatus } from "@/lib/deluge/types";
+import { applyVisibleSelection, visibleSelectionState } from "@/lib/deluge/selection";
 import { SELECT_COLUMN_ID } from "@/lib/deluge/ui-layout";
 import { cn } from "@/lib/utils";
 
@@ -153,7 +154,7 @@ export const TorrentTable = memo(function TorrentTable({
 }: TorrentTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const ids = useMemo(() => torrents.map(([id]) => id), [torrents]);
-  const selectedCount = selected.size;
+  const headerSelect = visibleSelectionState(ids, selected);
   const colCount = shownColumns.length + 1;
 
   const handlersRef = useRef<RowHandlers>(null!);
@@ -475,10 +476,10 @@ export const TorrentTable = memo(function TorrentTable({
             <ContextMenuTrigger render={<tr className="text-left text-xs" />}>
               <th className="relative px-2 py-2">
                 <Checkbox
-                  checked={ids.length > 0 && selectedCount === ids.length}
-                  indeterminate={selectedCount > 0 && selectedCount < ids.length}
+                  checked={headerSelect.checked}
+                  indeterminate={headerSelect.indeterminate}
                   onCheckedChange={(v) => {
-                    onSelectedChange(v ? new Set(ids) : new Set());
+                    onSelectedChange((prev) => applyVisibleSelection(prev, ids, Boolean(v)));
                   }}
                 />
                 <DragResizeHandle

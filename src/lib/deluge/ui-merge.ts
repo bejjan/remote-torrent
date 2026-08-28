@@ -18,7 +18,8 @@ export function reuseTorrentMap(
   prev: Record<string, TorrentStatus> | null | undefined,
   next: Record<string, TorrentStatus> | null
 ): Record<string, TorrentStatus> | null {
-  if (!next) return next;
+  // `torrents: null` is a disconnected / partial frame — do not empty the table.
+  if (!next) return prev ?? next;
   if (!prev) return next;
 
   const prevKeys = Object.keys(prev);
@@ -52,6 +53,14 @@ export function mergeSessionStats(
   return next;
 }
 
+function mergeFilters(
+  prev: UiUpdate["filters"] | null | undefined,
+  next: UiUpdate["filters"] | null | undefined
+): UiUpdate["filters"] {
+  if (!next) return prev ?? null;
+  return next;
+}
+
 function statsEqual(a: SessionStats, b: SessionStats): boolean {
   if (a === b) return true;
   return (
@@ -79,7 +88,7 @@ export function mergeUiUpdate(prev: UiUpdate | null, next: UiUpdate): UiUpdate {
 
   const torrents = reuseTorrentMap(prev.torrents, next.torrents);
   const stats = mergeSessionStats(prev.stats, next.stats);
-  const filters = next.filters;
+  const filters = mergeFilters(prev.filters, next.filters);
 
   if (
     prev.connected === next.connected &&

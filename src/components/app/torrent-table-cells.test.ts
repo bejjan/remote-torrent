@@ -14,6 +14,8 @@ assert.match(table, /overflow-hidden/);
 assert.match(table, /text-ellipsis/);
 assert.match(table, /max-w-0/);
 assert.match(table, /min-w-0 truncate/);
+assert.match(table, /applyVisibleSelection/);
+assert.match(table, /visibleSelectionState/);
 assert.match(table, /TorrentColumnCell/);
 
 assert.match(
