@@ -417,10 +417,9 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
 }
 
 {
-  const src = readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "../../components/app/filter-sidebar.tsx"),
-    "utf8"
-  );
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "../../components/app/filter-sidebar.tsx"), "utf8");
+  const formatSrc = readFileSync(join(here, "format.ts"), "utf8");
   assert.match(src, /completeStateFilters\(filters\?\.state\)/, "paint the injected catalog");
   assert.match(
     src,
@@ -429,8 +428,18 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   );
   assert.match(src, /row\.isAll \? allTrackersIcon\(\) : <TrackerFavicon host=\{row\.value\} \/>/);
   assert.match(src, /loading="lazy"/);
-  assert.match(src, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(src, /onError=\{advanceSource\}/);
+  assert.match(src, /trackerFaviconSources\(host\)/);
+  assert.match(src, /function LetterAvatar/);
+  assert.match(src, /rounded-full bg-muted/);
   assert.match(src, /<Globe className="size-3\.5 text-muted-foreground" \/>/);
+  assert.match(
+    src,
+    /function allTrackersIcon\([\s\S]*<ListFilter className="size-3\.5 text-muted-foreground" \/>/
+  );
+  assert.match(formatSrc, /icons\.duckduckgo\.com\/ip3/);
+  assert.match(formatSrc, /s2\/favicons/);
+  assert.match(formatSrc, /favicon\.yandex\.net\/favicon/);
 }
 
 {
@@ -462,12 +471,13 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.equal(html.includes("dead.example"), false);
   assert.match(
     html,
-    /s2\/favicons\?domain=live\.example/,
-    "visible tracker hosts load a public favicon"
+    /icons\.duckduckgo\.com\/ip3\/live\.example\.ico/,
+    "visible tracker hosts start with the DuckDuckGo favicon"
   );
+  assert.match(html, /rounded-full[^>]*>L</, "letter avatar sits behind the probing image");
   assert.equal(html.includes("loading=\"lazy\""), true);
   assert.equal(
-    html.includes("s2/favicons?domain=All"),
+    html.includes("ip3/All.ico") || html.includes("s2/favicons?domain=All"),
     false,
     "the Trackers All row must not fetch a favicon"
   );
@@ -491,7 +501,8 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     })
   );
   assert.equal(html.includes("s2/favicons"), false, "empty and invalid hosts must not fetch favicons");
-  assert.match(html, /lucide-globe/, "invalid tracker hosts fall back to Globe");
+  assert.equal(html.includes("icons.duckduckgo.com"), false);
+  assert.match(html, /lucide-globe/, "empty tracker hosts fall back to Globe");
 }
 
 console.log("sidebar-filters tests passed");

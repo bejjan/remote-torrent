@@ -92,6 +92,9 @@ export function trackerHost(url: string): string {
   }
 }
 
+/** Tracker-only labels that usually have no website favicon of their own. */
+const TRACKER_SUBDOMAIN_PREFIXES = new Set(["tracker", "bt", "announce"]);
+
 /**
  * `tracker_host` filter names are already hostnames (`ubuntu.com`).
  * Skip empty strings, the catch-all `All`, and anything that is not a
@@ -103,10 +106,82 @@ export function trackerFaviconHost(name: string): string | null {
   return host;
 }
 
-export function trackerFaviconUrl(name: string): string | null {
+/**
+ * Hosts to ask favicon CDNs for: the tracker hostname, then a likely
+ * registrable domain after stripping a leading `tracker.` / `bt.` / `announce.`.
+ */
+export function trackerFaviconHostCandidates(name: string): string[] {
   const host = trackerFaviconHost(name);
+  if (!host) return [];
+  const stripped = stripTrackerSubdomainPrefix(host);
+  if (stripped && stripped !== host && isPlausibleFaviconHost(stripped)) {
+    return [host, stripped];
+  }
+  return [host];
+}
+
+/**
+ * Favicon URLs in try-next-on-error order:
+ * DuckDuckGo → Google s2 → Yandex, for the original host then the parent domain.
+ */
+export function trackerFaviconSources(name: string): string[] {
+  const urls: string[] = [];
+  for (const host of trackerFaviconHostCandidates(name)) {
+    urls.push(
+      duckDuckGoFaviconUrl(host),
+      googleFaviconUrl(host),
+      yandexFaviconUrl(host)
+    );
+  }
+  return urls;
+}
+
+export function trackerFaviconUrl(name: string): string | null {
+  return trackerFaviconSources(name)[0] ?? null;
+}
+
+/** First character of the host for a letter avatar when every image source fails. */
+export function trackerFaviconLetter(name: string): string | null {
+  const host = name.trim();
   if (!host) return null;
+  const first = [...host][0];
+  return first ? first.toUpperCase() : null;
+}
+
+/**
+ * Google s2 with `sz=32` still returns a 16×16 default globe when the site has
+ * no favicon (HTTP 200). Treat that as a miss so we can try the next source.
+ * Tiny or empty bitmaps from any CDN are also unusable.
+ */
+export function isUnusableTrackerFavicon(img: {
+  src: string;
+  naturalWidth: number;
+  naturalHeight: number;
+}): boolean {
+  if (!Number.isFinite(img.naturalWidth) || !Number.isFinite(img.naturalHeight)) return true;
+  if (img.naturalWidth < 2 || img.naturalHeight < 2) return true;
+  if (img.src.includes("google.com/s2/favicons") && img.naturalWidth < 32) return true;
+  return false;
+}
+
+function duckDuckGoFaviconUrl(host: string): string {
+  return `https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`;
+}
+
+function googleFaviconUrl(host: string): string {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`;
+}
+
+function yandexFaviconUrl(host: string): string {
+  return `https://favicon.yandex.net/favicon/${encodeURIComponent(host)}`;
+}
+
+function stripTrackerSubdomainPrefix(host: string): string | null {
+  const labels = host.split(".");
+  if (labels.length < 3) return null;
+  const head = labels[0]?.toLowerCase();
+  if (!head || !TRACKER_SUBDOMAIN_PREFIXES.has(head)) return null;
+  return labels.slice(1).join(".");
 }
 
 function isPlausibleFaviconHost(host: string): boolean {

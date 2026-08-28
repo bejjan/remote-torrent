@@ -27,7 +27,11 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { rpc } from "@/lib/deluge/client";
-import { trackerFaviconUrl } from "@/lib/deluge/format";
+import {
+  isUnusableTrackerFavicon,
+  trackerFaviconLetter,
+  trackerFaviconSources,
+} from "@/lib/deluge/format";
 import {
   LABEL_PLUGIN_ENABLE_HINT,
   LABEL_RPC,
@@ -239,31 +243,69 @@ function allTrackersIcon() {
 }
 
 function TrackerFavicon({ host }: { host: string }) {
-  const src = trackerFaviconUrl(host);
-  const [failed, setFailed] = useState(false);
+  const sources = trackerFaviconSources(host);
+  const letter = trackerFaviconLetter(host);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [workingSrc, setWorkingSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    setFailed(false);
-  }, [src]);
+    setSourceIndex(0);
+    setWorkingSrc(null);
+  }, [host]);
+
+  const src = workingSrc ?? sources[sourceIndex] ?? null;
+
+  function advanceSource() {
+    setWorkingSrc(null);
+    setSourceIndex((index) => index + 1);
+  }
+
+  const fallback = letter ? (
+    <LetterAvatar letter={letter} />
+  ) : (
+    <Globe className="size-3.5 text-muted-foreground" />
+  );
 
   return (
-    <span className="inline-flex size-4 shrink-0 items-center justify-center overflow-hidden" aria-hidden>
-      {src && !failed ? (
+    <span className="relative inline-flex size-4 shrink-0 items-center justify-center overflow-hidden" aria-hidden>
+      {workingSrc ? null : fallback}
+      {src ? (
         // External CDN thumbnails; next/image is the wrong fit for arbitrary tracker hosts.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          key={src}
           src={src}
           alt=""
           width={16}
           height={16}
           loading="lazy"
           decoding="async"
-          className="size-4"
-          onError={() => setFailed(true)}
+          className={workingSrc ? "size-4" : "absolute size-4 opacity-0"}
+          onError={advanceSource}
+          onLoad={(event) => {
+            const img = event.currentTarget;
+            if (
+              isUnusableTrackerFavicon({
+                src: img.currentSrc || img.src,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+              })
+            ) {
+              advanceSource();
+              return;
+            }
+            setWorkingSrc(src);
+          }}
         />
-      ) : (
-        <Globe className="size-3.5 text-muted-foreground" />
-      )}
+      ) : null}
+    </span>
+  );
+}
+
+function LetterAvatar({ letter }: { letter: string }) {
+  return (
+    <span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[9px] font-medium leading-none text-muted-foreground">
+      {letter}
     </span>
   );
 }
