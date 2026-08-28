@@ -17,8 +17,10 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from "react";
 import { HighlightText } from "@/components/app/highlight-text";
@@ -52,7 +54,10 @@ import {
   formatSwarmCount,
 } from "@/lib/deluge/format";
 import {
+  COLUMN_REORDER_DRAG_THRESHOLD,
   TORRENT_COLUMNS,
+  dropIndexFromX,
+  isIdentityColumnDrop,
   type TorrentColumn,
   type TorrentColumnId,
 } from "@/lib/deluge/torrent-columns";
@@ -84,6 +89,7 @@ export type TorrentTableProps = {
   mobile: boolean;
   onToggleSort: (key: TorrentSortKey) => void;
   onResizeColumn: (id: string, dx: number) => void;
+  onReorderColumns: (draggedId: TorrentColumnId, beforeId: TorrentColumnId | null) => void;
   onSetColumnVisible: (id: TorrentColumnId, visible: boolean) => void;
   onSelectedChange: (next: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   onActiveIdChange: (id: string | null) => void;
@@ -128,6 +134,7 @@ export const TorrentTable = memo(function TorrentTable({
   mobile,
   onToggleSort,
   onResizeColumn,
+  onReorderColumns,
   onSetColumnVisible,
   onSelectedChange,
   onActiveIdChange,
@@ -195,6 +202,123 @@ export const TorrentTable = memo(function TorrentTable({
     remove: onRemove,
     move: onMove,
   };
+
+  const shownColumnsRef = useRef(shownColumns);
+  shownColumnsRef.current = shownColumns;
+  const headerCellsRef = useRef(new Map<string, HTMLTableCellElement>());
+  const suppressSortRef = useRef(false);
+  const reorderSessionRef = useRef(false);
+  const [dragId, setDragId] = useState<TorrentColumnId | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
+  const setHeaderCell = useCallback((id: string, node: HTMLTableCellElement | null) => {
+    if (node) headerCellsRef.current.set(id, node);
+    else headerCellsRef.current.delete(id);
+  }, []);
+
+  const startReorder = useCallback(
+    (id: TorrentColumnId, event: ReactPointerEvent<HTMLElement> | MouseEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      if (reorderSessionRef.current) return;
+      if (shownColumnsRef.current.length < 2) return;
+
+      reorderSessionRef.current = true;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const target = event.currentTarget;
+      const pointerId = "pointerId" in event ? event.pointerId : undefined;
+      let dragging = false;
+      let currentDrop: number | null = null;
+      const previousCursor = document.body.style.cursor;
+      const previousUserSelect = document.body.style.userSelect;
+
+      const measureDrop = (clientX: number) => {
+        const mids: number[] = [];
+        for (const column of shownColumnsRef.current) {
+          const el = headerCellsRef.current.get(column.id);
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          mids.push(rect.left + rect.width / 2);
+        }
+        return dropIndexFromX(mids, clientX);
+      };
+
+      const move = (clientX: number, clientY: number, ev?: PointerEvent) => {
+        if (!dragging) {
+          if (Math.hypot(clientX - startX, clientY - startY) < COLUMN_REORDER_DRAG_THRESHOLD) return;
+          dragging = true;
+          setDragId(id);
+          document.body.style.cursor = "grabbing";
+          document.body.style.userSelect = "none";
+          if (pointerId != null) {
+            try {
+              target.setPointerCapture(pointerId);
+            } catch {
+              /* synthetic pointers may reject capture */
+            }
+          }
+        }
+        if (ev) ev.preventDefault();
+        const nextDrop = measureDrop(clientX);
+        currentDrop = nextDrop;
+        setDropIndex(nextDrop);
+      };
+
+      const onPointerMove = (ev: PointerEvent) => move(ev.clientX, ev.clientY, ev);
+      const onMouseMove = (ev: globalThis.MouseEvent) => move(ev.clientX, ev.clientY);
+      const stop = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", stop);
+        window.removeEventListener("pointercancel", stop);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", stop);
+        if (pointerId != null && target.hasPointerCapture(pointerId)) {
+          target.releasePointerCapture(pointerId);
+        }
+        document.body.style.cursor = previousCursor;
+        document.body.style.userSelect = previousUserSelect;
+        reorderSessionRef.current = false;
+        if (dragging) {
+          suppressSortRef.current = true;
+          window.setTimeout(() => {
+            suppressSortRef.current = false;
+          }, 0);
+          const from = shownColumnsRef.current.findIndex((column) => column.id === id);
+          const drop = currentDrop ?? from;
+          if (from >= 0 && !isIdentityColumnDrop(from, drop)) {
+            const beforeId =
+              drop >= shownColumnsRef.current.length
+                ? null
+                : shownColumnsRef.current[drop]?.id ?? null;
+            onReorderColumns(id, beforeId);
+          }
+          setDragId(null);
+          setDropIndex(null);
+        }
+      };
+
+      if (pointerId != null) {
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", stop);
+        window.addEventListener("pointercancel", stop);
+      } else {
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", stop);
+      }
+    },
+    [onReorderColumns]
+  );
+
+  const onHeaderSortClick = useCallback(
+    (key: TorrentSortKey) => {
+      if (suppressSortRef.current) {
+        suppressSortRef.current = false;
+        return;
+      }
+      onToggleSort(key);
+    },
+    [onToggleSort]
+  );
 
   // useVirtualizer returns unstable function identities; skip React Compiler memoization of this body.
   // eslint-disable-next-line react-hooks/incompatible-library -- virtualizer owns scroll; parent TorrentTable is memoized
@@ -313,6 +437,10 @@ export const TorrentTable = memo(function TorrentTable({
     );
   }
 
+  const dragFromIndex = dragId ? shownColumns.findIndex((column) => column.id === dragId) : -1;
+  const showDropIndicator =
+    dragFromIndex >= 0 && dropIndex != null && !isIdentityColumnDrop(dragFromIndex, dropIndex);
+
   return (
     <div
       ref={scrollRef}
@@ -331,7 +459,7 @@ export const TorrentTable = memo(function TorrentTable({
             <col key={column.id} style={{ width: widthFor(column.id) }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 z-10 border-b bg-background">
+        <thead className={cn("sticky top-0 z-10 border-b bg-background", dragId && "touch-none")}>
           <ContextMenu>
             <ContextMenuTrigger render={<tr className="text-left text-xs" />}>
               <th className="relative px-2 py-2">
@@ -347,17 +475,31 @@ export const TorrentTable = memo(function TorrentTable({
                   onDelta={(dx) => onResizeColumn(SELECT_COLUMN_ID, dx)}
                 />
               </th>
-              {shownColumns.map((column) => (
-                <Th
-                  key={column.id}
-                  onClick={() => onToggleSort(column.sortKey)}
-                  active={sortKey === column.sortKey}
-                  dir={sortDir}
-                  onResize={(dx) => onResizeColumn(column.id, dx)}
-                >
-                  {column.label}
-                </Th>
-              ))}
+              {shownColumns.map((column, index) => {
+                const dropEdge = showDropIndicator
+                  ? dropIndex === index
+                    ? "before"
+                    : dropIndex === shownColumns.length && index === shownColumns.length - 1
+                      ? "after"
+                      : null
+                  : null;
+                return (
+                  <Th
+                    key={column.id}
+                    columnId={column.id}
+                    onClick={() => onHeaderSortClick(column.sortKey)}
+                    active={sortKey === column.sortKey}
+                    dir={sortDir}
+                    dragging={dragId === column.id}
+                    dropEdge={dropEdge}
+                    headerRef={(node) => setHeaderCell(column.id, node)}
+                    onReorderPointerDown={(event) => startReorder(column.id, event)}
+                    onResize={(dx) => onResizeColumn(column.id, dx)}
+                  >
+                    {column.label}
+                  </Th>
+                );
+              })}
             </ContextMenuTrigger>
             <ContextMenuContent className="min-w-52" side="bottom" align="start">
               {/* GroupLabel throws without Group: "MenuGroupContext is missing". */}
@@ -546,33 +688,64 @@ const TorrentRow = memo(function TorrentRow({
 
 function Th({
   children,
+  columnId,
   onClick,
   active,
   dir,
+  dragging,
+  dropEdge,
+  headerRef,
+  onReorderPointerDown,
   onResize,
 }: {
   children: React.ReactNode;
+  columnId: TorrentColumnId;
   onClick: () => void;
   active: boolean;
   dir: "asc" | "desc";
+  dragging: boolean;
+  dropEdge: "before" | "after" | null;
+  headerRef: (node: HTMLTableCellElement | null) => void;
+  onReorderPointerDown: (event: ReactPointerEvent<HTMLTableCellElement> | MouseEvent<HTMLTableCellElement>) => void;
   onResize: (dx: number) => void;
 }) {
   return (
     <th
+      ref={headerRef}
+      data-column-id={columnId}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      aria-grabbed={dragging || undefined}
       className={cn(
-        "relative overflow-hidden px-2 py-2",
+        "relative overflow-hidden px-2 py-2 select-none",
+        dragging ? "cursor-grabbing opacity-50" : "cursor-grab",
         active ? "bg-muted/40 text-foreground" : "text-muted-foreground"
       )}
+      onPointerDown={onReorderPointerDown}
+      onMouseDown={onReorderPointerDown}
     >
+      {dropEdge === "before" ? (
+        <span
+          aria-hidden
+          data-drop-indicator="before"
+          className="pointer-events-none absolute inset-y-0 left-0 z-30 w-0.5 bg-primary"
+        />
+      ) : null}
+      {dropEdge === "after" ? (
+        <span
+          aria-hidden
+          data-drop-indicator="after"
+          className="pointer-events-none absolute inset-y-0 right-0 z-30 w-0.5 bg-primary"
+        />
+      ) : null}
       <button
         type="button"
+        draggable={false}
         onClick={(e) => {
           if (e.button !== 0) return;
           onClick();
         }}
         className={cn(
-          "inline-flex max-w-full items-center gap-1 truncate",
+          "inline-flex max-w-full cursor-grab items-center gap-1 truncate",
           active ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
         )}
       >

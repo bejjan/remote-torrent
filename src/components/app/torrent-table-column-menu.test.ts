@@ -35,5 +35,10 @@ assert.match(
   tableSource,
   /<ContextMenuGroup>[\s\S]*<ContextMenuLabel>[\s\S]*<\/ContextMenuGroup>/
 );
+assert.match(tableSource, /DragResizeHandle/);
+assert.match(tableSource, /COLUMN_REORDER_DRAG_THRESHOLD/);
+assert.match(tableSource, /onReorderColumns/);
+assert.match(tableSource, /data-drop-indicator/);
+assert.match(tableSource, /onResize=\{\(dx\) => onResizeColumn\(column\.id, dx\)\}/);
 
 console.log("torrent-table column menu tests passed");

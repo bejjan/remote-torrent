@@ -2,6 +2,10 @@ import type { TorrentStatus } from "./types";
 
 /** Browser-local torrent list column visibility. Official Deluge Web stores ExtJS grid state separately. */
 export const TORRENT_COLUMNS_STORAGE_KEY = "deluge-nova:torrent-columns";
+/** Browser-local torrent list column order, including hidden columns. */
+export const TORRENT_COLUMN_ORDER_STORAGE_KEY = "deluge-nova:torrent-column-order";
+/** Pointer movement (px) before a header press becomes a reorder drag instead of a sort click. */
+export const COLUMN_REORDER_DRAG_THRESHOLD = 8;
 
 export const REQUIRED_TORRENT_COLUMN_ID = "name" as const;
 
@@ -41,7 +45,7 @@ export interface TorrentColumn {
   defaultVisible: boolean;
 }
 
-/** Catalog order is the table order. Name is the identity column and cannot be hidden. */
+/** Catalog order is the default table order. Name is the identity column and cannot be hidden. */
 export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
   { id: "queue", label: "#", sortKey: "queue", hideable: true, defaultVisible: true },
   { id: "name", label: "Name", sortKey: "name", hideable: false, defaultVisible: true },
@@ -161,8 +165,84 @@ export function defaultVisibleTorrentColumns(): Set<TorrentColumnId> {
   );
 }
 
-export function visibleTorrentColumns(visibleIds: ReadonlySet<TorrentColumnId>): TorrentColumn[] {
-  return TORRENT_COLUMNS.filter((column) => visibleIds.has(column.id));
+export function defaultTorrentColumnOrder(): TorrentColumnId[] {
+  return TORRENT_COLUMNS.map((column) => column.id);
+}
+
+export function normalizeColumnOrder(
+  order: readonly string[] | null | undefined
+): TorrentColumnId[] {
+  const seen = new Set<TorrentColumnId>();
+  const next: TorrentColumnId[] = [];
+  if (order) {
+    for (const id of order) {
+      if (!isTorrentColumnId(id) || seen.has(id)) continue;
+      seen.add(id);
+      next.push(id);
+    }
+  }
+  for (const column of TORRENT_COLUMNS) {
+    if (!seen.has(column.id)) next.push(column.id);
+  }
+  return next;
+}
+
+export function sameColumnOrder(
+  a: readonly TorrentColumnId[],
+  b: readonly TorrentColumnId[]
+): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+/**
+ * Move `draggedId` so it sits immediately before `beforeId` in the full order.
+ * `beforeId === null` appends after every other column (including hidden ones).
+ */
+export function moveColumnBefore(
+  order: readonly TorrentColumnId[],
+  draggedId: TorrentColumnId,
+  beforeId: TorrentColumnId | null
+): TorrentColumnId[] {
+  const current = normalizeColumnOrder(order);
+  if (!current.includes(draggedId) || draggedId === beforeId) return current;
+  const from = current.indexOf(draggedId);
+  const without = current.filter((id) => id !== draggedId);
+  let insertAt = beforeId == null ? without.length : without.indexOf(beforeId);
+  if (insertAt < 0) insertAt = without.length;
+  if (insertAt === from) return current;
+  const next = [...without.slice(0, insertAt), draggedId, ...without.slice(insertAt)];
+  return sameColumnOrder(next, current) ? current : next;
+}
+
+/** Visible insert index from pointer X vs column midpoints. 0 = before first, length = after last. */
+export function dropIndexFromX(midpoints: readonly number[], clientX: number): number {
+  for (let i = 0; i < midpoints.length; i++) {
+    const mid = midpoints[i];
+    if (typeof mid === "number" && Number.isFinite(mid) && clientX < mid) return i;
+  }
+  return midpoints.length;
+}
+
+/** Dropping on either edge of the dragged column leaves visible order unchanged. */
+export function isIdentityColumnDrop(fromIndex: number, dropIndex: number): boolean {
+  return dropIndex === fromIndex || dropIndex === fromIndex + 1;
+}
+
+export function visibleTorrentColumns(
+  visibleIds: ReadonlySet<TorrentColumnId>,
+  order?: readonly TorrentColumnId[]
+): TorrentColumn[] {
+  if (!order || order.length === 0) {
+    return TORRENT_COLUMNS.filter((column) => visibleIds.has(column.id));
+  }
+  const byId = new Map(TORRENT_COLUMNS.map((column) => [column.id, column]));
+  const shown: TorrentColumn[] = [];
+  for (const id of normalizeColumnOrder(order)) {
+    if (!visibleIds.has(id)) continue;
+    const column = byId.get(id);
+    if (column) shown.push(column);
+  }
+  return shown;
 }
 
 export function applyColumnVisibility(
@@ -218,6 +298,38 @@ export function saveTorrentColumnVisibility(visibleIds: ReadonlySet<TorrentColum
     localStorage.setItem(
       TORRENT_COLUMNS_STORAGE_KEY,
       JSON.stringify(serializeTorrentColumnVisibility(visibleIds))
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function parseStoredColumnOrder(raw: string | null | undefined): TorrentColumnId[] {
+  if (!raw) return defaultTorrentColumnOrder();
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return defaultTorrentColumnOrder();
+    return normalizeColumnOrder(parsed.filter((value): value is string => typeof value === "string"));
+  } catch {
+    return defaultTorrentColumnOrder();
+  }
+}
+
+export function loadTorrentColumnOrder(): TorrentColumnId[] {
+  if (typeof window === "undefined") return defaultTorrentColumnOrder();
+  try {
+    return parseStoredColumnOrder(localStorage.getItem(TORRENT_COLUMN_ORDER_STORAGE_KEY));
+  } catch {
+    return defaultTorrentColumnOrder();
+  }
+}
+
+export function saveTorrentColumnOrder(order: readonly TorrentColumnId[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      TORRENT_COLUMN_ORDER_STORAGE_KEY,
+      JSON.stringify(normalizeColumnOrder(order))
     );
   } catch {
     /* quota / private mode */

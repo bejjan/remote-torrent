@@ -57,9 +57,14 @@ import { GRID_KEYS } from "@/lib/deluge/keys";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import {
   applyColumnVisibility,
+  defaultTorrentColumnOrder,
   defaultVisibleTorrentColumns,
+  loadTorrentColumnOrder,
   loadTorrentColumnVisibility,
+  moveColumnBefore,
+  saveTorrentColumnOrder,
   saveTorrentColumnVisibility,
+  sameColumnOrder,
   visibleTorrentColumns,
   type TorrentColumnId,
 } from "@/lib/deluge/torrent-columns";
@@ -116,19 +121,21 @@ export function TorrentShell({
   const [visibleColumnIds, setVisibleColumnIds] = useState<Set<TorrentColumnId>>(
     defaultVisibleTorrentColumns
   );
+  const [columnOrder, setColumnOrder] = useState<TorrentColumnId[]>(defaultTorrentColumnOrder);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const splitRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setVisibleColumnIds(loadTorrentColumnVisibility());
+    setColumnOrder(loadTorrentColumnOrder());
     setSidebarWidth(loadSidebarWidth());
     setColumnWidths(loadTorrentColumnWidths());
   }, []);
 
   const shownColumns = useMemo(
-    () => visibleTorrentColumns(visibleColumnIds),
-    [visibleColumnIds]
+    () => visibleTorrentColumns(visibleColumnIds, columnOrder),
+    [visibleColumnIds, columnOrder]
   );
 
   const widthFor = useCallback(
@@ -164,6 +171,15 @@ export function TorrentShell({
     setVisibleColumnIds((prev) => {
       const next = applyColumnVisibility(prev, id, visible);
       saveTorrentColumnVisibility(next);
+      return next;
+    });
+  }, []);
+
+  const reorderColumn = useCallback((draggedId: TorrentColumnId, beforeId: TorrentColumnId | null) => {
+    setColumnOrder((prev) => {
+      const next = moveColumnBefore(prev, draggedId, beforeId);
+      if (sameColumnOrder(next, prev)) return prev;
+      saveTorrentColumnOrder(next);
       return next;
     });
   }, []);
@@ -390,6 +406,7 @@ export function TorrentShell({
       mobile={mobile}
       onToggleSort={toggleSort}
       onResizeColumn={resizeColumn}
+      onReorderColumns={reorderColumn}
       onSetColumnVisible={setColumnVisible}
       onSelectedChange={setSelected}
       onActiveIdChange={setActiveId}
