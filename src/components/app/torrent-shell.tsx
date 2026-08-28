@@ -302,8 +302,8 @@ export function TorrentShell({
         </div>
       ) : (
         <table className="w-full min-w-[64rem] text-sm">
-          <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-            <tr className="border-b text-left text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-10 border-b bg-background">
+            <tr className="text-left text-xs text-muted-foreground">
               <th className="w-8 px-2 py-2">
                 <Checkbox
                   checked={ids.length > 0 && selectedIds.length === ids.length}
@@ -364,7 +364,7 @@ export function TorrentShell({
                     render={
                       <tr
                         className={cn(
-                          "cursor-pointer border-b border-border/60 hover:bg-muted/40",
+                          "cursor-pointer border-b hover:bg-muted/50",
                           isSel && "bg-primary/10 hover:bg-primary/15"
                         )}
                         onClick={(e) => clickRow(id, e)}
@@ -561,7 +561,7 @@ export function TorrentShell({
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-3 py-1.5 text-xs text-muted-foreground">
+      <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-sidebar px-3 py-1.5 text-xs text-muted-foreground">
         <span>
           {torrents.length} torrent{torrents.length === 1 ? "" : "s"}
           {selectedIds.length ? ` · ${selectedIds.length} selected` : ""}
