@@ -112,6 +112,7 @@ export function AddTorrentDialog({
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export function AddTorrentDialog({
     setTab("file");
     setFile(null);
     setFileDragOver(false);
+    setAdvancedOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setMagnet("");
     setUrl("");
@@ -446,8 +448,8 @@ export function AddTorrentDialog({
           </Alert>
         ) : null}
         {preview ? <TorrentPreviewCard preview={preview} priorities={priorities} onPriorities={setPriorities} /> : null}
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
+        <div className="grid gap-2">
+          <div className="grid gap-1">
             <Label htmlFor="add-download-location">Download location</Label>
             <Input
               id="add-download-location"
@@ -455,41 +457,76 @@ export function AddTorrentDialog({
               onChange={(e) => setDownloadLocation(e.target.value)}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={moveCompleted} onCheckedChange={setMoveCompleted} />
-            Move completed
-          </label>
-          {moveCompleted ? (
-            <div className="grid gap-1.5">
-              <Label htmlFor="add-move-completed">Move completed path</Label>
-              <Input
-                id="add-move-completed"
-                value={moveCompletedPath}
-                onChange={(e) => setMoveCompletedPath(e.target.value)}
-              />
-            </div>
-          ) : null}
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={addPaused} onCheckedChange={setAddPaused} />
-            Add in paused state
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={sequential} onCheckedChange={setSequential} />
-            Sequential download
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={firstLast} onCheckedChange={setFirstLast} />
-            Prioritize first and last pieces
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="add-max-down">Max download (KiB/s, −1 unlimited)</Label>
-              <Input id="add-max-down" value={maxDown} onChange={(e) => setMaxDown(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="add-max-up">Max upload (KiB/s, −1 unlimited)</Label>
-              <Input id="add-max-up" value={maxUp} onChange={(e) => setMaxUp(e.target.value)} />
-            </div>
+          <div className="rounded-md border border-border bg-muted/40">
+            <button
+              type="button"
+              className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-sm font-medium text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((v) => !v)}
+            >
+              {advancedOpen ? (
+                <ChevronDown className="size-3.5 shrink-0" />
+              ) : (
+                <ChevronRight className="size-3.5 shrink-0" />
+              )}
+              Advanced settings
+            </button>
+            {advancedOpen ? (
+              <div className="grid gap-x-3 gap-y-2 border-t border-border px-2.5 py-2 sm:grid-cols-2 sm:items-center">
+                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                  <Switch size="sm" checked={moveCompleted} onCheckedChange={setMoveCompleted} />
+                  Move completed
+                </label>
+                <Input
+                  id="add-move-completed"
+                  aria-label="Move completed path"
+                  placeholder="Move completed path"
+                  value={moveCompletedPath}
+                  disabled={!moveCompleted}
+                  onChange={(e) => setMoveCompletedPath(e.target.value)}
+                  className="h-7"
+                />
+                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                  <Switch size="sm" checked={addPaused} onCheckedChange={setAddPaused} />
+                  Add in paused state
+                </label>
+                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                  <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
+                  Sequential download
+                </label>
+                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
+                  <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
+                  Prioritize first and last pieces
+                </label>
+                <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+                  <Label htmlFor="add-max-down" className="text-sm font-normal leading-snug">
+                    Max download
+                  </Label>
+                  <Input
+                    id="add-max-down"
+                    value={maxDown}
+                    aria-describedby="add-speed-hint"
+                    onChange={(e) => setMaxDown(e.target.value)}
+                    className="h-7"
+                  />
+                </div>
+                <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+                  <Label htmlFor="add-max-up" className="text-sm font-normal leading-snug">
+                    Max upload
+                  </Label>
+                  <Input
+                    id="add-max-up"
+                    value={maxUp}
+                    aria-describedby="add-speed-hint"
+                    onChange={(e) => setMaxUp(e.target.value)}
+                    className="h-7"
+                  />
+                </div>
+                <p id="add-speed-hint" className="text-[11px] leading-none text-muted-foreground sm:col-span-2">
+                  KiB/s, −1 unlimited
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
         <DialogFooter>
