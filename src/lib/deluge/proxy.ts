@@ -109,7 +109,12 @@ function stripSecrets(text: string): string {
 export function describeProxyError(err: unknown, target: string): string {
   const where = target ? ` (${sanitizePublicUrl(target)})` : "";
   const codes = walkErrorCodes(err);
-  const messages = walkErrorMessages(err).join(" ").toLowerCase();
+  const rawMessages = walkErrorMessages(err);
+  const messages = rawMessages.join(" ").toLowerCase();
+  const usefulMessage =
+    rawMessages.find((m) => m.trim() && m.toLowerCase() !== "fetch failed") ||
+    rawMessages[0] ||
+    (err instanceof Error ? err.message : "Proxy failure");
   const codeSet = new Set(codes);
 
   const isTimeout =
@@ -162,7 +167,11 @@ export function describeProxyError(err: unknown, target: string): string {
     return `TLS certificate error${label}${where}. Enable “Allow self-signed TLS” on the login screen, or set DELUGE_TLS_INSECURE=1.`;
   }
 
-  const detail = stripSecrets(walkErrorMessages(err)[0] || (err instanceof Error ? err.message : "Proxy failure"));
+  if (messages.includes("bad port")) {
+    return `Invalid or blocked port in Deluge Web URL${where}. Use the deluge-web port (default 8112).`;
+  }
+
+  const detail = stripSecrets(usefulMessage);
   return `Cannot reach Deluge Web${where}: ${detail}`;
 }
 
