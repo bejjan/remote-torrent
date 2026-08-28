@@ -53,7 +53,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
   return (
     <form
-      className="grid grid-cols-1 gap-3 md:grid-cols-2"
+      className="grid grid-cols-1 gap-2.5 md:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
@@ -163,8 +163,8 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
 function OptionSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-border bg-muted/40 p-3 dark:bg-muted/25">
-      <h3 className="mb-2.5 text-sm font-medium text-foreground">{title}</h3>
+    <section className="rounded-md border border-border bg-muted/40 p-2.5 dark:bg-muted/25">
+      <h3 className="mb-2 text-sm font-medium text-foreground">{title}</h3>
       <div className="grid gap-2">{children}</div>
     </section>
   );
