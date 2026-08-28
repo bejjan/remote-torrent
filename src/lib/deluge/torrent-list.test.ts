@@ -89,6 +89,26 @@ const map = { u: ubuntu, d: debian, m: mint };
 }
 
 {
+  const dotted = {
+    got: torrent("Game.of.Thrones.S01"),
+    spaced: torrent("game of thrones"),
+    other: torrent("debian.iso"),
+  };
+  const bySpaced = filterAndSortTorrents(dotted, "game of thrones", "name", "asc");
+  assert.deepEqual(
+    bySpaced.map(([id]) => id).sort(),
+    ["got", "spaced"]
+  );
+  const byDotted = filterAndSortTorrents(dotted, "game.of.thrones", "name", "asc");
+  assert.deepEqual(
+    byDotted.map(([id]) => id).sort(),
+    ["got", "spaced"]
+  );
+  const byDotsOnly = filterAndSortTorrents(dotted, "...", "name", "asc");
+  assert.equal(byDotsOnly.length, 3);
+}
+
+{
   const prev: TorrentRowEntry[] = [
     ["u", ubuntu],
     ["m", mint],

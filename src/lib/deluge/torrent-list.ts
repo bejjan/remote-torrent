@@ -1,5 +1,6 @@
 import { compareQueue } from "@/lib/deluge/format";
 import type { TorrentStatus } from "@/lib/deluge/types";
+import { normalizeSearchText } from "@/lib/highlight-text";
 
 export type TorrentSortKey = keyof TorrentStatus | "id";
 
@@ -12,8 +13,10 @@ export function filterAndSortTorrents(
   sortDir: "asc" | "desc"
 ): TorrentRowEntry[] {
   const entries = Object.entries(torrents || {}) as TorrentRowEntry[];
-  const q = search.trim().toLowerCase();
-  const filtered = q ? entries.filter(([, t]) => t.name.toLowerCase().includes(q)) : entries;
+  const q = normalizeSearchText(search);
+  const filtered = q
+    ? entries.filter(([, t]) => normalizeSearchText(t.name).includes(q))
+    : entries;
   filtered.sort((a, b) => {
     if (sortKey === "id") {
       const cmp = a[0].localeCompare(b[0]);
