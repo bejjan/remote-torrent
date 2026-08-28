@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Deluge Nova
 
-## Getting Started
+A modern web UI for [Deluge](https://www.deluge-torrent.org/). It talks to `deluge-web` over JSON-RPC, or runs a built-in demo backend so you can explore the client without a daemon.
 
-First, run the development server:
+Licensed under [GPL-3.0](./LICENSE).
+
+## Features
+
+- Dark-first torrent client layout with a light theme toggle
+- Filters, searchable table, details tabs, and a full toolbar (add / pause / resume / remove / queue / move / recheck)
+- Connection Manager for `deluge-web` hosts
+- First-party preferences (Downloads, Network, Bandwidth, Queue, Proxy, Cache, Daemon, Other, Interface, Plugins)
+- Plugin surfaces: Label, Scheduler, Extractor, Execute, Notifications, Blocklist, AutoAdd
+- Desktop and mobile (sidebar and details as sheets)
+
+## Demo mode
+
+Leave **Deluge Web URL** blank on the login screen and sign in with password `deluge`.
+
+Demo mode keeps an in-memory session (survives Next.js hot reload) and simulates live download progress.
+
+## Connect to Deluge
+
+1. Run `deluge-web` (default `http://127.0.0.1:8112`).
+2. Enter that URL on the login screen, or set `DELUGE_WEB_URL` in `.env.local`.
+3. Sign in with your Deluge Web password.
+4. Use Connection Manager if the daemon is not connected yet.
+
+For self-signed HTTPS, set `DELUGE_TLS_INSECURE=1`.
+
+## Environment
+
+Copy `.env.example` to `.env.local`:
+
+| Variable | Purpose |
+| --- | --- |
+| `DELUGE_WEB_URL` | Base URL of `deluge-web` (no trailing slash) |
+| `DELUGE_DEMO` | Set to `1` to force the in-memory demo backend |
+| `DELUGE_TLS_INSECURE` | Set to `1` to skip TLS verification when proxying |
+
+You can also override the URL per browser via the login form (sent as `X-Deluge-URL`).
+
+## Develop
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app listens on [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm start
+npm run lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+API routes:
 
-## Learn More
+- `POST /api/json` — JSON-RPC proxy to `deluge-web` `/json` (cookie forwarding + `Set-Cookie` rewrite), or demo RPC
+- `POST /api/upload` — torrent file upload proxy to `deluge-web` `/upload`, or demo upload
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui (Base UI).

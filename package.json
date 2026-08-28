@@ -1,11 +1,12 @@
 {
-  "name": "tmp-scaffold",
+  "name": "deluge-nova",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0 --port 43123",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0 --port 43123",
     "lint": "eslint"
   },
   "dependencies": {
