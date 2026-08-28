@@ -1,5 +1,11 @@
 import { randomBytes, randomUUID } from "crypto";
 import { parseMagnetName, trackerHost } from "./format";
+import {
+  inventDemoFilesTree,
+  mapInfoTreeToStatusFiles,
+  parseMagnetInfoHash,
+  type TorrentInfoDir,
+} from "./files-tree";
 import type {
   AddTorrentOptions,
   ExecuteCommand,
@@ -62,7 +68,7 @@ interface DemoState {
     state: string;
   };
   autoadd: Record<string, WatchDir>;
-  uploads: Record<string, { name: string; size: number }>;
+  uploads: Record<string, { name: string; size: number; filesTree: TorrentInfoDir; infoHash: string }>;
   lastTick: number;
 }
 
@@ -771,7 +777,8 @@ function addTorrentFromName(
   state: DemoState,
   name: string,
   options: AddTorrentOptions = {},
-  size = 650 * 1024 ** 2
+  size = 650 * 1024 ** 2,
+  files?: FileDir
 ): string {
   const id = fakeHash(name + Date.now());
   const paused = Boolean(options.add_paused);
@@ -784,7 +791,7 @@ function addTorrentFromName(
     up: paused ? 0 : 12 * 1024,
     tracker: "udp://tracker.opentrackr.org:1337/announce",
     queue: Object.values(state.torrents).filter((t) => t.status.queue >= 0).length,
-    files: {
+    files: files ?? {
       type: "dir",
       contents: { [name]: fileLeaf(0, size, 0) },
     },
@@ -983,37 +990,62 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       case "web.get_torrent_info": {
         const path = String(params[0] ?? "");
         const uploaded = state.uploads[path];
-        const name = uploaded?.name ?? path.split("/").pop() ?? "torrent";
+        const fallbackName = (path.split("/").pop() || "torrent").replace(/\.torrent$/i, "");
+        const name = uploaded?.name ?? fallbackName;
+        const size = uploaded?.size ?? 100_000_000;
+        const filesTree = uploaded?.filesTree ?? inventDemoFilesTree(name, size);
         return {
           id,
           result: {
             name,
-            info_hash: fakeHash(name),
-            files_tree: {
-              type: "dir",
-              contents: { [name]: fileLeaf(0, uploaded?.size ?? 100_000_000, 0) },
-            },
+            info_hash: uploaded?.infoHash ?? fakeHash(name),
+            files_tree: filesTree,
+          },
+          error: null,
+        };
+      }
+      case "web.get_magnet_info": {
+        const uri = String(params[0] ?? "");
+        const infoHash = parseMagnetInfoHash(uri);
+        if (!infoHash) return { id, result: {}, error: null };
+        return {
+          id,
+          result: {
+            name: parseMagnetName(uri),
+            info_hash: infoHash,
+            files_tree: "",
           },
           error: null,
         };
       }
       case "web.add_torrents": {
         const items = (params[0] as { path?: string; options?: AddTorrentOptions }[]) || [];
-        const ids: string[] = [];
         for (const item of items) {
           const path = item.path || "";
           const uploaded = state.uploads[path];
           const name = path.startsWith("magnet:")
             ? parseMagnetName(path)
             : uploaded?.name || path.split("/").pop() || "New torrent";
-          ids.push(addTorrentFromName(state, name, item.options, uploaded?.size));
+          const prios = item.options?.file_priorities || [];
+          const files = uploaded?.filesTree
+            ? mapInfoTreeToStatusFiles(uploaded.filesTree, prios)
+            : undefined;
+          addTorrentFromName(state, name, item.options, uploaded?.size, files);
         }
         return { id, result: true, error: null };
       }
       case "web.download_torrent_from_url": {
         const url = String(params[0] ?? "");
         const path = `/tmp/deluge-web/${randomUUID()}.torrent`;
-        state.uploads[path] = { name: url.split("/").pop() || "remote.torrent", size: 200_000_000 };
+        const rawName = url.split("/").pop() || "remote.torrent";
+        const name = rawName.replace(/\.torrent$/i, "") || "remote";
+        const size = 200_000_000;
+        state.uploads[path] = {
+          name,
+          size,
+          filesTree: inventDemoFilesTree(name, size),
+          infoHash: fakeHash(name + url),
+        };
         return { id, result: path, error: null };
       }
 
@@ -1345,7 +1377,14 @@ function applyPriorities(node: FileNode, prios: number[]) {
 
 export function handleDemoUpload(filename: string, size: number): { success: boolean; files: string[] } {
   const state = getState();
-  const path = `/tmp/deluge-web/uploads/${randomUUID()}-${filename}`;
-  state.uploads[path] = { name: filename.replace(/\.torrent$/i, ""), size: size || 400_000_000 };
+  const path = `/tmp/deluge-web/uploads/${randomUUID()}-${filename || "upload.torrent"}`;
+  const name = (filename || "upload.torrent").replace(/\.torrent$/i, "") || "upload";
+  const bytes = size || 400_000_000;
+  state.uploads[path] = {
+    name,
+    size: bytes,
+    filesTree: inventDemoFilesTree(name, bytes),
+    infoHash: fakeHash(name + path),
+  };
   return { success: true, files: [path] };
 }
