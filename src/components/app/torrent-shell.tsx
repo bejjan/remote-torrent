@@ -451,11 +451,11 @@ export function TorrentShell({
 
       <div ref={splitRef} className="flex min-h-0 flex-1">
         {!mobile && showSidebar ? (
-          <>
-            <aside
-              style={{ width: sidebarWidth }}
-              className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground"
-            >
+          <div
+            className="relative min-h-0 min-w-0 shrink-0 self-stretch"
+            style={{ width: sidebarWidth }}
+          >
+            <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
               <FilterSidebar
                 filters={ui?.filters ?? null}
                 selected={filters}
@@ -473,7 +473,7 @@ export function TorrentShell({
               ariaLabel="Resize filter sidebar"
               onDelta={resizeSidebar}
             />
-          </>
+          </div>
         ) : null}
         <div className="flex min-w-0 flex-1 flex-col">
           {table}

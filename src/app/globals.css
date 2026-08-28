@@ -169,9 +169,6 @@ mark.search-hit {
 }
 
 /* Neutral gray resize chrome for the filter sidebar and table column edges. */
-.col-resize-handle {
-  position: relative;
-}
 .col-resize-handle::before {
   content: "";
   position: absolute;

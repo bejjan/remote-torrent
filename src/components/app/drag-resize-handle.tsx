@@ -82,10 +82,7 @@ export function DragResizeHandle({
       data-active={active ? "" : undefined}
       data-variant={variant}
       className={cn(
-        "col-resize-handle touch-none",
-        variant === "column"
-          ? "absolute inset-y-0 right-0 z-20 w-2 translate-x-1/2 cursor-col-resize"
-          : "relative z-20 w-2 shrink-0 cursor-col-resize self-stretch",
+        "col-resize-handle touch-none absolute inset-y-0 right-0 z-20 w-2 translate-x-1/2 cursor-col-resize",
         className
       )}
       onPointerDown={(event) => {
