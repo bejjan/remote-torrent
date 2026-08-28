@@ -274,6 +274,7 @@ function defaultConfig(): Record<string, unknown> {
     max_download_speed_per_torrent: -1,
     max_upload_speed_per_torrent: -1,
     max_half_open_connections: 50,
+    max_connections_per_second: 20,
     ignore_limits_on_local_network: true,
     rate_limit_ip_overhead: true,
     listen_ports: [6881, 6891],
@@ -287,10 +288,14 @@ function defaultConfig(): Record<string, unknown> {
     dht: true,
     upnp: true,
     natpmp: true,
+    utp: true,
     enc_in_policy: 1,
     enc_out_policy: 1,
     enc_level: 2,
+    peer_tos: "0x00",
     geoip_db_location: "/usr/share/GeoIP/GeoIP.dat",
+    announce_ip: "",
+    send_info: false,
     cache_size: 512,
     cache_expiry: 60,
     daemon_port: 58846,
@@ -301,6 +306,7 @@ function defaultConfig(): Record<string, unknown> {
     max_active_seeding: 5,
     max_active_limit: 8,
     dont_count_slow_torrents: true,
+    auto_manage_prefer_seeds: false,
     share_ratio_limit: 2,
     seed_time_ratio_limit: 7,
     seed_time_limit: 180,
@@ -309,6 +315,7 @@ function defaultConfig(): Record<string, unknown> {
     remove_seed_at_ratio: false,
     autoadd_enable: false,
     autoadd_location: "/home/deluge/watch",
+    announce_to_all_tiers: false,
     proxy: {
       type: 0,
       hostname: "",
@@ -318,6 +325,8 @@ function defaultConfig(): Record<string, unknown> {
       proxy_hostnames: true,
       proxy_peer_connections: true,
       proxy_tracker_connections: true,
+      force_proxy: false,
+      anonymous_mode: false,
     },
   };
 }
@@ -1144,6 +1153,20 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       case "web.set_config":
         Object.assign(state.webConfig, (params[0] as object) || {});
         return { id, result: null, error: null };
+      case "web.get_languages":
+      case "webutils.get_languages":
+        return {
+          id,
+          result: [
+            ["en", "English"],
+            ["es", "Spanish"],
+            ["de", "German"],
+            ["fr", "French"],
+            ["ru", "Russian"],
+            ["zh_CN", "Chinese (Simplified)"],
+          ],
+          error: null,
+        };
       case "web.get_plugins":
         return {
           id,
@@ -1347,7 +1370,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         for (const tid of idsParam(params)) {
           const t = state.torrents[tid];
           if (!t) continue;
-          Object.assign(t.status, opts);
+          applyTorrentOptions(t, opts);
         }
         return { id, result: null, error: null };
       }
@@ -1460,24 +1483,30 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       }
 
       case "scheduler.get_config":
+        requirePlugin(state, "Scheduler");
         return { id, result: { ...state.scheduler }, error: null };
       case "scheduler.set_config":
+        requirePlugin(state, "Scheduler");
         Object.assign(state.scheduler, (params[0] as object) || {});
         return { id, result: null, error: null };
 
       case "extractor.get_config":
+        requirePlugin(state, "Extractor");
         return { id, result: { ...state.extractor }, error: null };
       case "extractor.set_config":
+        requirePlugin(state, "Extractor");
         Object.assign(state.extractor, (params[0] as object) || {});
         return { id, result: null, error: null };
 
       case "execute.get_commands":
+        requirePlugin(state, "Execute");
         return {
           id,
           result: state.execute.map((c) => [c.id, c.event, c.command]),
           error: null,
         };
       case "execute.add_command": {
+        requirePlugin(state, "Execute");
         const cmd: ExecuteCommand = {
           id: randomUUID(),
           event: String(params[0] ?? "complete"),
@@ -1487,9 +1516,11 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: cmd.id, error: null };
       }
       case "execute.remove_command":
+        requirePlugin(state, "Execute");
         state.execute = state.execute.filter((c) => c.id !== String(params[0]));
         return { id, result: null, error: null };
       case "execute.save_command": {
+        requirePlugin(state, "Execute");
         const cmd = state.execute.find((c) => c.id === String(params[0]));
         if (cmd) {
           cmd.event = String(params[1] ?? cmd.event);
@@ -1499,27 +1530,34 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       }
 
       case "notifications.get_config":
+        requirePlugin(state, "Notifications");
         return { id, result: { ...state.notifications }, error: null };
       case "notifications.set_config":
+        requirePlugin(state, "Notifications");
         Object.assign(state.notifications, (params[0] as object) || {});
         return { id, result: null, error: null };
 
       case "blocklist.get_status":
       case "blocklist.get_config":
+        requirePlugin(state, "Blocklist");
         return { id, result: { ...state.blocklist }, error: null };
       case "blocklist.set_config":
+        requirePlugin(state, "Blocklist");
         Object.assign(state.blocklist, (params[0] as object) || {});
         return { id, result: null, error: null };
       case "blocklist.check_import":
       case "blocklist.fetch":
+        requirePlugin(state, "Blocklist");
         state.blocklist.state = "Imported";
         state.blocklist.last_update = new Date().toISOString();
         state.blocklist.size += 128;
         return { id, result: true, error: null };
 
       case "autoadd.get_watchdirs":
+        requirePlugin(state, "AutoAdd");
         return { id, result: { ...state.autoadd }, error: null };
       case "autoadd.add": {
+        requirePlugin(state, "AutoAdd");
         const opts = (params[0] as Partial<WatchDir>) || {};
         const watch: WatchDir = {
           id: randomUUID(),
@@ -1534,19 +1572,23 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: watch.id, error: null };
       }
       case "autoadd.remove":
+        requirePlugin(state, "AutoAdd");
         delete state.autoadd[String(params[0])];
         return { id, result: true, error: null };
       case "autoadd.set_options": {
+        requirePlugin(state, "AutoAdd");
         const watch = state.autoadd[String(params[0])];
         if (watch) Object.assign(watch, (params[1] as object) || {});
         return { id, result: true, error: null };
       }
       case "autoadd.enable_watchdir": {
+        requirePlugin(state, "AutoAdd");
         const watch = state.autoadd[String(params[0])];
         if (watch) watch.enabled = true;
         return { id, result: true, error: null };
       }
       case "autoadd.disable_watchdir": {
+        requirePlugin(state, "AutoAdd");
         const watch = state.autoadd[String(params[0])];
         if (watch) watch.enabled = false;
         return { id, result: true, error: null };
@@ -1610,6 +1652,18 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       error: { message: error.message || "RPC error", code: error.code },
     };
   }
+}
+
+function applyTorrentOptions(extra: ExtraTorrent, opts: Record<string, unknown>) {
+  const mapped: Record<string, unknown> = { ...opts };
+  if ("prioritize_first_last_pieces" in mapped) {
+    mapped.prioritize_first_last = Boolean(mapped.prioritize_first_last_pieces);
+    delete mapped.prioritize_first_last_pieces;
+  }
+  const prios = mapped.file_priorities;
+  delete mapped.file_priorities;
+  Object.assign(extra.status, mapped);
+  if (Array.isArray(prios)) applyPriorities(extra.files, prios as number[]);
 }
 
 function applyPriorities(node: FileNode, prios: number[]) {
