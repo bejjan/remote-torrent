@@ -92,7 +92,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.55_0.12_185/0.18),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.45_0_0/0.08),transparent_55%)]" />
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
