@@ -993,6 +993,6 @@ function TorrentColumnCell({
   })();
   if (!cell) return null;
   return cloneElement(cell, {
-    className: cn(cell.props.className, "overflow-hidden", sorted && "text-foreground"),
+    className: cn(cell.props.className, "overflow-hidden", sorted && "bg-muted/25"),
   });
 }
