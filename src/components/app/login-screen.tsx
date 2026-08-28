@@ -134,7 +134,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                   aria-label="Deluge Web port"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="min-w-0 text-xs break-words text-muted-foreground">
                 Example: <span className="font-mono text-foreground">http://192.168.1.10:8112</span>.
                 Missing <span className="font-mono">http://</span> is added; missing port defaults to{" "}
                 {DEFAULT_WEB_PORT}.

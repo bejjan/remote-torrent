@@ -7,6 +7,8 @@ const dir = dirname(fileURLToPath(import.meta.url));
 
 const brand = readFileSync(join(dir, "brand.tsx"), "utf8");
 assert.match(brand, /<button/);
+assert.match(brand, /min-w-0 truncate font-heading/);
+assert.match(brand, /wordmarkClassName/);
 assert.match(brand, /type="button"/);
 assert.match(brand, /cursor-pointer/);
 assert.match(brand, /About Deluge Nova/);
