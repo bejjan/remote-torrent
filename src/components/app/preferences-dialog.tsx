@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -126,7 +125,6 @@ export function PreferencesDialog({
       <DialogContent className="flex h-[min(40rem,90vh)] max-w-4xl flex-col gap-0 p-0 sm:max-w-4xl">
         <DialogHeader className="border-b p-4">
           <DialogTitle>Preferences</DialogTitle>
-          <DialogDescription>Deluge daemon, web interface, and plugin settings.</DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-1">
           <nav className="w-44 shrink-0 overflow-auto border-r p-2">
