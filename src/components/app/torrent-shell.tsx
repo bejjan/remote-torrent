@@ -63,9 +63,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { rpc } from "@/lib/deluge/client";
 import {
+  compareQueue,
   formatBytes,
   formatEta,
   formatProgress,
+  formatQueue,
   formatRate,
   formatRatio,
 } from "@/lib/deluge/format";
@@ -198,6 +200,10 @@ export function TorrentShell({
       ? entries.filter(([, t]) => t.name.toLowerCase().includes(q))
       : entries;
     filtered.sort((a, b) => {
+      if (sortKey === "queue") {
+        const cmp = compareQueue(a[1].queue, b[1].queue);
+        return sortDir === "asc" ? cmp : -cmp;
+      }
       const av = a[1][sortKey as keyof TorrentStatus];
       const bv = b[1][sortKey as keyof TorrentStatus];
       if (typeof av === "number" && typeof bv === "number") {
@@ -220,7 +226,7 @@ export function TorrentShell({
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
       setSortKey(key);
-      setSortDir(key === "name" ? "asc" : "desc");
+      setSortDir(key === "name" || key === "queue" ? "asc" : "desc");
     }
   }
 
@@ -447,7 +453,7 @@ export function TorrentShell({
                         }}
                       />
                     </td>
-                    <td className="px-2 py-1.5 tabular text-muted-foreground">{t.queue}</td>
+                    <td className="px-2 py-1.5 tabular text-muted-foreground">{formatQueue(t.queue)}</td>
                     <td className="max-w-[20rem] truncate px-2 py-1.5 font-medium">{t.name}</td>
                     <td className="px-2 py-1.5 tabular">{formatBytes(t.total_wanted)}</td>
                     <td className="px-2 py-1.5">

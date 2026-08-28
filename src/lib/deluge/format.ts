@@ -44,6 +44,23 @@ export function formatProgress(progress: number): string {
   return `${progress.toFixed(progress >= 99.95 ? 0 : 1)}%`;
 }
 
+/** Deluge stores a 0-based queue; -1 means not in the download queue (seeding/finished). */
+export function formatQueue(queue: number | null | undefined): string {
+  if (queue == null || !Number.isFinite(queue) || queue < 0) return "—";
+  return String(Math.trunc(queue) + 1);
+}
+
+/** Queued torrents (queue >= 0) sort before unqueued (-1) in ascending order. */
+export function compareQueue(
+  a: number | null | undefined,
+  b: number | null | undefined
+): number {
+  const aq = typeof a === "number" && Number.isFinite(a) && a >= 0 ? a : Number.POSITIVE_INFINITY;
+  const bq = typeof b === "number" && Number.isFinite(b) && b >= 0 ? b : Number.POSITIVE_INFINITY;
+  if (aq === bq) return 0;
+  return aq - bq;
+}
+
 export function formatDate(epochSeconds: number): string {
   if (!epochSeconds) return "—";
   return new Date(epochSeconds * 1000).toLocaleString();

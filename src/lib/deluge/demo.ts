@@ -128,14 +128,15 @@ function makeTorrent(opts: {
 }): ExtraTorrent {
   const totalDone = Math.round((opts.size * opts.progress) / 100);
   const remaining = opts.size - totalDone;
-  const added = nowSec() - 86400 * (1 + opts.queue);
+  const queueAge = Math.abs(opts.queue);
+  const added = nowSec() - 86400 * (1 + queueAge);
   const peers: TorrentPeer[] = [
     {
       client: "qBittorrent 5.1.0",
       country: "DE",
       down_speed: Math.round(opts.down * 0.4),
       up_speed: Math.round(opts.up * 0.3),
-      ip: "91.64.12." + (10 + opts.queue),
+      ip: "91.64.12." + (10 + queueAge),
       progress: Math.min(1, opts.progress / 100 + 0.1),
       seed: opts.progress >= 100 ? 1 : 0,
     },
@@ -144,7 +145,7 @@ function makeTorrent(opts: {
       country: "US",
       down_speed: Math.round(opts.down * 0.25),
       up_speed: Math.round(opts.up * 0.5),
-      ip: "203.0.113." + (20 + opts.queue),
+      ip: "203.0.113." + (20 + queueAge),
       progress: Math.min(1, opts.progress / 100 + 0.05),
       seed: 1,
     },
@@ -153,7 +154,7 @@ function makeTorrent(opts: {
       country: "NL",
       down_speed: Math.round(opts.down * 0.2),
       up_speed: Math.round(opts.up * 0.15),
-      ip: "198.51.100." + (30 + opts.queue),
+      ip: "198.51.100." + (30 + queueAge),
       progress: opts.progress / 100,
       seed: 0,
     },
@@ -164,17 +165,17 @@ function makeTorrent(opts: {
     total_wanted: opts.size,
     state: opts.state,
     progress: opts.progress,
-    num_seeds: opts.state === "Seeding" ? 0 : 4 + opts.queue,
-    total_seeds: 42 + opts.queue * 3,
-    num_peers: 8 + opts.queue,
-    total_peers: 120 + opts.queue * 10,
+    num_seeds: opts.state === "Seeding" ? 0 : 4 + queueAge,
+    total_seeds: 42 + queueAge * 3,
+    num_peers: 8 + queueAge,
+    total_peers: 120 + queueAge * 10,
     download_payload_rate: opts.state === "Downloading" ? opts.down : 0,
     upload_payload_rate: opts.state === "Paused" || opts.state === "Queued" ? 0 : opts.up,
     eta:
       opts.state === "Downloading" && opts.down > 0
         ? remaining / opts.down
         : -1,
-    ratio: totalDone > 0 ? (opts.size * 0.4 + opts.queue * 1e8) / opts.size : 0,
+    ratio: totalDone > 0 ? (opts.size * 0.4 + queueAge * 1e8) / opts.size : 0,
     distributed_copies: opts.state === "Seeding" ? 1.2 : 0.6,
     is_auto_managed: true,
     time_added: added,
@@ -182,7 +183,7 @@ function makeTorrent(opts: {
     download_location: "/home/deluge/Downloads",
     last_seen_complete: nowSec() - 3600,
     total_done: totalDone,
-    total_uploaded: Math.round(opts.size * 0.35 + opts.queue * 5e7),
+    total_uploaded: Math.round(opts.size * 0.35 + queueAge * 5e7),
     max_download_speed: -1,
     max_upload_speed: -1,
     seeds_peers_ratio: 0.4,
@@ -325,7 +326,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 180 * 1024,
       label: "linux",
       tracker: "https://torrent.ubuntu.com/announce",
-      queue: 1,
+      queue: 0,
       files: {
         type: "dir",
         contents: {
@@ -342,7 +343,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 920 * 1024,
       label: "linux",
       tracker: "https://bttracker.debian.org:443/announce",
-      queue: 2,
+      queue: -1,
       files: {
         type: "dir",
         contents: {
@@ -359,7 +360,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 0,
       label: "linux",
       tracker: "udp://tracker.archlinux.org:6969/announce",
-      queue: 3,
+      queue: 2,
       files: {
         type: "dir",
         contents: {
@@ -376,7 +377,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 0,
       label: "linux",
       tracker: "http://torrent.fedoraproject.org:6969/announce",
-      queue: 4,
+      queue: 3,
       files: {
         type: "dir",
         contents: {
@@ -393,7 +394,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 64 * 1024,
       label: "linux",
       tracker: "https://linuxmint.com/torrent/announce",
-      queue: 5,
+      queue: 1,
       files: {
         type: "dir",
         contents: {
@@ -409,7 +410,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       down: 0,
       up: 0,
       tracker: "http://tracker.opensuse.org:6969/announce",
-      queue: 6,
+      queue: 4,
       message: "No space left on device",
       files: {
         type: "dir",
@@ -427,7 +428,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 1.4 * 1024 ** 2,
       label: "movies",
       tracker: "udp://tracker.opentrackr.org:1337/announce",
-      queue: 7,
+      queue: -1,
       files: {
         type: "dir",
         contents: {
@@ -451,7 +452,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
       up: 0,
       label: "movies",
       tracker: "udp://tracker.openbittorrent.com:6969/announce",
-      queue: 8,
+      queue: -1,
       files: {
         type: "dir",
         contents: {
@@ -616,6 +617,7 @@ function tickDownloads(state: DemoState) {
         t.download_payload_rate = 0;
         t.completed_time = nowSec();
         t.message = "";
+        t.queue = -1;
       }
     } else if (t.state === "Seeding") {
       const upInc = t.upload_payload_rate * dt;
@@ -633,9 +635,11 @@ function tickDownloads(state: DemoState) {
       if (t.progress >= 100) {
         t.state = "Seeding";
         t.progress = 100;
+        t.queue = -1;
       }
     }
   }
+  requeue(state);
 }
 
 function bumpFileProgress(node: FileNode, progress: number) {
@@ -726,12 +730,40 @@ function idsParam(params: unknown[]): string[] {
   return [];
 }
 
+function inDownloadQueue(status: TorrentStatus): boolean {
+  if (status.progress >= 100) return false;
+  if (status.state === "Seeding" || status.state === "Checking") return false;
+  return true;
+}
+
+function compareDemoQueue(a: number, b: number): number {
+  const aIn = a >= 0;
+  const bIn = b >= 0;
+  if (aIn !== bIn) return aIn ? -1 : 1;
+  return a - b;
+}
+
 function requeue(state: DemoState) {
-  const ordered = Object.values(state.torrents).sort(
-    (a, b) => a.status.queue - b.status.queue
-  );
+  const queued: ExtraTorrent[] = [];
+  for (const t of Object.values(state.torrents)) {
+    if (inDownloadQueue(t.status)) queued.push(t);
+    else t.status.queue = -1;
+  }
+  queued.sort((a, b) => compareDemoQueue(a.status.queue, b.status.queue));
+  queued.forEach((t, i) => {
+    t.status.queue = i;
+  });
+}
+
+function queuedEntries(state: DemoState) {
+  return Object.entries(state.torrents)
+    .filter(([, t]) => t.status.queue >= 0)
+    .sort((a, b) => compareDemoQueue(a[1].status.queue, b[1].status.queue));
+}
+
+function assignQueuePositions(ordered: ExtraTorrent[]) {
   ordered.forEach((t, i) => {
-    t.status.queue = i + 1;
+    t.status.queue = i;
   });
 }
 
@@ -751,7 +783,7 @@ function addTorrentFromName(
     down: paused ? 0 : 1.1 * 1024 ** 2,
     up: paused ? 0 : 12 * 1024,
     tracker: "udp://tracker.opentrackr.org:1337/announce",
-    queue: Object.keys(state.torrents).length + 1,
+    queue: Object.values(state.torrents).filter((t) => t.status.queue >= 0).length,
     files: {
       type: "dir",
       contents: { [name]: fileLeaf(0, size, 0) },
@@ -1030,33 +1062,31 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
             t.status.state = "Checking";
             t.status.progress = Math.min(99, t.status.progress);
             t.status.download_payload_rate = 0;
+            t.status.queue = -1;
           }
         }
+        requeue(state);
         return { id, result: null, error: null };
       case "core.force_reannounce":
         return { id, result: null, error: null };
       case "core.queue_top": {
         const set = new Set(idsParam(params));
-        const rest = Object.entries(state.torrents).filter(([tid]) => !set.has(tid));
-        const moved = Object.entries(state.torrents).filter(([tid]) => set.has(tid));
-        [...moved, ...rest].forEach(([, t], i) => {
-          t.status.queue = i + 1;
-        });
+        const queued = queuedEntries(state);
+        const moved = queued.filter(([tid]) => set.has(tid)).map(([, t]) => t);
+        const rest = queued.filter(([tid]) => !set.has(tid)).map(([, t]) => t);
+        assignQueuePositions([...moved, ...rest]);
         return { id, result: null, error: null };
       }
       case "core.queue_bottom": {
         const set = new Set(idsParam(params));
-        const rest = Object.entries(state.torrents).filter(([tid]) => !set.has(tid));
-        const moved = Object.entries(state.torrents).filter(([tid]) => set.has(tid));
-        [...rest, ...moved].forEach(([, t], i) => {
-          t.status.queue = i + 1;
-        });
+        const queued = queuedEntries(state);
+        const moved = queued.filter(([tid]) => set.has(tid)).map(([, t]) => t);
+        const rest = queued.filter(([tid]) => !set.has(tid)).map(([, t]) => t);
+        assignQueuePositions([...rest, ...moved]);
         return { id, result: null, error: null };
       }
       case "core.queue_up": {
-        const ordered = Object.entries(state.torrents).sort(
-          (a, b) => a[1].status.queue - b[1].status.queue
-        );
+        const ordered = queuedEntries(state);
         const selected = new Set(idsParam(params));
         for (let i = 1; i < ordered.length; i++) {
           if (selected.has(ordered[i][0]) && !selected.has(ordered[i - 1][0])) {
@@ -1065,15 +1095,11 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
             ordered[i - 1] = tmp;
           }
         }
-        ordered.forEach(([, t], i) => {
-          t.status.queue = i + 1;
-        });
+        assignQueuePositions(ordered.map(([, t]) => t));
         return { id, result: null, error: null };
       }
       case "core.queue_down": {
-        const ordered = Object.entries(state.torrents).sort(
-          (a, b) => a[1].status.queue - b[1].status.queue
-        );
+        const ordered = queuedEntries(state);
         const selected = new Set(idsParam(params));
         for (let i = ordered.length - 2; i >= 0; i--) {
           if (selected.has(ordered[i][0]) && !selected.has(ordered[i + 1][0])) {
@@ -1082,9 +1108,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
             ordered[i + 1] = tmp;
           }
         }
-        ordered.forEach(([, t], i) => {
-          t.status.queue = i + 1;
-        });
+        assignQueuePositions(ordered.map(([, t]) => t));
         return { id, result: null, error: null };
       }
       case "core.move_storage": {
