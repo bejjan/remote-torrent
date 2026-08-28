@@ -56,7 +56,8 @@ export function formatDuration(seconds: number): string {
 
 export function trackerHost(url: string): string {
   try {
-    const host = new URL(url.startsWith("http") ? url : `http://${url}`).hostname;
+    const normalized = url.includes("://") ? url : `http://${url}`;
+    const host = new URL(normalized).hostname;
     return host.replace(/^www\./, "");
   } catch {
     return url;
