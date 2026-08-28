@@ -454,11 +454,9 @@ export function TorrentShell({
               <col key={column.id} style={{ width: widthFor(column.id) }} />
             ))}
           </colgroup>
-          <ContextMenu>
-            <ContextMenuTrigger
-              render={<thead className="sticky top-0 z-10 border-b bg-background" />}
-            >
-              <tr className="text-left text-xs">
+          <thead className="sticky top-0 z-10 border-b bg-background">
+            <ContextMenu>
+              <ContextMenuTrigger render={<tr className="text-left text-xs" />}>
                 <th className="relative px-2 py-2">
                   <Checkbox
                     checked={ids.length > 0 && selectedIds.length === ids.length}
@@ -483,22 +481,22 @@ export function TorrentShell({
                     {column.label}
                   </Th>
                 ))}
-              </tr>
-            </ContextMenuTrigger>
-            <ContextMenuContent className="min-w-52" side="bottom" align="start">
-              <ContextMenuLabel>Columns</ContextMenuLabel>
-              {TORRENT_COLUMNS.map((column) => (
-                <ContextMenuCheckboxItem
-                  key={column.id}
-                  checked={visibleColumnIds.has(column.id)}
-                  disabled={!column.hideable}
-                  onCheckedChange={(checked) => setColumnVisible(column.id, checked)}
-                >
-                  {column.label === "#" ? "# Queue" : column.label}
-                </ContextMenuCheckboxItem>
-              ))}
-            </ContextMenuContent>
-          </ContextMenu>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="min-w-52" side="bottom" align="start">
+                <ContextMenuLabel>Columns</ContextMenuLabel>
+                {TORRENT_COLUMNS.map((column) => (
+                  <ContextMenuCheckboxItem
+                    key={column.id}
+                    checked={visibleColumnIds.has(column.id)}
+                    disabled={!column.hideable}
+                    onCheckedChange={(checked) => setColumnVisible(column.id, checked)}
+                  >
+                    {column.label === "#" ? "# Queue" : column.label}
+                  </ContextMenuCheckboxItem>
+                ))}
+              </ContextMenuContent>
+            </ContextMenu>
+          </thead>
           <tbody>
             {torrents.map(([id, t]) => {
               const isSel = selected.has(id);
