@@ -47,6 +47,22 @@ assert.equal(byIndex.get(files[1].index), 0);
 const unknown = call("core.set_file_priorities", [bunnyId, prios]);
 assert.equal(unknown.error?.message.includes("Unknown method"), true);
 
+const viaOptions = call("core.set_torrent_options", [bunnyId, { file_priorities: prios }]);
+assert.equal(viaOptions.error, null, viaOptions.error?.message);
+const afterOpts: Extract<FileNode, { type: "file" }>[] = [];
+walkFiles(call("web.get_torrent_files", [bunnyId]).result as FileNode, (f) => afterOpts.push(f));
+const byIndexOpts = new Map(afterOpts.map((f) => [f.index, f.priority]));
+assert.equal(byIndexOpts.get(files[0].index), 7);
+assert.equal(byIndexOpts.get(files[1].index), 0);
+
+const firstLast = call("core.set_torrent_options", [
+  bunnyId,
+  { prioritize_first_last_pieces: true },
+]);
+assert.equal(firstLast.error, null, firstLast.error?.message);
+const status = call("web.get_torrent_status", [bunnyId, ["prioritize_first_last"]]);
+assert.equal((status.result as { prioritize_first_last: boolean }).prioritize_first_last, true);
+
 call("core.set_torrent_file_priorities", [bunnyId, original]);
 
 console.log("demo file-priority tests passed");

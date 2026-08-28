@@ -44,6 +44,12 @@ const disabled = call(PLUGIN_RPC.disable, ["Stats"]);
 assert.equal(disabled.error, null, disabled.error?.message);
 assert.equal((call(PLUGIN_RPC.getEnabled).result as string[]).includes("Stats"), false);
 
+assert.equal(call("scheduler.get_config").error, null);
+const schedulerOff = call(PLUGIN_RPC.disable, ["Scheduler"]);
+assert.equal(schedulerOff.error, null);
+assert.equal(call("scheduler.get_config").error?.message, "Unknown method");
+assert.equal(call(PLUGIN_RPC.enable, ["Scheduler"]).error, null);
+
 for (const wrong of ["plugin.enable", "web.enable_plugin_typo", "core.enablePlugin"]) {
   const res = call(wrong, ["Stats"]);
   assert.equal(res.error?.message, `Unknown method: ${wrong}`, wrong);

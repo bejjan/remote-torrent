@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildTorrentOptionsPayload } from "./torrent-options";
+import { buildTorrentOptionsPayload, optionNumber } from "./torrent-options";
 
 const payload = buildTorrentOptionsPayload({
   maxDownloadSpeed: "512",
@@ -28,9 +28,15 @@ assert.deepEqual(payload, {
   move_completed: true,
   move_completed_path: "/data/done",
   super_seeding: false,
-  prioritize_first_last: true,
+  prioritize_first_last_pieces: true,
 });
 
+assert.equal("prioritize_first_last" in payload, false);
 assert.equal("private" in payload, false);
+
+assert.equal(optionNumber("12.5"), 12.5);
+assert.equal(optionNumber(""), -1);
+assert.equal(optionNumber("nope"), -1);
+assert.equal(optionNumber("nope", 2), 2);
 
 console.log("torrent-options tests passed");
