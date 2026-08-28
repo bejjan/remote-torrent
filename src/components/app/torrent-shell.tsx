@@ -61,6 +61,11 @@ import {
   isUnknownMethodMessage,
   labelRpcErrorMessage,
 } from "@/lib/deluge/label-plugin";
+import {
+  classifyEscapeTarget,
+  decideEscapeSelectionAction,
+  hasOpenDismissibleOverlay,
+} from "@/lib/deluge/escape-selection";
 import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import {
   applyColumnVisibility,
@@ -134,6 +139,12 @@ export function TorrentShell({
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const splitRef = useRef<HTMLDivElement>(null);
+  const searchValueRef = useRef(search);
+  const selectedRef = useRef(selected);
+  const activeIdRef = useRef(activeId);
+  searchValueRef.current = search;
+  selectedRef.current = selected;
+  activeIdRef.current = activeId;
 
   useEffect(() => {
     setVisibleColumnIds(loadTorrentColumnVisibility());
@@ -365,6 +376,30 @@ export function TorrentShell({
 
   const openAdd = useCallback(() => setAddOpen(true), []);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = decideEscapeSelectionAction({
+        key: event.key,
+        defaultPrevented: event.defaultPrevented,
+        overlayOpen: hasOpenDismissibleOverlay(document),
+        targetKind: classifyEscapeTarget(event.target),
+        search: searchValueRef.current,
+        selectedCount: selectedRef.current.size,
+        hasActiveId: activeIdRef.current != null,
+      });
+      if (action === "none") return;
+      event.preventDefault();
+      if (action === "clear-search") {
+        setSearch("");
+        return;
+      }
+      setSelected(new Set());
+      setActiveId(null);
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
+
   const downloadPath =
     primaryTorrent?.download_location || "/home/deluge/Downloads";
 
@@ -464,9 +499,11 @@ export function TorrentShell({
         <div className="relative ml-auto min-w-0 max-w-xs flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
+            data-torrent-search=""
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search torrents"
+            aria-label="Search torrents"
             className="h-8 pl-7"
           />
         </div>
