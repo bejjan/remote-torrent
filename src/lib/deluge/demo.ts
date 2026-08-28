@@ -1047,20 +1047,20 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return {
           id,
           result: {
-            available_plugins: state.availablePlugins,
-            enabled_plugins: state.enabledPlugins,
+            available_plugins: [...state.availablePlugins],
+            enabled_plugins: [...state.enabledPlugins],
           },
           error: null,
         };
       case "web.enable_plugin":
       case "core.enable_plugin": {
-        const name = String(params[0]);
-        if (!state.enabledPlugins.includes(name)) state.enabledPlugins.push(name);
+        const name = String(params[0] ?? "");
+        if (name && !state.enabledPlugins.includes(name)) state.enabledPlugins.push(name);
         return { id, result: true, error: null };
       }
       case "web.disable_plugin":
       case "core.disable_plugin": {
-        const name = String(params[0]);
+        const name = String(params[0] ?? "");
         state.enabledPlugins = state.enabledPlugins.filter((p) => p !== name);
         return { id, result: true, error: null };
       }
@@ -1294,9 +1294,9 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         return { id, result: out, error: null };
       }
       case "core.get_available_plugins":
-        return { id, result: state.availablePlugins, error: null };
+        return { id, result: [...state.availablePlugins], error: null };
       case "core.get_enabled_plugins":
-        return { id, result: state.enabledPlugins, error: null };
+        return { id, result: [...state.enabledPlugins], error: null };
       case "core.get_listen_port":
         return { id, result: 6881, error: null };
       case "core.get_session_status":

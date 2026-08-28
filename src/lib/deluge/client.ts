@@ -1,3 +1,4 @@
+import { formatUnknownMethodMessage } from "./plugins";
 import type { JsonRpcResponse } from "./types";
 import { normalizeDelugeWebUrl } from "./web-url";
 
@@ -104,7 +105,7 @@ export async function rpc<T = unknown>(method: string, params: unknown[] = []): 
     );
   }
   if (data.error) {
-    throw new DelugeError(data.error.message || "RPC error");
+    throw new DelugeError(formatUnknownMethodMessage(method, data.error.message || "RPC error"));
   }
   return data.result as T;
 }

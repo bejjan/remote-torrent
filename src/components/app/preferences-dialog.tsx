@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { rpc } from "@/lib/deluge/client";
+import { PLUGIN_RPC, pluginToggleErrorMessage, pluginToggleMethod } from "@/lib/deluge/plugins";
 import type { ExecuteCommand, WatchDir } from "@/lib/deluge/types";
 import { isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,24 @@ const PLUGIN_PAGES: { id: Page; label: string; plugin: string }[] = [
   { id: "autoadd", label: "AutoAdd", plugin: "AutoAdd" },
 ];
 
+async function fetchPluginLists(): Promise<{ available: string[]; enabled: string[] }> {
+  try {
+    const plugins = await rpc<{ available_plugins?: string[]; enabled_plugins?: string[] }>(
+      PLUGIN_RPC.webGetPlugins
+    );
+    return {
+      available: plugins?.available_plugins || [],
+      enabled: plugins?.enabled_plugins || [],
+    };
+  } catch {
+    const [available, enabled] = await Promise.all([
+      rpc<string[]>(PLUGIN_RPC.getAvailable),
+      rpc<string[]>(PLUGIN_RPC.getEnabled),
+    ]);
+    return { available: available || [], enabled: enabled || [] };
+  }
+}
+
 export function PreferencesDialog({
   open,
   onOpenChange,
@@ -93,14 +112,14 @@ export function PreferencesDialog({
         const [c, w, plugins] = await Promise.all([
           rpc<Record<string, unknown>>("core.get_config"),
           rpc<Record<string, unknown>>("web.get_config"),
-          rpc<{ available_plugins: string[]; enabled_plugins: string[] }>("web.get_plugins"),
+          fetchPluginLists(),
         ]);
         setCore(c || {});
         const nextWeb = w || {};
         setWeb(nextWeb);
         onWebConfigChange?.(nextWeb);
-        setAvailable(plugins?.available_plugins || []);
-        setEnabled(plugins?.enabled_plugins || []);
+        setAvailable(plugins.available);
+        setEnabled(plugins.enabled);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load preferences");
       }
@@ -158,13 +177,17 @@ export function PreferencesDialog({
                   available={available}
                   enabled={enabled}
                   onChange={async (name, on) => {
+                    const method = pluginToggleMethod(on);
                     try {
-                      await rpc(on ? "web.enable_plugin" : "web.disable_plugin", [name]);
-                      setEnabled((cur) =>
-                        on ? [...cur, name] : cur.filter((n) => n !== name)
-                      );
+                      await rpc(method, [name]);
+                      const lists = await fetchPluginLists();
+                      setAvailable(lists.available);
+                      setEnabled(lists.enabled);
+                      if (!on && PLUGIN_PAGES.some((p) => p.plugin === name && p.id === page)) {
+                        setPage("plugins");
+                      }
                     } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Plugin toggle failed");
+                      toast.error(pluginToggleErrorMessage(method, err));
                     }
                   }}
                 />
