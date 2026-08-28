@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -873,26 +873,29 @@ function TorrentColumnCell({
   column,
   torrent: t,
   query,
+  sorted,
 }: {
   column: TorrentColumn;
   torrent: TorrentStatus;
   query: string;
+  sorted?: boolean;
 }) {
   const hit = (text: string) => <HighlightText text={text} query={query} />;
-  switch (column.id) {
+  const cell = (() => {
+    switch (column.id) {
     case "queue":
       return (
         <td className="px-2 py-1.5 tabular text-muted-foreground">{hit(formatQueue(t.queue))}</td>
       );
     case "name":
-      return <td className="max-w-[20rem] truncate px-2 py-1.5 font-medium">{hit(t.name)}</td>;
+      return <td className="truncate px-2 py-1.5 font-medium">{hit(t.name)}</td>;
     case "size":
       return <td className="px-2 py-1.5 tabular">{hit(formatBytes(t.total_wanted))}</td>;
     case "progress":
       return (
         <td className="px-2 py-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+            <div className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
               <div
                 className={cn("h-full rounded-full", stateBarClass(t.state))}
                 style={{ width: `${Math.min(100, t.progress)}%` }}
@@ -948,13 +951,13 @@ function TorrentColumnCell({
       );
     case "tracker":
       return (
-        <td className="max-w-[12rem] truncate px-2 py-1.5 text-muted-foreground">
+        <td className="truncate px-2 py-1.5 text-muted-foreground">
           {hit(t.tracker_host || "—")}
         </td>
       );
     case "save_path":
       return (
-        <td className="max-w-[16rem] truncate px-2 py-1.5 text-muted-foreground">
+        <td className="truncate px-2 py-1.5 text-muted-foreground">
           {hit(t.download_location || "—")}
         </td>
       );
@@ -986,5 +989,10 @@ function TorrentColumnCell({
       return <td className="px-2 py-1.5 tabular">{hit(formatAvail(t.seeds_peers_ratio))}</td>;
     case "last_transfer":
       return <td className="px-2 py-1.5 tabular">{hit(formatDuration(t.time_since_transfer))}</td>;
-  }
+    }
+  })();
+  if (!cell) return null;
+  return cloneElement(cell, {
+    className: cn(cell.props.className, "overflow-hidden", sorted && "text-foreground"),
+  });
 }
