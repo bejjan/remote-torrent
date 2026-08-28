@@ -25,7 +25,7 @@ import { ProxyTypeSelect } from "@/components/app/proxy-type-select";
 import { rpc } from "@/lib/deluge/client";
 import { PLUGIN_RPC, pluginToggleErrorMessage, pluginToggleMethod } from "@/lib/deluge/plugins";
 import type { ExecuteCommand, WatchDir } from "@/lib/deluge/types";
-import { isWebSidebarVisible } from "@/lib/deluge/web-config";
+import { isWebSessionSpeedVisible, isWebSidebarVisible } from "@/lib/deluge/web-config";
 import { cn } from "@/lib/utils";
 
 type Page =
@@ -548,10 +548,16 @@ function InterfacePage({
       </label>
       <label className="flex items-center gap-2 text-sm">
         <Switch
-          checked={Boolean(web.show_session_speed ?? true)}
-          onCheckedChange={(v) => setWeb({ ...web, show_session_speed: v })}
+          checked={isWebSessionSpeedVisible(web)}
+          onCheckedChange={(v) => {
+            const next = { ...web, show_session_speed: v };
+            setWeb(next);
+            void rpc("web.set_config", [{ show_session_speed: v }]).catch((err: unknown) => {
+              toast.error(err instanceof Error ? err.message : "Could not save session speed preference");
+            });
+          }}
         />
-        Show session speed in status bar
+        Show session speed in title and status bar
       </label>
       <label className="flex items-center gap-2 text-sm">
         <Switch

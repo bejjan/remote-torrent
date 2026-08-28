@@ -102,7 +102,12 @@ import {
   saveSidebarWidth,
   saveTorrentColumnWidths,
 } from "@/lib/deluge/ui-layout";
-import { isWebSidebarVisible } from "@/lib/deluge/web-config";
+import {
+  DEFAULT_DOCUMENT_TITLE,
+  isWebSessionSpeedVisible,
+  isWebSidebarVisible,
+  sessionSpeedDocumentTitle,
+} from "@/lib/deluge/web-config";
 
 export function TorrentShell({
   onLogout,
@@ -137,6 +142,7 @@ export function TorrentShell({
   const [labelPluginEnabled, setLabelPluginEnabled] = useState<boolean | null>(null);
   const [showZeroFilters, setShowZeroFilters] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showSessionSpeed, setShowSessionSpeed] = useState(true);
   const [visibleColumnIds, setVisibleColumnIds] = useState<Set<TorrentColumnId>>(
     defaultVisibleTorrentColumns
   );
@@ -226,6 +232,7 @@ export function TorrentShell({
   const applyWebUi = useCallback((web: Record<string, unknown> | null | undefined) => {
     setShowZeroFilters(Boolean(web?.sidebar_show_zero));
     setShowSidebar(isWebSidebarVisible(web));
+    setShowSessionSpeed(isWebSessionSpeedVisible(web));
   }, []);
 
   const filterDict = useMemo<FilterDict>(() => {
@@ -292,6 +299,7 @@ export function TorrentShell({
         if (!cancelled) {
           setShowZeroFilters(false);
           setShowSidebar(true);
+          setShowSessionSpeed(true);
         }
       });
     return () => {
@@ -327,6 +335,15 @@ export function TorrentShell({
   const primary = activeId && ui?.torrents?.[activeId] ? activeId : selectedIds[0] ?? null;
   const primaryTorrent = primary ? (ui?.torrents?.[primary] as TorrentStatus | undefined) : null;
   const stats = ui?.stats as SessionStats | null;
+  const downloadRate = stats?.download_rate ?? 0;
+  const uploadRate = stats?.upload_rate ?? 0;
+
+  useEffect(() => {
+    document.title = sessionSpeedDocumentTitle(downloadRate, uploadRate, showSessionSpeed);
+    return () => {
+      document.title = DEFAULT_DOCUMENT_TITLE;
+    };
+  }, [downloadRate, uploadRate, showSessionSpeed]);
 
   const toggleSort = useCallback((key: TorrentSortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -603,10 +620,14 @@ export function TorrentShell({
           {torrents.length} torrent{torrents.length === 1 ? "" : "s"}
           {selectedIds.length ? ` · ${selectedIds.length} selected` : ""}
         </span>
-        <span className="text-[color:var(--downloading)] tabular">
-          ↓ {formatRate(stats?.download_rate ?? 0)}
-        </span>
-        <span className="text-[color:var(--seeding)] tabular">↑ {formatRate(stats?.upload_rate ?? 0)}</span>
+        {showSessionSpeed ? (
+          <>
+            <span className="text-[color:var(--downloading)] tabular">
+              ↓ {formatRate(downloadRate)}
+            </span>
+            <span className="text-[color:var(--seeding)] tabular">↑ {formatRate(uploadRate)}</span>
+          </>
+        ) : null}
         <span>Connections {stats?.num_connections ?? 0}</span>
         <span>DHT {stats?.dht_nodes ?? 0}</span>
         <span>Free {formatBytes(stats?.free_space ?? 0)}</span>
