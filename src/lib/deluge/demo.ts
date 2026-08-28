@@ -650,7 +650,7 @@ function matchesFilter(status: TorrentStatus, filter: FilterDict | undefined): b
   if (!filter) return true;
   for (const [key, values] of Object.entries(filter)) {
     if (!values?.length) continue;
-    if (values.includes("All") && key === "state") continue;
+    if (values.includes("All") && (key === "state" || key === "tracker_host" || key === "label")) continue;
     if (key === "state") {
       if (values.includes("Active")) {
         if (status.download_payload_rate <= 0 && status.upload_payload_rate <= 0) return false;
@@ -690,7 +690,11 @@ function buildFilters(state: DemoState) {
   }
   return {
     state: states,
-    tracker_host: [...trackers.entries()] as [string, number][],
+    // Official core.get_filter_tree sets tracker_host["All"] = len(torrent_ids).
+    tracker_host: [
+      ["All", torrents.length],
+      ...[...trackers.entries()].filter(([name]) => name !== "All"),
+    ] as [string, number][],
     label: [...labels.entries()] as [string, number][],
   };
 }

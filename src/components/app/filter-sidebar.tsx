@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/context-menu";
 import { STATE_FILTERS } from "@/lib/deluge/keys";
 import { rpc } from "@/lib/deluge/client";
-import { visibleFilterTuples } from "@/lib/deluge/sidebar-filters";
+import { sidebarGroupRows, stateAllCount, visibleFilterTuples } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -68,10 +68,22 @@ export function FilterSidebar({
 }) {
   const [newLabel, setNewLabel] = useState("");
   const states = visibleFilterTuples(filters?.state ?? EMPTY_STATES, showZero, (name) => name === "All");
-  const rawTrackers = filters?.tracker_host ?? EMPTY_TUPLES;
-  const rawLabels = filters?.label ?? EMPTY_TUPLES;
-  const trackers = visibleFilterTuples(rawTrackers, showZero);
-  const labels = visibleFilterTuples(rawLabels, showZero);
+  const torrentCount = stateAllCount(states);
+  const trackers = sidebarGroupRows(filters?.tracker_host ?? EMPTY_TUPLES, {
+    showZero,
+    fallbackAllCount: torrentCount,
+    allValue: "",
+    emptyLabel: "(empty)",
+    namedAllLabel: "All (tracker)",
+  });
+  const labels = sidebarGroupRows(filters?.label ?? EMPTY_TUPLES, {
+    showZero,
+    fallbackAllCount: torrentCount,
+    allValue: "__all__",
+    emptyLabel: "(no label)",
+    namedAllLabel: "All (label)",
+    emptyValue: "__none__",
+  });
 
   async function addLabel() {
     const name = newLabel.trim().toLowerCase();
@@ -89,7 +101,7 @@ export function FilterSidebar({
   async function removeLabel(name: string) {
     try {
       await rpc("label.remove", [name]);
-      if (selected.label === name) onSelect({ ...selected, label: "" });
+      if (selected.label === name) onSelect({ ...selected, label: "__all__" });
       onLabelsChanged?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not remove label");
@@ -112,45 +124,34 @@ export function FilterSidebar({
           ))}
         </FilterGroup>
         <FilterGroup title="Trackers">
-          <FilterButton
-            label="All"
-            count={rawTrackers.reduce((n, [, c]) => n + c, 0)}
-            active={selected.tracker === ""}
-            onClick={() => onSelect({ ...selected, tracker: "" })}
-          />
-          {trackers.map(([name, count]) => (
+          {trackers.map((row) => (
             <FilterButton
-              key={name}
-              label={name || "(empty)"}
-              count={count}
-              active={selected.tracker === name}
-              onClick={() => onSelect({ ...selected, tracker: name })}
+              key={row.isAll ? "__all__" : row.value || "(empty)"}
+              label={row.label}
+              count={row.count}
+              active={selected.tracker === row.value}
+              onClick={() => onSelect({ ...selected, tracker: row.value })}
             />
           ))}
         </FilterGroup>
         <FilterGroup title="Labels">
-          <FilterButton
-            label="All"
-            count={rawLabels.reduce((n, [, c]) => n + c, 0)}
-            active={selected.label === "__all__"}
-            onClick={() => onSelect({ ...selected, label: "__all__" })}
-          />
-          {labels.map(([name, count]) => {
-            const key = name || "__none__";
+          {labels.map((row) => {
             const item = (
               <FilterButton
-                label={name || "(no label)"}
-                count={count}
-                active={selected.label === key}
-                onClick={() => onSelect({ ...selected, label: key })}
+                label={row.label}
+                count={row.count}
+                active={selected.label === row.value}
+                onClick={() => onSelect({ ...selected, label: row.value })}
               />
             );
-            if (!name) return <div key="none">{item}</div>;
+            if (row.isAll || row.value === "__none__") {
+              return <div key={row.isAll ? "__all__" : "none"}>{item}</div>;
+            }
             return (
-              <ContextMenu key={name}>
+              <ContextMenu key={row.value}>
                 <ContextMenuTrigger className="block">{item}</ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem variant="destructive" onClick={() => void removeLabel(name)}>
+                  <ContextMenuItem variant="destructive" onClick={() => void removeLabel(row.value)}>
                     <Trash2 />
                     Remove label
                   </ContextMenuItem>
