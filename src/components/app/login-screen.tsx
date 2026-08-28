@@ -8,28 +8,80 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { rpc, setStoredWebUrl, getStoredWebUrl } from "@/lib/deluge/client";
+import {
+  rpc,
+  setStoredWebUrl,
+  getStoredWebUrl,
+  getStoredTlsInsecure,
+  setStoredTlsInsecure,
+} from "@/lib/deluge/client";
+import {
+  DEFAULT_WEB_PORT,
+  extractExplicitPort,
+  normalizeDelugeWebUrl,
+} from "@/lib/deluge/web-url";
+
+function initialUrl(): string {
+  return typeof window === "undefined" ? "" : getStoredWebUrl();
+}
+
+function initialPort(): string {
+  return extractExplicitPort(initialUrl()) || String(DEFAULT_WEB_PORT);
+}
 
 export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
-  const [url, setUrl] = useState(() => (typeof window === "undefined" ? "" : getStoredWebUrl()));
+  const [url, setUrl] = useState(initialUrl);
+  const [port, setPort] = useState(initialPort);
   const [password, setPassword] = useState("");
+  const [tlsInsecure, setTlsInsecure] = useState(
+    () => typeof window !== "undefined" && getStoredTlsInsecure()
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function onUrlChange(next: string) {
+    setUrl(next);
+    const explicit = extractExplicitPort(next);
+    if (explicit) setPort(explicit);
+  }
+
+  function onPortChange(next: string) {
+    setPort(next);
+    const trimmed = url.trim();
+    if (!trimmed || !/^https?:\/\//i.test(trimmed)) return;
+    try {
+      setUrl(normalizeDelugeWebUrl(trimmed, next.trim() || String(DEFAULT_WEB_PORT)));
+    } catch {
+      // keep the URL as typed while the port field is mid-edit
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setStoredWebUrl(url);
+    let target = url.trim();
+    try {
+      if (target) {
+        target = normalizeDelugeWebUrl(target, port.trim() || undefined);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid Deluge Web URL");
+      setBusy(false);
+      return;
+    }
+    setStoredWebUrl(target);
+    setStoredTlsInsecure(tlsInsecure);
     try {
       const ok = await rpc<boolean>("auth.login", [password]);
       if (!ok) {
         setError("Incorrect password.");
         return;
       }
-      toast.success(url.trim() ? "Signed in" : "Signed in to demo mode");
+      toast.success(target ? "Signed in" : "Signed in to demo mode");
       onLoggedIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -50,24 +102,45 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
           <div>
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription className="mt-1">
-              Connect to deluge-web, or leave the URL blank to explore the demo.
+              Connect to deluge-web with protocol, host, and port — or leave the URL blank for the
+              demo.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={onSubmit}>
             <div className="grid gap-1.5">
-              <Label htmlFor="deluge-url">Deluge Web URL</Label>
-              <Input
-                id="deluge-url"
-                placeholder="http://127.0.0.1:8112"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                autoComplete="url"
-              />
+              <div className="grid grid-cols-[1fr_5.5rem] items-end gap-2">
+                <Label htmlFor="deluge-url">Deluge Web URL</Label>
+                <Label htmlFor="deluge-port">Port</Label>
+              </div>
+              <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                <Input
+                  id="deluge-url"
+                  placeholder="http://192.168.1.10:8112"
+                  value={url}
+                  onChange={(e) => onUrlChange(e.target.value)}
+                  autoComplete="url"
+                  inputMode="url"
+                />
+                <Input
+                  id="deluge-port"
+                  placeholder="8112"
+                  value={port}
+                  onChange={(e) => onPortChange(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-label="Deluge Web port"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Example: <span className="font-mono text-foreground">http://192.168.1.10:8112</span>.
+                Missing <span className="font-mono">http://</span> is added; missing port defaults to{" "}
+                {DEFAULT_WEB_PORT}.
+              </p>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="deluge-password">Password</Label>
+              <Label htmlFor="deluge-password">Deluge Web password</Label>
               <Input
                 id="deluge-password"
                 type="password"
@@ -76,7 +149,25 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 autoComplete="current-password"
                 autoFocus
               />
+              <p className="text-xs text-muted-foreground">
+                This is the Deluge Web password. Daemon username is in Connection Manager after
+                login.
+              </p>
             </div>
+            <label className="flex items-start gap-2 text-sm leading-snug">
+              <Checkbox
+                className="mt-0.5"
+                checked={tlsInsecure}
+                onCheckedChange={(v) => setTlsInsecure(v === true)}
+              />
+              <span>
+                Allow self-signed TLS
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  For home-lab HTTPS. You can also set{" "}
+                  <span className="font-mono">DELUGE_TLS_INSECURE=1</span>.
+                </span>
+              </span>
+            </label>
             <Alert>
               <AlertDescription>
                 Demo password is <span className="font-mono text-foreground">deluge</span>. Leave
