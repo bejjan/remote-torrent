@@ -1,7 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Tag, Trash2 } from "lucide-react";
+import {
+  Activity,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CircleAlert,
+  Clock,
+  ListFilter,
+  Pause,
+  Plus,
+  SearchCheck,
+  Tag,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +27,7 @@ import {
 } from "@/components/ui/context-menu";
 import { STATE_FILTERS } from "@/lib/deluge/keys";
 import { rpc } from "@/lib/deluge/client";
+import { visibleFilterTuples } from "@/lib/deluge/sidebar-filters";
 import type { FilterTuple } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -23,23 +37,41 @@ export interface SidebarFilters {
   label: string;
 }
 
+const EMPTY_STATES: FilterTuple[] = STATE_FILTERS.map((s) => [s, 0]);
+const EMPTY_TUPLES: FilterTuple[] = [];
+
+const STATE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
+  All: { Icon: ListFilter, className: "text-muted-foreground" },
+  Downloading: { Icon: ArrowDownToLine, className: "text-[color:var(--downloading)]" },
+  Seeding: { Icon: ArrowUpFromLine, className: "text-[color:var(--seeding)]" },
+  Paused: { Icon: Pause, className: "text-muted-foreground" },
+  Checking: { Icon: SearchCheck, className: "text-[color:var(--checking)]" },
+  Queued: { Icon: Clock, className: "text-[color:var(--queued)]" },
+  Error: { Icon: CircleAlert, className: "text-destructive" },
+  Active: { Icon: Activity, className: "text-muted-foreground" },
+};
+
 export function FilterSidebar({
   filters,
   selected,
   onSelect,
   onLabelsChanged,
+  showZero = false,
   className,
 }: {
   filters: Record<string, FilterTuple[]> | null;
   selected: SidebarFilters;
   onSelect: (next: SidebarFilters) => void;
   onLabelsChanged?: () => void;
+  showZero?: boolean;
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
-  const states = filters?.state ?? STATE_FILTERS.map((s) => [s, 0] as FilterTuple);
-  const trackers = filters?.tracker_host ?? [];
-  const labels = filters?.label ?? [];
+  const states = visibleFilterTuples(filters?.state ?? EMPTY_STATES, showZero, (name) => name === "All");
+  const rawTrackers = filters?.tracker_host ?? EMPTY_TUPLES;
+  const rawLabels = filters?.label ?? EMPTY_TUPLES;
+  const trackers = visibleFilterTuples(rawTrackers, showZero);
+  const labels = visibleFilterTuples(rawLabels, showZero);
 
   async function addLabel() {
     const name = newLabel.trim().toLowerCase();
@@ -74,6 +106,7 @@ export function FilterSidebar({
               label={name}
               count={count}
               active={selected.state === name}
+              icon={stateIcon(name)}
               onClick={() => onSelect({ ...selected, state: name })}
             />
           ))}
@@ -81,7 +114,7 @@ export function FilterSidebar({
         <FilterGroup title="Trackers">
           <FilterButton
             label="All"
-            count={trackers.reduce((n, [, c]) => n + c, 0)}
+            count={rawTrackers.reduce((n, [, c]) => n + c, 0)}
             active={selected.tracker === ""}
             onClick={() => onSelect({ ...selected, tracker: "" })}
           />
@@ -98,7 +131,7 @@ export function FilterSidebar({
         <FilterGroup title="Labels">
           <FilterButton
             label="All"
-            count={labels.reduce((n, [, c]) => n + c, 0)}
+            count={rawLabels.reduce((n, [, c]) => n + c, 0)}
             active={selected.label === "__all__"}
             onClick={() => onSelect({ ...selected, label: "__all__" })}
           />
@@ -152,6 +185,13 @@ export function FilterSidebar({
   );
 }
 
+function stateIcon(name: string) {
+  const entry = STATE_ICONS[name];
+  if (!entry) return null;
+  const { Icon, className } = entry;
+  return <Icon aria-hidden className={cn("size-3.5 shrink-0", className)} />;
+}
+
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
@@ -168,11 +208,13 @@ function FilterButton({
   count,
   active,
   onClick,
+  icon,
 }: {
   label: string;
   count: number;
   active: boolean;
   onClick: () => void;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
@@ -183,7 +225,10 @@ function FilterButton({
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/60"
       )}
     >
-      <span className="truncate">{label}</span>
+      <span className="flex min-w-0 items-center gap-1.5">
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
       <span className="tabular text-xs text-muted-foreground">{count}</span>
     </button>
   );

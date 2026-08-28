@@ -70,6 +70,7 @@ import {
   formatRatio,
 } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
+import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
 import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -104,6 +105,7 @@ export function TorrentShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
+  const [showZeroFilters, setShowZeroFilters] = useState(false);
 
   const filterDict = useMemo<FilterDict>(() => {
     const dict: FilterDict = {};
@@ -145,6 +147,39 @@ export function TorrentShell({
   useEffect(() => {
     void refreshLabels();
   }, [refreshLabels]);
+
+  useEffect(() => {
+    if (prefsOpen) return;
+    let cancelled = false;
+    void rpc<Record<string, unknown>>("web.get_config")
+      .then((web) => {
+        if (!cancelled) setShowZeroFilters(Boolean(web?.sidebar_show_zero));
+      })
+      .catch(() => {
+        if (!cancelled) setShowZeroFilters(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefsOpen]);
+
+  useEffect(() => {
+    const tree = ui?.filters;
+    if (!tree) return;
+    setFilters((prev) => {
+      const next = clampSidebarSelection(
+        prev,
+        tree.state ?? [],
+        tree.tracker_host ?? [],
+        tree.label ?? [],
+        showZeroFilters
+      );
+      if (next.state === prev.state && next.tracker === prev.tracker && next.label === prev.label) {
+        return prev;
+      }
+      return next;
+    });
+  }, [ui?.filters, showZeroFilters]);
 
   const torrents = useMemo(() => {
     const entries = Object.entries(ui?.torrents || {}) as [string, TorrentStatus][];
@@ -564,6 +599,7 @@ export function TorrentShell({
               filters={ui?.filters ?? null}
               selected={filters}
               onSelect={setFilters}
+              showZero={showZeroFilters}
               onLabelsChanged={() => {
                 void refreshLabels();
                 void poll();
@@ -609,6 +645,7 @@ export function TorrentShell({
               setFilters(next);
               setSidebarOpen(false);
             }}
+            showZero={showZeroFilters}
             onLabelsChanged={() => {
               void refreshLabels();
               void poll();

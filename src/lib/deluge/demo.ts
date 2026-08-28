@@ -510,6 +510,7 @@ function createState(): DemoState {
     labels: {
       linux: defaultLabelOptions(),
       movies: defaultLabelOptions(),
+      tv: defaultLabelOptions(),
     },
     scheduler: { low_down: 50, low_up: 10, low_active: 3, button_state },
     extractor: { extract_path: "/home/deluge/Extracted", use_name_folder: true },
