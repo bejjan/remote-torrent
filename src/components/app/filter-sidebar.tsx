@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   ArrowDownToLine,
   ArrowUpFromLine,
   CircleAlert,
   Clock,
+  Globe,
   ListFilter,
   Pause,
   Plus,
@@ -26,6 +27,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { rpc } from "@/lib/deluge/client";
+import { trackerFaviconUrl } from "@/lib/deluge/format";
 import {
   LABEL_PLUGIN_ENABLE_HINT,
   LABEL_RPC,
@@ -154,6 +156,7 @@ export function FilterSidebar({
               label={row.label}
               count={row.count}
               active={selected.tracker === row.value}
+              icon={row.isAll ? allTrackersIcon() : <TrackerFavicon host={row.value} />}
               showZero={showZero}
               alwaysShow={row.isAll}
               onClick={() => onSelect({ ...selected, tracker: row.value })}
@@ -225,6 +228,44 @@ function stateIcon(name: string) {
   if (!entry) return null;
   const { Icon, className } = entry;
   return <Icon aria-hidden className={cn("size-3.5 shrink-0", className)} />;
+}
+
+function allTrackersIcon() {
+  return (
+    <span className="inline-flex size-4 shrink-0 items-center justify-center" aria-hidden>
+      <ListFilter className="size-3.5 text-muted-foreground" />
+    </span>
+  );
+}
+
+function TrackerFavicon({ host }: { host: string }) {
+  const src = trackerFaviconUrl(host);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  return (
+    <span className="inline-flex size-4 shrink-0 items-center justify-center overflow-hidden" aria-hidden>
+      {src && !failed ? (
+        // External CDN thumbnails; next/image is the wrong fit for arbitrary tracker hosts.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          width={16}
+          height={16}
+          loading="lazy"
+          decoding="async"
+          className="size-4"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Globe className="size-3.5 text-muted-foreground" />
+      )}
+    </span>
+  );
 }
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {

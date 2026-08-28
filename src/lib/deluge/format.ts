@@ -92,6 +92,42 @@ export function trackerHost(url: string): string {
   }
 }
 
+/**
+ * `tracker_host` filter names are already hostnames (`ubuntu.com`).
+ * Skip empty strings, the catch-all `All`, and anything that is not a
+ * plausible DNS name or IPv4 address so we do not hit a favicon CDN.
+ */
+export function trackerFaviconHost(name: string): string | null {
+  const host = name.trim();
+  if (!isPlausibleFaviconHost(host)) return null;
+  return host;
+}
+
+export function trackerFaviconUrl(name: string): string | null {
+  const host = trackerFaviconHost(name);
+  if (!host) return null;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`;
+}
+
+function isPlausibleFaviconHost(host: string): boolean {
+  if (!host || host.length > 253) return false;
+  if (/[\s/\\?#:]/.test(host)) return false;
+  const candidate = host.endsWith(".") ? host.slice(0, -1) : host;
+  if (!candidate) return false;
+  if (candidate.toLowerCase() === "localhost") return true;
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(candidate)) {
+    return candidate.split(".").every((octet) => {
+      const n = Number(octet);
+      return n >= 0 && n <= 255;
+    });
+  }
+  const labels = candidate.split(".");
+  if (labels.length < 2) return false;
+  return labels.every((label) =>
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)
+  );
+}
+
 export function parseMagnetName(uri: string): string {
   try {
     const query = uri.includes("?") ? uri.slice(uri.indexOf("?") + 1) : uri;

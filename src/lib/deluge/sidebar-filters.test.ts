@@ -427,6 +427,10 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     /function FilterButton\([\s\S]*isVisibleFilterRow/,
     "zeros must be dropped in FilterButton, not only in helpers"
   );
+  assert.match(src, /row\.isAll \? allTrackersIcon\(\) : <TrackerFavicon host=\{row\.value\} \/>/);
+  assert.match(src, /loading="lazy"/);
+  assert.match(src, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(src, /<Globe className="size-3\.5 text-muted-foreground" \/>/);
 }
 
 {
@@ -456,6 +460,38 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(html, />All</);
   assert.equal(html.includes("movies"), false);
   assert.equal(html.includes("dead.example"), false);
+  assert.match(
+    html,
+    /s2\/favicons\?domain=live\.example/,
+    "visible tracker hosts load a public favicon"
+  );
+  assert.equal(html.includes("loading=\"lazy\""), true);
+  assert.equal(
+    html.includes("s2/favicons?domain=All"),
+    false,
+    "the Trackers All row must not fetch a favicon"
+  );
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: {
+        state: [["All", 3], ["Downloading", 3]],
+        tracker_host: [
+          ["All", 3],
+          ["", 1],
+          ["All", 2],
+        ],
+        label: [["All", 3]],
+      },
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      showZero: false,
+    })
+  );
+  assert.equal(html.includes("s2/favicons"), false, "empty and invalid hosts must not fetch favicons");
+  assert.match(html, /lucide-globe/, "invalid tracker hosts fall back to Globe");
 }
 
 console.log("sidebar-filters tests passed");
