@@ -106,7 +106,7 @@ export function PreferencesDialog({
         toast.error(err instanceof Error ? err.message : "Failed to load preferences");
       }
     })();
-  }, [open]);
+  }, [open, onWebConfigChange]);
 
   async function saveCore() {
     try {
