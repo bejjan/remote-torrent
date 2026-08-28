@@ -222,8 +222,10 @@ function FilterButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm transition-colors",
-        active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/60"
+        "flex w-full items-center justify-between rounded-md border-l-2 px-2 py-1 text-left text-sm transition-colors",
+        active
+          ? "border-l-sidebar-primary bg-sidebar-primary/15 font-medium text-sidebar-foreground"
+          : "border-l-transparent hover:bg-sidebar-accent/60"
       )}
     >
       <span className="flex min-w-0 items-center gap-1.5">
