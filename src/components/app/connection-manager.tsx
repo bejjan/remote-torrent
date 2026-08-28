@@ -131,7 +131,7 @@ export function ConnectionManager({
   const body = (
     <div className="flex flex-col gap-4">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-muted-foreground">
             <tr>
@@ -168,7 +168,7 @@ export function ConnectionManager({
                       <div className="flex justify-end gap-1">
                         <Button size="sm" disabled={busy === id} onClick={() => void connect(id)}>
                           {busy === id ? <Loader2 className="animate-spin" /> : <PlugZap />}
-                          Connect
+                          <span className="hidden sm:inline">Connect</span>
                         </Button>
                         <Button size="icon-sm" variant="outline" onClick={() => void start(id)}>
                           <Power />
@@ -237,11 +237,11 @@ export function ConnectionManager({
   if (embedded) return body;
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
+    <div className="flex min-h-svh min-w-0 flex-col items-center justify-center bg-background px-3 py-8 sm:px-4 sm:py-10">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Card className="w-full max-w-3xl">
+      <Card className="w-full min-w-0 max-w-3xl">
         <CardHeader>
           <Brand />
           <CardTitle>Connection Manager</CardTitle>

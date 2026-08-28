@@ -18,6 +18,7 @@ import {
   Server,
   Settings,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AboutDialog } from "@/components/app/about-dialog";
@@ -108,6 +109,7 @@ import {
   isWebSidebarVisible,
   sessionSpeedDocumentTitle,
 } from "@/lib/deluge/web-config";
+import { cn } from "@/lib/utils";
 
 export function TorrentShell({
   onLogout,
@@ -138,6 +140,7 @@ export function TorrentShell({
   const [hostsOpen, setHostsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
   const [labelPluginEnabled, setLabelPluginEnabled] = useState<boolean | null>(null);
   const [showZeroFilters, setShowZeroFilters] = useState(false);
@@ -439,46 +442,65 @@ export function TorrentShell({
   const downloadPath =
     primaryTorrent?.download_location || "/home/deluge/Downloads";
 
+  const hasSelection = selectedIds.length > 0;
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
       <ToolBtn label="Add torrent" onClick={() => setAddOpen(true)}>
         <Plus />
       </ToolBtn>
-      <ToolBtn label="Pause" disabled={!selectedIds.length} onClick={() => void act("core.pause_torrent")}>
+      <ToolBtn label="Pause" disabled={!hasSelection} onClick={() => void act("core.pause_torrent")}>
         <Pause />
       </ToolBtn>
-      <ToolBtn label="Resume" disabled={!selectedIds.length} onClick={() => void act("core.resume_torrent")}>
+      <ToolBtn label="Resume" disabled={!hasSelection} onClick={() => void act("core.resume_torrent")}>
         <Play />
       </ToolBtn>
-      <ToolBtn
-        label="Remove"
-        disabled={!selectedIds.length}
-        onClick={() => setRemoveOpen(true)}
-      >
+      <ToolBtn label="Remove" disabled={!hasSelection} onClick={() => setRemoveOpen(true)}>
         <Trash2 />
       </ToolBtn>
-      <ToolBtn label="Queue top" disabled={!selectedIds.length} onClick={() => void act("core.queue_top")}>
+      <ToolBtn
+        label="Queue top"
+        className="hidden md:inline-flex"
+        disabled={!hasSelection}
+        onClick={() => void act("core.queue_top")}
+      >
         <ChevronsUp />
       </ToolBtn>
-      <ToolBtn label="Queue up" disabled={!selectedIds.length} onClick={() => void act("core.queue_up")}>
+      <ToolBtn
+        label="Queue up"
+        className="hidden md:inline-flex"
+        disabled={!hasSelection}
+        onClick={() => void act("core.queue_up")}
+      >
         <ArrowUp />
       </ToolBtn>
-      <ToolBtn label="Queue down" disabled={!selectedIds.length} onClick={() => void act("core.queue_down")}>
+      <ToolBtn
+        label="Queue down"
+        className="hidden md:inline-flex"
+        disabled={!hasSelection}
+        onClick={() => void act("core.queue_down")}
+      >
         <ArrowDown />
       </ToolBtn>
       <ToolBtn
         label="Queue bottom"
-        disabled={!selectedIds.length}
+        className="hidden md:inline-flex"
+        disabled={!hasSelection}
         onClick={() => void act("core.queue_bottom")}
       >
         <ChevronsDown />
       </ToolBtn>
-      <ToolBtn label="Move storage" disabled={!selectedIds.length} onClick={() => setMoveOpen(true)}>
+      <ToolBtn
+        label="Move storage"
+        className="hidden lg:inline-flex"
+        disabled={!hasSelection}
+        onClick={() => setMoveOpen(true)}
+      >
         <FolderInput />
       </ToolBtn>
       <ToolBtn
         label="Force recheck"
-        disabled={!selectedIds.length}
+        className="hidden lg:inline-flex"
+        disabled={!hasSelection}
         onClick={() => void act("core.force_recheck")}
       >
         <RefreshCw />
@@ -519,55 +541,138 @@ export function TorrentShell({
 
 
   return (
-    <div className="flex h-svh min-h-0 flex-col bg-background">
-      <header className="flex items-center gap-2 border-b px-2 py-1.5 md:px-3">
-        {mobile ? (
-          <Button variant="ghost" size="icon-sm" onClick={() => setSidebarOpen(true)} aria-label="Filters">
-            <Menu />
-          </Button>
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-background">
+      <header className="flex min-h-10 min-w-0 shrink-0 items-center gap-1 border-b px-1.5 py-1.5 sm:gap-2 sm:px-2 md:px-3">
+        {searchExpanded ? (
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:hidden">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              aria-label="Close search"
+              onClick={() => setSearchExpanded(false)}
+            >
+              <X />
+            </Button>
+            <SearchField autoFocus value={search} onChange={setSearch} className="min-w-0 flex-1" />
+          </div>
         ) : null}
-        <Brand
-          className="mr-2 hidden sm:flex"
-          markClassName="size-7"
-          onClick={() => setAboutOpen(true)}
-        />
-        {toolbar}
-        <div className="relative ml-auto min-w-0 max-w-xs flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            data-torrent-search=""
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search torrents"
-            aria-label="Search torrents"
-            className="h-8 pl-7"
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-1 sm:contents sm:gap-2",
+            searchExpanded && "max-sm:hidden"
+          )}
+        >
+          {mobile ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Filters"
+            >
+              <Menu />
+            </Button>
+          ) : null}
+          <Brand
+            className="min-w-0 shrink"
+            markClassName="size-7"
+            wordmarkClassName="hidden sm:inline"
+            onClick={() => setAboutOpen(true)}
           />
+          {toolbar}
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            className="relative ml-auto min-w-0 max-w-xs flex-1 max-sm:hidden"
+          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="relative shrink-0 sm:hidden"
+            aria-label="Search torrents"
+            aria-expanded={false}
+            onClick={() => setSearchExpanded(true)}
+          >
+            <Search />
+            {search ? (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
+            ) : null}
+          </Button>
+          <ToolBtn label="Preferences" className="hidden sm:inline-flex" onClick={() => setPrefsOpen(true)}>
+            <Settings />
+          </ToolBtn>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
+              <MoreHorizontal />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-52">
+              <OverflowItem
+                className="md:hidden"
+                disabled={!hasSelection}
+                onClick={() => void act("core.queue_top")}
+              >
+                <ChevronsUp /> Queue top
+              </OverflowItem>
+              <OverflowItem
+                className="md:hidden"
+                disabled={!hasSelection}
+                onClick={() => void act("core.queue_up")}
+              >
+                <ArrowUp /> Queue up
+              </OverflowItem>
+              <OverflowItem
+                className="md:hidden"
+                disabled={!hasSelection}
+                onClick={() => void act("core.queue_down")}
+              >
+                <ArrowDown /> Queue down
+              </OverflowItem>
+              <OverflowItem
+                className="md:hidden"
+                disabled={!hasSelection}
+                onClick={() => void act("core.queue_bottom")}
+              >
+                <ChevronsDown /> Queue bottom
+              </OverflowItem>
+              <OverflowItem
+                className="lg:hidden"
+                disabled={!hasSelection}
+                onClick={() => setMoveOpen(true)}
+              >
+                <FolderInput /> Move storage
+              </OverflowItem>
+              <OverflowItem
+                className="lg:hidden"
+                disabled={!hasSelection}
+                onClick={() => void act("core.force_recheck")}
+              >
+                <RefreshCw /> Force recheck
+              </OverflowItem>
+              <OverflowItem className="sm:hidden" onClick={() => setPrefsOpen(true)}>
+                <Settings /> Preferences
+              </OverflowItem>
+              <DropdownMenuSeparator className="lg:hidden" />
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
+                <Server /> Connection Manager
+              </DropdownMenuItem>
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
+                <Server /> Open hosts page
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
+                <LogOut /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ThemeToggle />
         </div>
-        <ToolBtn label="Preferences" onClick={() => setPrefsOpen(true)}>
-          <Settings />
-        </ToolBtn>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Session menu" />}>
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-52">
-            <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
-              <Server /> Connection Manager
-            </DropdownMenuItem>
-            <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-              <Server /> Open hosts page
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
-              <LogOut /> Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <ThemeToggle />
       </header>
 
       {error ? (
-        <div className="border-b bg-destructive/10 px-3 py-1.5 text-sm text-destructive">{error}</div>
+        <div className="min-w-0 border-b bg-destructive/10 px-3 py-1.5 text-sm break-words text-destructive">
+          {error}
+        </div>
       ) : null}
 
       <div ref={splitRef} className="flex min-h-0 flex-1">
@@ -615,27 +720,27 @@ export function TorrentShell({
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-sidebar px-3 py-1.5 text-xs text-muted-foreground">
-        <span>
-          {torrents.length} torrent{torrents.length === 1 ? "" : "s"}
-          {selectedIds.length ? ` · ${selectedIds.length} selected` : ""}
-        </span>
-        {showSessionSpeed ? (
-          <>
-            <span className="text-[color:var(--downloading)] tabular">
-              ↓ {formatRate(downloadRate)}
+      <footer className="min-w-0 shrink-0 border-t bg-sidebar text-xs text-muted-foreground">
+        <div className="flex items-center gap-x-3 gap-y-1 overflow-x-auto px-2 py-1.5 whitespace-nowrap [scrollbar-width:thin] sm:flex-wrap sm:px-3 sm:whitespace-normal">
+          <span className="shrink-0">
+            {torrents.length} torrent{torrents.length === 1 ? "" : "s"}
+            {selectedIds.length ? ` · ${selectedIds.length} selected` : ""}
+          </span>
+          {showSessionSpeed ? (
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-[color:var(--downloading)] tabular">↓ {formatRate(downloadRate)}</span>
+              <span className="text-[color:var(--seeding)] tabular">↑ {formatRate(uploadRate)}</span>
             </span>
-            <span className="text-[color:var(--seeding)] tabular">↑ {formatRate(uploadRate)}</span>
-          </>
-        ) : null}
-        <span>Connections {stats?.num_connections ?? 0}</span>
-        <span>DHT {stats?.dht_nodes ?? 0}</span>
-        <span>Free {formatBytes(stats?.free_space ?? 0)}</span>
-        <span className="ml-auto font-mono">{stats?.external_ip || ""}</span>
+          ) : null}
+          <span className="shrink-0">Connections {stats?.num_connections ?? 0}</span>
+          <span className="shrink-0">DHT {stats?.dht_nodes ?? 0}</span>
+          <span className="shrink-0">Free {formatBytes(stats?.free_space ?? 0)}</span>
+          <span className="ml-auto min-w-0 truncate font-mono">{stats?.external_ip || ""}</span>
+        </div>
       </footer>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-[min(18rem,100%)] p-0">
           <SheetHeader className="p-3">
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
@@ -694,16 +799,67 @@ export function TorrentShell({
   );
 }
 
+function SearchField({
+  value,
+  onChange,
+  className,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  className?: string;
+  autoFocus?: boolean;
+}) {
+  return (
+    <div className={cn("relative min-w-0", className)}>
+      <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        data-torrent-search=""
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search torrents"
+        aria-label="Search torrents"
+        autoFocus={autoFocus}
+        className="h-8 min-w-0 pl-7"
+      />
+    </div>
+  );
+}
+
+function OverflowItem({
+  children,
+  onClick,
+  disabled,
+  className,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <DropdownMenuItem
+      className={cn("whitespace-nowrap", className)}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </DropdownMenuItem>
+  );
+}
+
 function ToolBtn({
   label,
   children,
   onClick,
   disabled,
+  className,
 }: {
   label: string;
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  className?: string;
 }) {
   return (
     <Tooltip>
@@ -715,7 +871,7 @@ function ToolBtn({
             aria-label={label}
             disabled={disabled}
             onClick={onClick}
-            className="disabled:opacity-40 disabled:text-muted-foreground"
+            className={cn("disabled:opacity-40 disabled:text-muted-foreground", className)}
           />
         }
       >

@@ -91,30 +91,30 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   }
 
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
+    <div className="relative flex min-h-svh min-w-0 flex-col items-center justify-center bg-background px-3 py-8 sm:px-4 sm:py-10">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.45_0_0/0.08),transparent_55%)]" />
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Card className="relative w-full max-w-md py-6 ring-1 ring-primary/15">
+      <Card className="relative w-full min-w-0 max-w-md py-6 ring-1 ring-primary/15">
         <CardHeader className="gap-3">
           <Brand />
-          <div>
+          <div className="min-w-0">
             <CardTitle className="text-xl">Sign in</CardTitle>
-            <CardDescription className="mt-1">
+            <CardDescription className="mt-1 text-pretty">
               Connect to deluge-web with protocol, host, and port — or leave the URL blank for the
               demo.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-            <div className="grid gap-1.5">
-              <div className="grid grid-cols-[1fr_5.5rem] items-end gap-2">
+          <form className="flex min-w-0 flex-col gap-4" onSubmit={onSubmit}>
+            <div className="grid min-w-0 gap-1.5">
+              <div className="grid grid-cols-[minmax(0,1fr)_4.75rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
                 <Label htmlFor="deluge-url">Deluge Web URL</Label>
                 <Label htmlFor="deluge-port">Port</Label>
               </div>
-              <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_4.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
                 <Input
                   id="deluge-url"
                   placeholder="http://192.168.1.10:8112"
@@ -122,6 +122,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                   onChange={(e) => onUrlChange(e.target.value)}
                   autoComplete="url"
                   inputMode="url"
+                  className="min-w-0"
                 />
                 <Input
                   id="deluge-port"
