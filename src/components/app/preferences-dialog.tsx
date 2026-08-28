@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProxyTypeSelect } from "@/components/app/proxy-type-select";
 import { rpc } from "@/lib/deluge/client";
 import { PLUGIN_RPC, pluginToggleErrorMessage, pluginToggleMethod } from "@/lib/deluge/plugins";
 import type { ExecuteCommand, WatchDir } from "@/lib/deluge/types";
@@ -434,22 +435,10 @@ function ProxyPage({
   return (
     <div className="grid gap-3">
       <Field label="Type">
-        <Select
-          value={String(proxy.type ?? 0)}
-          onValueChange={(v) => setProxy({ ...proxy, type: Number(v ?? 0) })}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">None</SelectItem>
-            <SelectItem value="1">SOCKS4</SelectItem>
-            <SelectItem value="2">SOCKS5</SelectItem>
-            <SelectItem value="3">SOCKS5 + auth</SelectItem>
-            <SelectItem value="4">HTTP</SelectItem>
-            <SelectItem value="5">HTTP + auth</SelectItem>
-          </SelectContent>
-        </Select>
+        <ProxyTypeSelect
+          value={proxy.type ?? 0}
+          onChange={(type) => setProxy({ ...proxy, type })}
+        />
       </Field>
       <Field label="Host">
         <Input
