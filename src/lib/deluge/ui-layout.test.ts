@@ -157,8 +157,8 @@ assert.equal(parseStoredDetailsWidth("900", 1000), Math.round(1000 * DETAILS_MAX
   assert.match(shell, /edge="start"/);
   assert.match(shell, /bg-transparent/);
   assert.match(shell, /bg-sidebar-border/);
-  assert.match(shell, /data-details-dock="right"/);
-  assert.match(shell, /data-details-dock="bottom"/);
+  assert.match(shell, /data-details-dock=\{detailsDock\}/);
+  assert.match(shell, /detailsDock === "right"/);
   assert.match(shell, /onDockChange=\{changeDetailsDock\}/);
   assert.match(shell, /!mobile && primary/);
   assert.doesNotMatch(shell, /h-\[min\(16rem,36vh\)\]/);

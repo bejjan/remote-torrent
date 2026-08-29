@@ -775,12 +775,19 @@ export function TorrentShell({
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{table}</div>
           {!mobile && primary ? (
-            detailsDock === "right" ? (
-              <div
-                className="relative min-h-0 min-w-0 shrink-0 self-stretch border-l"
-                data-details-dock="right"
-                style={{ width: detailsWidth, minWidth: DETAILS_MIN_WIDTH }}
-              >
+            <div
+              className={cn(
+                "relative min-h-0 min-w-0 shrink-0",
+                detailsDock === "right" ? "self-stretch border-l" : "border-t"
+              )}
+              data-details-dock={detailsDock}
+              style={
+                detailsDock === "right"
+                  ? { width: detailsWidth, minWidth: DETAILS_MIN_WIDTH }
+                  : { height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }
+              }
+            >
+              {detailsDock === "right" ? (
                 <DragResizeHandle
                   variant="sidebar"
                   edge="start"
@@ -788,22 +795,11 @@ export function TorrentShell({
                   onDelta={resizeDetailsWidth}
                   className="w-1.5 translate-x-0 bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
                 />
-                <div className="h-full min-h-0 overflow-hidden">{details}</div>
-              </div>
-            ) : (
-              <div
-                className="relative min-h-0 shrink-0 border-t"
-                data-details-dock="bottom"
-                style={{ height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }}
-              >
-                <DragResizeHandle
-                  variant="row"
-                  ariaLabel="Resize torrent details"
-                  onDelta={resizeDetails}
-                />
-                <div className="h-full min-h-0 overflow-hidden">{details}</div>
-              </div>
-            )
+              ) : (
+                <DragResizeHandle variant="row" ariaLabel="Resize torrent details" onDelta={resizeDetails} />
+              )}
+              <div className="h-full min-h-0 overflow-hidden">{details}</div>
+            </div>
           ) : null}
         </div>
       </div>
