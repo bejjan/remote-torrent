@@ -29,6 +29,10 @@ async function run() {
   assert.equal(Object.keys(result.torrents).length, 64);
   assert.ok(Object.values(result.torrents).some((t) => t.name.includes("&")));
   assert.ok(result.filters.tracker_host.length <= 40);
+  assert.ok(
+    !result.filters.tracker_host.some(([name]) => name === "udp" || name === "U"),
+    "udp:// announce URLs must map to real tracker hosts"
+  );
 
   const [hash] = Object.keys(result.torrents);
   const files = await handleTransmissionCompat(

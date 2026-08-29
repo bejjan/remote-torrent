@@ -203,12 +203,12 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   }
 
   return (
-    <div className="relative flex min-h-svh min-w-0 flex-col items-center justify-center bg-background px-3 py-8 sm:px-4 sm:py-10">
+    <div className="relative flex min-h-svh min-w-0 flex-col items-center justify-center overflow-y-auto bg-background px-3 py-8 sm:px-4 sm:py-10">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.45_0_0/0.08),transparent_55%)]" />
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Card className="relative w-full min-w-0 max-w-md py-6 ring-1 ring-primary/15">
+      <Card className="relative my-auto w-full min-w-0 max-w-md py-6 ring-1 ring-primary/15">
         <CardHeader className="gap-3">
           <Brand markClassName="size-10" />
           <div className="min-w-0">
