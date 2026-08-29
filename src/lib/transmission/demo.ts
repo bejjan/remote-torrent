@@ -5,7 +5,7 @@ import {
   type AdminDemoConfig,
   type SyntheticTorrentSpec,
 } from "../demo/admin-catalog";
-import { parseMagnetName } from "@/lib/deluge/format";
+import { parseMagnetName, trackerHost } from "@/lib/deluge/format";
 import { inventDemoFilesTree, parseMagnetInfoHash, type TorrentInfoDir } from "@/lib/deluge/files-tree";
 import { resolveTransmissionIds, torrentKey } from "./map";
 import {
@@ -183,7 +183,7 @@ function makeTorrent(opts: {
     trackerStats: [
       {
         announce: opts.tracker,
-        host: opts.tracker.replace(/^https?:\/\//, "").split("/")[0],
+        host: trackerHost(opts.tracker) || opts.tracker,
         lastAnnounceSucceeded: !opts.error,
         lastAnnounceResult: opts.error || "Success",
         nextAnnounceTime: nowSec() + 1800,
