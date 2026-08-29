@@ -8,6 +8,7 @@ import {
   defaultVisibleTorrentColumns,
   dropIndexFromX,
   isIdentityColumnDrop,
+  columnDropEdge,
   moveColumnBefore,
   normalizeColumnOrder,
   parseStoredColumnOrder,
@@ -174,5 +175,13 @@ assert.equal(isIdentityColumnDrop(2, 2), true);
 assert.equal(isIdentityColumnDrop(2, 3), true);
 assert.equal(isIdentityColumnDrop(2, 1), false);
 assert.equal(isIdentityColumnDrop(2, 4), false);
+
+assert.equal(columnDropEdge(2, 2, 2, 5), "before");
+assert.equal(columnDropEdge(2, 3, 2, 5), "after");
+assert.equal(columnDropEdge(3, 3, 2, 5), null);
+assert.equal(columnDropEdge(1, 1, 2, 5), "before");
+assert.equal(columnDropEdge(4, 5, 2, 5), "after");
+assert.equal(columnDropEdge(4, 5, 4, 5), "after");
+assert.equal(columnDropEdge(0, 0, 0, 5), "before");
 
 console.log("torrent-columns tests passed");

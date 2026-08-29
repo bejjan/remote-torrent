@@ -166,16 +166,14 @@ function TreeRow({
           {progress != null ? <span>{formatProgress(progress * 100)}</span> : null}
         </div>
       </div>
-      <span className="tabular hidden w-16 shrink-0 text-right text-xs text-muted-foreground @min-[420px]:inline">
+      <span className="tabular hidden shrink-0 text-right text-xs text-muted-foreground @min-[420px]:inline">
         {formatBytes(size)}
       </span>
       {progress != null ? (
-        <span className="tabular hidden w-10 shrink-0 text-right text-xs @min-[420px]:inline">
+        <span className="tabular hidden shrink-0 text-right text-xs @min-[420px]:inline">
           {formatProgress(progress * 100)}
         </span>
-      ) : (
-        <span className="hidden w-10 shrink-0 @min-[420px]:inline" aria-hidden />
-      )}
+      ) : null}
       {action}
     </div>
   );

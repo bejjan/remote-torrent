@@ -368,8 +368,8 @@ export function AddTorrentDialog({
             <TabsTrigger value="magnet">Magnet</TabsTrigger>
             <TabsTrigger value="url">URL</TabsTrigger>
           </TabsList>
-          <div className="min-h-28">
-            <TabsContent value="file" className="grid min-h-28 min-w-0 gap-3 pt-3">
+          <div className="min-h-16">
+            <TabsContent value="file" className="grid min-h-16 min-w-0 gap-3 pt-3">
             <div
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -394,7 +394,7 @@ export function AddTorrentDialog({
                 void onPickFile(next);
               }}
               className={cn(
-                "grid min-h-24 min-w-0 content-center gap-2 overflow-hidden rounded-lg border border-dashed p-3 transition-colors",
+                "grid min-h-16 min-w-0 content-center gap-2 overflow-hidden rounded-lg border border-dashed px-3 py-2 transition-colors",
                 fileDragOver
                   ? "border-foreground/35 bg-muted/70 dark:bg-input/50"
                   : "border-input bg-muted/25 dark:bg-input/20"
@@ -430,10 +430,10 @@ export function AddTorrentDialog({
               </div>
             </div>
           </TabsContent>
-          <TabsContent value="magnet" className="grid min-h-28 gap-3 pt-3">
+          <TabsContent value="magnet" className="grid min-h-16 gap-3 pt-3">
             <Textarea
-              rows={4}
-              className="h-24 min-h-24 field-sizing-fixed"
+              rows={2}
+              className="h-16 min-h-16 field-sizing-fixed"
               placeholder="magnet:?xt=urn:btih:…"
               value={magnet}
               onChange={(e) => setMagnet(e.target.value)}
@@ -443,8 +443,8 @@ export function AddTorrentDialog({
               }}
             />
           </TabsContent>
-          <TabsContent value="url" className="grid min-h-28 min-w-0 gap-3 pt-3">
-            <div className="flex min-h-24 min-w-0 items-center gap-2">
+          <TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3">
+            <div className="flex min-h-16 min-w-0 items-center gap-2">
               <Input
                 placeholder="https://example.com/file.torrent"
                 value={url}
@@ -638,6 +638,7 @@ function TorrentPreviewCard({
               node={child}
               path={childName}
               depth={0}
+              showFileGutter={fileCount > 1}
               priorities={priorities}
               onPriorities={onPriorities}
             />
@@ -655,6 +656,7 @@ function AddFilesTree({
   node,
   path,
   depth,
+  showFileGutter,
   priorities,
   onPriorities,
 }: {
@@ -662,6 +664,7 @@ function AddFilesTree({
   node: TorrentInfoNode;
   path: string;
   depth: number;
+  showFileGutter: boolean;
   priorities: number[];
   onPriorities: (next: number[]) => void;
 }) {
@@ -669,13 +672,13 @@ function AddFilesTree({
   if (node.type === "file") {
     const value = String(priorities[node.index] ?? 4);
     return (
-      <div className="flex min-w-0 items-center gap-2 py-1 text-sm">
-        <span className="inline-block size-6 shrink-0" aria-hidden />
+      <div className="flex min-w-0 items-center gap-1.5 py-1 text-sm">
+        {showFileGutter ? <span className="inline-block size-6 shrink-0" aria-hidden /> : null}
         <FileKindIcon name={name} />
-        <span className="min-w-0 flex-1 truncate overflow-hidden break-all" title={path}>
+        <span className="min-w-0 flex-1 truncate" title={path}>
           {name}
         </span>
-        <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(node.length)}</span>
+        <span className="tabular shrink-0 text-right text-xs text-muted-foreground">{formatBytes(node.length)}</span>
         <FilePrioritySelect
           value={value}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, [node.index], next))}
@@ -687,7 +690,7 @@ function AddFilesTree({
   const shared = commonPriority(priorities, indexes);
   return (
     <div className="min-w-0 text-sm">
-      <div className="flex min-w-0 items-center gap-2 py-1">
+      <div className="flex min-w-0 items-center gap-1.5 py-1">
         <button
           type="button"
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -697,10 +700,10 @@ function AddFilesTree({
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
         <FolderTreeIcon open={open} />
-        <span className="min-w-0 flex-1 truncate overflow-hidden break-all font-medium" title={path}>
+        <span className="min-w-0 flex-1 truncate font-medium" title={path}>
           {name}
         </span>
-        <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
+        <span className="tabular shrink-0 text-right text-xs text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
         <FilePrioritySelect
           value={shared == null ? "mixed" : String(shared)}
           mixed={shared == null}
@@ -715,6 +718,7 @@ function AddFilesTree({
             node={child}
             path={`${path}/${childName}`}
             depth={depth + 1}
+            showFileGutter={showFileGutter}
             priorities={priorities}
             onPriorities={onPriorities}
           />
