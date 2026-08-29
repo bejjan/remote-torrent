@@ -108,7 +108,6 @@ export function TorrentDetails({
     >
       <DetailsHeader
         name={detail?.name || "Details"}
-        hash={torrentId}
         dock={dock ?? "bottom"}
         onDockChange={onDockChange}
         onClose={onClose}
@@ -159,40 +158,30 @@ export function TorrentDetails({
   );
 }
 
-function DetailsTitle({ name, hash }: { name: string; hash: string | null }) {
+function DetailsTitle({ name }: { name: string }) {
   return (
     <div className="min-w-0 flex-1 overflow-hidden">
       <div className="truncate text-sm font-medium" title={name}>
         {name}
       </div>
-      {hash ? (
-        <div
-          className="line-clamp-2 min-w-0 break-all font-mono text-[11px] leading-snug text-muted-foreground"
-          title={hash}
-        >
-          {hash}
-        </div>
-      ) : null}
     </div>
   );
 }
 
 function DetailsHeader({
   name,
-  hash,
   dock,
   onDockChange,
   onClose,
 }: {
   name: string;
-  hash: string | null;
   dock: DetailsDock;
   onDockChange?: (dock: DetailsDock) => void;
   onClose?: () => void;
 }) {
-  const title = <DetailsTitle name={name} hash={hash} />;
+  const title = <DetailsTitle name={name} />;
   const controls = (
-    <div className="flex shrink-0 items-center pt-px">
+    <div className="flex shrink-0 items-center">
       {onDockChange ? <DetailsDockControl dock={dock} onDockChange={onDockChange} /> : null}
       {onClose ? (
         <Button
@@ -209,13 +198,13 @@ function DetailsHeader({
   );
 
   return (
-    <div className="flex min-w-0 items-start gap-1 overflow-hidden border-b px-2 py-1">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b px-2 py-1">
       {onDockChange ? (
         <ContextMenu>
           <ContextMenuTrigger className="min-w-0 flex-1 overflow-hidden">
             {title}
           </ContextMenuTrigger>
-          <ContextMenuContent className="min-w-48" side="bottom" align="end">
+          <ContextMenuContent className="min-w-56" side="bottom" align="end">
           <ContextMenuRadioGroup
             value={dock}
             onValueChange={(value) => {
@@ -266,7 +255,7 @@ function DetailsDockControl({
         >
           <MoreHorizontal />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuContent align="end" className="min-w-56">
           <DropdownMenuRadioGroup
             value={dock}
             onValueChange={(value) => {
