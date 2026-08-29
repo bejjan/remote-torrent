@@ -12,7 +12,7 @@ assert.match(source, /DropdownMenuRadioGroup/);
 assert.match(source, /DropdownMenuRadioItem/);
 assert.match(source, /filePriorityPresentation/);
 assert.match(source, /size="icon-sm"/);
-assert.match(source, /variant="ghost"/);
+assert.match(source, /variant="outline"/);
 assert.match(source, /title=\{current\.label\}/);
 assert.match(source, /aria-label=\{`Priority: \$\{current\.label\}`\}/);
 assert.match(source, /disabled=\{disabled\}/);
@@ -21,7 +21,8 @@ assert.doesNotMatch(source, /SelectValue/);
 
 assert.match(presentation, /CircleSlash/);
 assert.match(presentation, /ChevronsDown/);
-assert.match(presentation, /Minus/);
+assert.match(presentation, /Equal/);
+assert.match(presentation, /CircleDashed/);
 assert.match(presentation, /ChevronsUp/);
 assert.match(presentation, /0: "Skip"/);
 assert.match(presentation, /1: "Low"/);
