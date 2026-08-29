@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DelugeError, rpc, uploadTorrent } from "@/lib/deluge/client";
+import { DelugeError, getStoredClientKind, rpc, uploadTorrent } from "@/lib/deluge/client";
 import { formatBytes } from "@/lib/deluge/format";
 import {
   commonPriority,
@@ -116,6 +116,7 @@ export function AddTorrentDialog({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadGen = useRef(0);
+  const transmission = getStoredClientKind() === "transmission";
 
   useEffect(() => {
     if (!open) {
@@ -505,31 +506,39 @@ export function AddTorrentDialog({
             </button>
             {advancedOpen ? (
               <div className="grid gap-x-3 gap-y-2 border-t border-border px-2.5 py-2 sm:grid-cols-2 sm:items-center">
-                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
-                  <Switch size="sm" checked={moveCompleted} onCheckedChange={setMoveCompleted} />
-                  Move completed
-                </label>
-                <Input
-                  id="add-move-completed"
-                  aria-label="Move completed path"
-                  placeholder="Move completed path"
-                  value={moveCompletedPath}
-                  disabled={!moveCompleted}
-                  onChange={(e) => setMoveCompletedPath(e.target.value)}
-                  className="h-7"
-                />
+                {transmission ? null : (
+                  <>
+                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                      <Switch size="sm" checked={moveCompleted} onCheckedChange={setMoveCompleted} />
+                      Move completed
+                    </label>
+                    <Input
+                      id="add-move-completed"
+                      aria-label="Move completed path"
+                      placeholder="Move completed path"
+                      value={moveCompletedPath}
+                      disabled={!moveCompleted}
+                      onChange={(e) => setMoveCompletedPath(e.target.value)}
+                      className="h-7"
+                    />
+                  </>
+                )}
                 <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
                   <Switch size="sm" checked={addPaused} onCheckedChange={setAddPaused} />
                   Add in paused state
                 </label>
-                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
-                  <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
-                  Sequential download
-                </label>
-                <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
-                  <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
-                  Prioritize first and last pieces
-                </label>
+                {transmission ? null : (
+                  <>
+                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                      <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
+                      Sequential download
+                    </label>
+                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
+                      <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
+                      Prioritize first and last pieces
+                    </label>
+                  </>
+                )}
                 <div className="grid grid-cols-[auto_1fr] items-center gap-2">
                   <Label htmlFor="add-max-down" className="text-sm font-normal leading-snug">
                     Max download

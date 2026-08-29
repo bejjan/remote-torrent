@@ -57,7 +57,7 @@ export function holdLastSessionRates(
 
 /**
  * Official Deluge puts session rates in `document.title` when `show_session_speed`
- * is on, e.g. `↓1.2 MiB/s ↑200 KiB/s — Deluge Nova`.
+ * is on, e.g. `↓1.2 MiB/s ↑200 KiB/s — Nova`.
  */
 export function sessionSpeedDocumentTitle(
   downloadRate: number,

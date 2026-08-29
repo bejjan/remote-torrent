@@ -222,7 +222,7 @@ function makeTorrent(opts: {
     num_files: countFiles(opts.files),
     message: opts.message ?? "",
     comment: "Demo torrent",
-    creator: "Deluge Nova",
+    creator: "Nova",
     max_connections: -1,
     max_upload_slots: -1,
     stop_at_ratio: false,

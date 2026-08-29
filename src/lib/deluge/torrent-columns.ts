@@ -1,9 +1,10 @@
+import { readLocalStorage, storageKey, writeLocalStorage } from "@/lib/storage";
 import type { TorrentStatus } from "./types";
 
 /** Browser-local torrent list column visibility. Official Deluge Web stores ExtJS grid state separately. */
-export const TORRENT_COLUMNS_STORAGE_KEY = "deluge-nova:torrent-columns";
+export const TORRENT_COLUMNS_STORAGE_KEY = storageKey("torrent-columns");
 /** Browser-local torrent list column order, including hidden columns. */
-export const TORRENT_COLUMN_ORDER_STORAGE_KEY = "deluge-nova:torrent-column-order";
+export const TORRENT_COLUMN_ORDER_STORAGE_KEY = storageKey("torrent-column-order");
 /** Pointer movement (px) before a header press becomes a reorder drag instead of a sort click. */
 export const COLUMN_REORDER_DRAG_THRESHOLD = 8;
 
@@ -284,24 +285,14 @@ export function parseStoredColumnVisibility(raw: string | null | undefined): Set
 }
 
 export function loadTorrentColumnVisibility(): Set<TorrentColumnId> {
-  if (typeof window === "undefined") return defaultVisibleTorrentColumns();
-  try {
-    return parseStoredColumnVisibility(localStorage.getItem(TORRENT_COLUMNS_STORAGE_KEY));
-  } catch {
-    return defaultVisibleTorrentColumns();
-  }
+  return parseStoredColumnVisibility(readLocalStorage(TORRENT_COLUMNS_STORAGE_KEY));
 }
 
 export function saveTorrentColumnVisibility(visibleIds: ReadonlySet<TorrentColumnId>) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      TORRENT_COLUMNS_STORAGE_KEY,
-      JSON.stringify(serializeTorrentColumnVisibility(visibleIds))
-    );
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(
+    TORRENT_COLUMNS_STORAGE_KEY,
+    JSON.stringify(serializeTorrentColumnVisibility(visibleIds))
+  );
 }
 
 export function parseStoredColumnOrder(raw: string | null | undefined): TorrentColumnId[] {
@@ -316,22 +307,9 @@ export function parseStoredColumnOrder(raw: string | null | undefined): TorrentC
 }
 
 export function loadTorrentColumnOrder(): TorrentColumnId[] {
-  if (typeof window === "undefined") return defaultTorrentColumnOrder();
-  try {
-    return parseStoredColumnOrder(localStorage.getItem(TORRENT_COLUMN_ORDER_STORAGE_KEY));
-  } catch {
-    return defaultTorrentColumnOrder();
-  }
+  return parseStoredColumnOrder(readLocalStorage(TORRENT_COLUMN_ORDER_STORAGE_KEY));
 }
 
 export function saveTorrentColumnOrder(order: readonly TorrentColumnId[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      TORRENT_COLUMN_ORDER_STORAGE_KEY,
-      JSON.stringify(normalizeColumnOrder(order))
-    );
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(TORRENT_COLUMN_ORDER_STORAGE_KEY, JSON.stringify(normalizeColumnOrder(order)));
 }

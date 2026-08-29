@@ -24,7 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { rpc } from "@/lib/deluge/client";
+import { TransmissionPreferences } from "@/components/app/transmission-preferences";
+import { rpc, getStoredClientKind } from "@/lib/deluge/client";
 import {
   ENC_LEVEL_OPTIONS,
   ENC_LEVEL_SELECT_ITEMS,
@@ -152,6 +153,7 @@ export function PreferencesDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (getStoredClientKind() === "transmission") return;
     void (async () => {
       try {
         const [c, w, plugins, langs] = await Promise.all([
@@ -193,6 +195,23 @@ export function PreferencesDialog({
 
   const pluginNav = pluginPrefNavItems(enabled);
   const currentPlugin = pluginNavItemForPage(pluginNav, page);
+
+  if (typeof window !== "undefined" && getStoredClientKind() === "transmission") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[min(40rem,90vh)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b p-4">
+            <DialogTitle>Preferences</DialogTitle>
+          </DialogHeader>
+          <TransmissionPreferences
+            open={open}
+            onOpenChange={onOpenChange}
+            onWebConfigChange={onWebConfigChange}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

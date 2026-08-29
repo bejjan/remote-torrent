@@ -53,7 +53,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { rpc } from "@/lib/deluge/client";
+import { clientCapabilities, getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
 import {
@@ -130,6 +130,9 @@ export function TorrentShell({
   onLogout: () => void;
   onManageHosts: () => void;
 }) {
+  const caps = clientCapabilities(
+    typeof window === "undefined" ? "deluge" : getStoredClientKind()
+  );
   const mobile = useIsMobile();
   const [ui, setUi] = useState<UiUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -718,13 +721,19 @@ export function TorrentShell({
               <OverflowItem className="sm:hidden" onClick={() => setPrefsOpen(true)}>
                 <Settings /> Preferences
               </OverflowItem>
-              <DropdownMenuSeparator className="lg:hidden" />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
-                <Server /> Connection Manager
-              </DropdownMenuItem>
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-                <Server /> Open hosts page
-              </DropdownMenuItem>
+              {caps.connectionManager ? (
+                <>
+                  <DropdownMenuSeparator className="lg:hidden" />
+                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
+                    <Server /> Connection Manager
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
+                    <Server /> Open hosts page
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuSeparator className="lg:hidden" />
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
                 <LogOut /> Sign out
@@ -756,6 +765,7 @@ export function TorrentShell({
                 labelPluginEnabled={labelPluginEnabled}
                 definedLabels={labels}
                 onLabelsChanged={onLabelsChanged}
+                showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
                 className="h-full min-w-0"
               />
             </aside>
@@ -817,7 +827,7 @@ export function TorrentShell({
             </span>
           ) : null}
           <span className="shrink-0">Connections {stats?.num_connections ?? 0}</span>
-          <span className="shrink-0">DHT {stats?.dht_nodes ?? 0}</span>
+          {caps.dhtNodes ? <span className="shrink-0">DHT {stats?.dht_nodes ?? 0}</span> : null}
           <span className="shrink-0">Free {formatBytes(stats?.free_space ?? 0)}</span>
           <span className="min-w-0 max-w-full truncate font-mono sm:ml-auto">{stats?.external_ip || ""}</span>
         </div>
@@ -839,6 +849,7 @@ export function TorrentShell({
             labelPluginEnabled={labelPluginEnabled}
             definedLabels={labels}
             onLabelsChanged={onLabelsChanged}
+            showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
           />
         </SheetContent>
       </Sheet>
@@ -878,6 +889,7 @@ export function TorrentShell({
         onWebConfigChange={applyWebUi}
       />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      {caps.connectionManager ? (
       <Dialog open={hostsOpen} onOpenChange={setHostsOpen}>
         <DialogContent className="max-w-3xl sm:max-w-3xl">
           <DialogHeader>
@@ -886,6 +898,7 @@ export function TorrentShell({
           <ConnectionManager embedded onConnected={() => setHostsOpen(false)} />
         </DialogContent>
       </Dialog>
+      ) : null}
     </div>
   );
 }

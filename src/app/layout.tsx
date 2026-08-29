@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Deluge Nova",
-  description: "Modern Deluge Web UI",
+  title: "Nova",
+  description: "Modern web UI for Deluge and Transmission",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -97,7 +97,7 @@ assert.equal(defaults.has("save_path"), false);
 
 {
   const catalog = defaultTorrentColumnOrder();
-  assert.equal(TORRENT_COLUMN_ORDER_STORAGE_KEY, "deluge-nova:torrent-column-order");
+  assert.equal(TORRENT_COLUMN_ORDER_STORAGE_KEY, "nova:torrent-column-order");
   assert.deepEqual(catalog, TORRENT_COLUMNS.map((column) => column.id));
   assert.deepEqual(normalizeColumnOrder(null), catalog);
   assert.deepEqual(parseStoredColumnOrder(null), catalog);

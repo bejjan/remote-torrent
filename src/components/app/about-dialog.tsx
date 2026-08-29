@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { rpc } from "@/lib/deluge/client";
+import { getStoredClientKind, rpc } from "@/lib/deluge/client";
 import {
   ABOUT_APP_NAME,
   ABOUT_DAEMON_UNAVAILABLE,
@@ -19,6 +19,8 @@ import {
   ABOUT_PROJECT_LABEL,
   ABOUT_PROJECT_URL,
   ABOUT_TAGLINE,
+  ABOUT_TRANSMISSION_LABEL,
+  ABOUT_TRANSMISSION_URL,
   UI_VERSION,
   loadAboutInfo,
   type AboutInfo,
@@ -79,8 +81,18 @@ export function AboutDialog({
         </DialogHeader>
         <dl className="grid gap-1.5 text-sm">
           <VersionRow label="This UI" value={info?.uiVersion ?? UI_VERSION} />
-          <VersionRow label="Deluge" value={info?.daemonVersion ?? null} loading={loading} />
-          <VersionRow label="libtorrent" value={info?.libtorrentVersion ?? null} loading={loading} />
+          <VersionRow
+            label={getStoredClientKind() === "transmission" ? "Transmission" : "Deluge"}
+            value={info?.daemonVersion ?? null}
+            loading={loading}
+          />
+          {getStoredClientKind() === "deluge" ? (
+            <VersionRow
+              label="libtorrent"
+              value={info?.libtorrentVersion ?? null}
+              loading={loading}
+            />
+          ) : null}
         </dl>
         {!loading && info && !info.connected ? (
           <p className="text-center text-xs text-muted-foreground">{ABOUT_DAEMON_UNAVAILABLE}</p>
@@ -92,6 +104,10 @@ export function AboutDialog({
           {" · "}
           <a href={ABOUT_PROJECT_URL} target="_blank" rel="noreferrer">
             {ABOUT_PROJECT_LABEL}
+          </a>
+          {" · "}
+          <a href={ABOUT_TRANSMISSION_URL} target="_blank" rel="noreferrer">
+            {ABOUT_TRANSMISSION_LABEL}
           </a>
         </p>
         <DialogFooter showCloseButton className="m-0" />

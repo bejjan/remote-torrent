@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { rpc } from "@/lib/deluge/client";
+import { getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { buildTorrentOptionsPayload } from "@/lib/deluge/torrent-options";
 import type { TorrentStatus } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
 export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent: TorrentStatus }) {
   const uid = useId();
+  const transmission = getStoredClientKind() === "transmission";
   const [maxDown, setMaxDown] = useState(String(torrent.max_download_speed));
   const [maxUp, setMaxUp] = useState(String(torrent.max_upload_speed));
   const [maxConn, setMaxConn] = useState(String(torrent.max_connections));
@@ -78,22 +79,26 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
             title="−1 unlimited"
           />
         </OptionRow>
-        <OptionRow htmlFor={`${uid}-conn`} label="Connections">
-          <NumInput
-            id={`${uid}-conn`}
-            value={maxConn}
-            onChange={setMaxConn}
-            title="−1 unlimited"
-          />
-        </OptionRow>
-        <OptionRow htmlFor={`${uid}-slots`} label="Upload slots">
-          <NumInput
-            id={`${uid}-slots`}
-            value={maxSlots}
-            onChange={setMaxSlots}
-            title="−1 unlimited"
-          />
-        </OptionRow>
+        {transmission ? null : (
+          <>
+            <OptionRow htmlFor={`${uid}-conn`} label="Connections">
+              <NumInput
+                id={`${uid}-conn`}
+                value={maxConn}
+                onChange={setMaxConn}
+                title="−1 unlimited"
+              />
+            </OptionRow>
+            <OptionRow htmlFor={`${uid}-slots`} label="Upload slots">
+              <NumInput
+                id={`${uid}-slots`}
+                value={maxSlots}
+                onChange={setMaxSlots}
+                title="−1 unlimited"
+              />
+            </OptionRow>
+          </>
+        )}
       </OptionSection>
 
       <OptionSection title="Queue / ratio">
@@ -108,17 +113,20 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
             disabled={!stopRatio}
           />
         </OptionRow>
-        <OptionRow htmlFor={`${uid}-remove`} label="Remove at ratio">
-          <Switch
-            id={`${uid}-remove`}
-            size="sm"
-            checked={Boolean(removeAt)}
-            onCheckedChange={setRemoveAt}
-            disabled={!stopRatio}
-          />
-        </OptionRow>
+        {transmission ? null : (
+          <OptionRow htmlFor={`${uid}-remove`} label="Remove at ratio">
+            <Switch
+              id={`${uid}-remove`}
+              size="sm"
+              checked={Boolean(removeAt)}
+              onCheckedChange={setRemoveAt}
+              disabled={!stopRatio}
+            />
+          </OptionRow>
+        )}
       </OptionSection>
 
+      {transmission ? null : (
       <OptionSection title="Location">
         <OptionRow htmlFor={`${uid}-move`} label="Move completed">
           <Switch id={`${uid}-move`} size="sm" checked={Boolean(move)} onCheckedChange={setMove} />
@@ -136,20 +144,25 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
           />
         </div>
       </OptionSection>
+      )}
 
       <OptionSection title="Flags">
-        <OptionRow htmlFor={`${uid}-auto`} label="Auto managed">
+        <OptionRow htmlFor={`${uid}-auto`} label={transmission ? "Honor session limits" : "Auto managed"}>
           <Switch id={`${uid}-auto`} size="sm" checked={Boolean(auto)} onCheckedChange={setAuto} />
         </OptionRow>
         <OptionRow htmlFor={`${uid}-private`} label="Private">
           <Switch id={`${uid}-private`} size="sm" checked={Boolean(torrent.private)} disabled />
         </OptionRow>
-        <OptionRow htmlFor={`${uid}-super`} label="Super seeding">
-          <Switch id={`${uid}-super`} size="sm" checked={Boolean(superSeed)} onCheckedChange={setSuperSeed} />
-        </OptionRow>
-        <OptionRow htmlFor={`${uid}-first-last`} label="Prioritize first/last">
-          <Switch id={`${uid}-first-last`} size="sm" checked={Boolean(firstLast)} onCheckedChange={setFirstLast} />
-        </OptionRow>
+        {transmission ? null : (
+          <>
+            <OptionRow htmlFor={`${uid}-super`} label="Super seeding">
+              <Switch id={`${uid}-super`} size="sm" checked={Boolean(superSeed)} onCheckedChange={setSuperSeed} />
+            </OptionRow>
+            <OptionRow htmlFor={`${uid}-first-last`} label="Prioritize first/last">
+              <Switch id={`${uid}-first-last`} size="sm" checked={Boolean(firstLast)} onCheckedChange={setFirstLast} />
+            </OptionRow>
+          </>
+        )}
       </OptionSection>
 
       <div className="@min-[440px]:col-span-2">

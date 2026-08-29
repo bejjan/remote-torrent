@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { rpc } from "@/lib/deluge/client";
+import { getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { LoginScreen } from "@/components/app/login-screen";
 import { ConnectionManager } from "@/components/app/connection-manager";
 import { TorrentShell } from "@/components/app/torrent-shell";
@@ -17,6 +17,10 @@ export function NovaApp() {
       const session = await rpc<boolean>("auth.check_session");
       if (!session) {
         setPhase("login");
+        return;
+      }
+      if (getStoredClientKind() === "transmission") {
+        setPhase("main");
         return;
       }
       const connected = await rpc<boolean>("web.connected");
@@ -34,7 +38,7 @@ export function NovaApp() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-muted-foreground">
         <Loader2 className="size-6 animate-spin text-primary" />
-        <p className="text-sm">Starting Deluge Nova…</p>
+        <p className="text-sm">Starting Nova…</p>
       </div>
     );
   }

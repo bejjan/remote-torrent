@@ -85,6 +85,7 @@ export function FilterSidebar({
   showZero = false,
   labelPluginEnabled = null,
   definedLabels = EMPTY_LABELS,
+  showLabelGroup = true,
   className,
 }: {
   filters: Record<string, FilterTuple[]> | null;
@@ -94,6 +95,7 @@ export function FilterSidebar({
   showZero?: boolean;
   labelPluginEnabled?: boolean | null;
   definedLabels?: string[];
+  showLabelGroup?: boolean;
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
@@ -198,6 +200,7 @@ export function FilterSidebar({
             />
           ))}
         </FilterGroup>
+        {showLabelGroup ? (
         <FilterGroup
           id="labels"
           title="Labels"
@@ -254,10 +257,11 @@ export function FilterSidebar({
                 Right-click a label to remove it
               </p>
             </>
-          ) : labelPluginEnabled === false ? (
+            ) : labelPluginEnabled === false ? (
             <p className="px-1 text-[11px] text-muted-foreground">{LABEL_PLUGIN_ENABLE_HINT}</p>
           ) : null}
         </FilterGroup>
+        ) : null}
       </div>
     </ScrollArea>
   );

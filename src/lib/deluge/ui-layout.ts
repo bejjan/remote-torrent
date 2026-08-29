@@ -1,12 +1,14 @@
 /** Browser-local layout for the filter sidebar, details panel, and torrent table columns. */
 
-export const SIDEBAR_WIDTH_STORAGE_KEY = "deluge-nova:sidebar-width";
-export const DETAILS_HEIGHT_STORAGE_KEY = "deluge-nova:details-height";
-export const DETAILS_DOCK_STORAGE_KEY = "deluge-nova:details-dock";
-export const DETAILS_WIDTH_STORAGE_KEY = "deluge-nova:details-width";
-export const TORRENT_COLUMN_WIDTHS_STORAGE_KEY = "deluge-nova:torrent-column-widths";
+import { readLocalStorage, storageKey, writeLocalStorage } from "@/lib/storage";
+
+export const SIDEBAR_WIDTH_STORAGE_KEY = storageKey("sidebar-width");
+export const DETAILS_HEIGHT_STORAGE_KEY = storageKey("details-height");
+export const DETAILS_DOCK_STORAGE_KEY = storageKey("details-dock");
+export const DETAILS_WIDTH_STORAGE_KEY = storageKey("details-width");
+export const TORRENT_COLUMN_WIDTHS_STORAGE_KEY = storageKey("torrent-column-widths");
 /** Collapsed filter-sidebar group ids. Default is all expanded (empty set). */
-export const SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY = "deluge-nova:sidebar-collapsed-groups";
+export const SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY = storageKey("sidebar-collapsed-groups");
 
 /** Default collapsed set: none (every group starts expanded). */
 export function emptyCollapsedGroups(): Set<string> {
@@ -207,130 +209,70 @@ export function toggleCollapsedGroup(collapsed: ReadonlySet<string>, id: string)
 }
 
 export function loadSidebarCollapsedGroups(): Set<string> {
-  if (typeof window === "undefined") return emptyCollapsedGroups();
-  try {
-    return parseStoredCollapsedGroups(localStorage.getItem(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY));
-  } catch {
-    return emptyCollapsedGroups();
-  }
+  return parseStoredCollapsedGroups(readLocalStorage(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY));
 }
 
 export function saveSidebarCollapsedGroups(ids: Iterable<string>) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
-      JSON.stringify(serializeCollapsedGroups(ids))
-    );
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(
+    SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
+    JSON.stringify(serializeCollapsedGroups(ids))
+  );
 }
 
 export function loadSidebarWidth(): number {
-  if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
-  try {
-    return parseStoredSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
-  } catch {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
+  return parseStoredSidebarWidth(readLocalStorage(SIDEBAR_WIDTH_STORAGE_KEY));
 }
 
 export function saveSidebarWidth(width: number) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)));
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)));
 }
 
 export function loadDetailsHeight(): number {
-  if (typeof window === "undefined") return DETAILS_DEFAULT_HEIGHT;
-  try {
-    return parseStoredDetailsHeight(
-      localStorage.getItem(DETAILS_HEIGHT_STORAGE_KEY),
-      window.innerHeight
-    );
-  } catch {
-    return DETAILS_DEFAULT_HEIGHT;
-  }
+  return parseStoredDetailsHeight(
+    readLocalStorage(DETAILS_HEIGHT_STORAGE_KEY),
+    typeof window === "undefined" ? undefined : window.innerHeight
+  );
 }
 
 export function saveDetailsHeight(height: number) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      DETAILS_HEIGHT_STORAGE_KEY,
-      String(clampDetailsHeight(height, window.innerHeight))
-    );
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(
+    DETAILS_HEIGHT_STORAGE_KEY,
+    String(clampDetailsHeight(height, typeof window === "undefined" ? undefined : window.innerHeight))
+  );
 }
 
 export function loadDetailsDock(): DetailsDock {
-  if (typeof window === "undefined") return DETAILS_DEFAULT_DOCK;
-  try {
-    return parseStoredDetailsDock(localStorage.getItem(DETAILS_DOCK_STORAGE_KEY));
-  } catch {
-    return DETAILS_DEFAULT_DOCK;
-  }
+  return parseStoredDetailsDock(readLocalStorage(DETAILS_DOCK_STORAGE_KEY));
 }
 
 export function saveDetailsDock(dock: DetailsDock) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(DETAILS_DOCK_STORAGE_KEY, parseStoredDetailsDock(dock));
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(DETAILS_DOCK_STORAGE_KEY, parseStoredDetailsDock(dock));
 }
 
 export function loadDetailsWidth(): number {
-  if (typeof window === "undefined") return DETAILS_DEFAULT_WIDTH;
-  try {
-    return parseStoredDetailsWidth(
-      localStorage.getItem(DETAILS_WIDTH_STORAGE_KEY),
-      window.innerWidth
-    );
-  } catch {
-    return DETAILS_DEFAULT_WIDTH;
-  }
+  return parseStoredDetailsWidth(
+    readLocalStorage(DETAILS_WIDTH_STORAGE_KEY),
+    typeof window === "undefined" ? undefined : window.innerWidth
+  );
 }
 
 export function saveDetailsWidth(width: number) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      DETAILS_WIDTH_STORAGE_KEY,
-      String(clampDetailsWidth(width, window.innerWidth))
-    );
-  } catch {
-    /* quota / private mode */
-  }
+  writeLocalStorage(
+    DETAILS_WIDTH_STORAGE_KEY,
+    String(clampDetailsWidth(width, typeof window === "undefined" ? undefined : window.innerWidth))
+  );
 }
 
 export function loadTorrentColumnWidths(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    return parseStoredColumnWidths(localStorage.getItem(TORRENT_COLUMN_WIDTHS_STORAGE_KEY));
-  } catch {
-    return {};
-  }
+  return parseStoredColumnWidths(readLocalStorage(TORRENT_COLUMN_WIDTHS_STORAGE_KEY));
 }
 
 export function saveTorrentColumnWidths(widths: Record<string, number>) {
-  if (typeof window === "undefined") return;
-  try {
-    const clamped: Record<string, number> = {};
-    for (const [key, value] of Object.entries(widths)) {
-      clamped[key] = clampColumnWidth(value, key);
-    }
-    localStorage.setItem(TORRENT_COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(clamped));
-  } catch {
-    /* quota / private mode */
+  const clamped: Record<string, number> = {};
+  for (const [key, value] of Object.entries(widths)) {
+    clamped[key] = clampColumnWidth(value, key);
   }
+  writeLocalStorage(TORRENT_COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(clamped));
 }
 
 export function columnWidthFor(id: string, stored: Record<string, number> | undefined): number {

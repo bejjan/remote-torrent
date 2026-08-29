@@ -17,10 +17,16 @@ const secureDispatcher = new Agent({
 });
 
 export function tlsInsecureEnabled(req: NextRequest): boolean {
-  const header = req.headers.get("x-deluge-tls-insecure")?.trim().toLowerCase();
-  if (header === "1" || header === "true") return true;
-  const env = process.env.DELUGE_TLS_INSECURE?.trim().toLowerCase();
-  return env === "1" || env === "true";
+  const headers = [
+    req.headers.get("x-deluge-tls-insecure"),
+    req.headers.get("x-transmission-tls-insecure"),
+    req.headers.get("x-torrent-tls-insecure"),
+  ];
+  if (headers.some((value) => value?.trim().toLowerCase() === "1" || value?.trim().toLowerCase() === "true")) {
+    return true;
+  }
+  const env = [process.env.DELUGE_TLS_INSECURE, process.env.TRANSMISSION_TLS_INSECURE];
+  return env.some((value) => value?.trim().toLowerCase() === "1" || value?.trim().toLowerCase() === "true");
 }
 
 export function shouldUseDemo(target: string): boolean {
@@ -106,7 +112,7 @@ function stripSecrets(text: string): string {
     .slice(0, 400);
 }
 
-export function describeProxyError(err: unknown, target: string): string {
+export function describeProxyError(err: unknown, target: string, service = "Deluge Web"): string {
   const where = target ? ` (${sanitizePublicUrl(target)})` : "";
   const codes = walkErrorCodes(err);
   const rawMessages = walkErrorMessages(err);
@@ -128,21 +134,21 @@ export function describeProxyError(err: unknown, target: string): string {
     (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError"));
 
   if (isTimeout) {
-    return `Timed out after ${PROXY_TIMEOUT_MS / 1000}s connecting to Deluge Web${where}. Check the URL and that deluge-web is running.`;
+    return `Timed out after ${PROXY_TIMEOUT_MS / 1000}s connecting to ${service}${where}. Check the URL and that the daemon is running.`;
   }
   if (codeSet.has("ECONNREFUSED")) {
-    return `Connection refused (ECONNREFUSED)${where}. Is deluge-web running at that host and port?`;
+    return `Connection refused (ECONNREFUSED)${where}. Is ${service} running at that host and port?`;
   }
   if (codeSet.has("ENOTFOUND") || codeSet.has("EAI_AGAIN")) {
     const code = codeSet.has("ENOTFOUND") ? "ENOTFOUND" : "EAI_AGAIN";
-    return `Hostname not found (${code})${where}. Check the Deluge Web URL.`;
+    return `Hostname not found (${code})${where}. Check the ${service} URL.`;
   }
   if (codeSet.has("EHOSTUNREACH") || codeSet.has("ENETUNREACH")) {
     const code = codeSet.has("EHOSTUNREACH") ? "EHOSTUNREACH" : "ENETUNREACH";
     return `Host unreachable (${code})${where}. Confirm this server can reach that LAN address.`;
   }
   if (codeSet.has("ECONNRESET") || codeSet.has("EPIPE") || codeSet.has("UND_ERR_SOCKET")) {
-    return `Connection reset while talking to Deluge Web${where}.`;
+    return `Connection reset while talking to ${service}${where}.`;
   }
 
   const certCodes = [
@@ -172,7 +178,7 @@ export function describeProxyError(err: unknown, target: string): string {
   }
 
   const detail = stripSecrets(usefulMessage);
-  return `Cannot reach Deluge Web${where}: ${detail}`;
+  return `Cannot reach ${service}${where}: ${detail}`;
 }
 
 function looksLikeJson(text: string): boolean {

@@ -78,7 +78,7 @@ assert.equal(columnWidthFor("name", {}), defaultColumnWidth("name"));
 assert.equal(columnWidthFor("name", { name: 400 }), 400);
 assert.equal(defaultColumnWidth("unknown-col"), 100);
 
-assert.equal(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY, "deluge-nova:sidebar-collapsed-groups");
+assert.equal(SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY, "nova:sidebar-collapsed-groups");
 assert.deepEqual([...emptyCollapsedGroups()], []);
 assert.deepEqual([...parseStoredCollapsedGroups(null)], []);
 assert.deepEqual([...parseStoredCollapsedGroups("")], []);
@@ -96,7 +96,7 @@ assert.deepEqual(serializeCollapsedGroups(["labels", "state", "labels", ""]), ["
   assert.deepEqual([...toggleCollapsedGroup(collapsed, "trackers")], []);
 }
 
-assert.equal(DETAILS_HEIGHT_STORAGE_KEY, "deluge-nova:details-height");
+assert.equal(DETAILS_HEIGHT_STORAGE_KEY, "nova:details-height");
 assert.equal(clampDetailsHeight(Number.NaN), DETAILS_DEFAULT_HEIGHT);
 assert.equal(clampDetailsHeight(50), DETAILS_MIN_HEIGHT);
 assert.equal(clampDetailsHeight(9000), DETAILS_ABS_MAX);
@@ -112,8 +112,8 @@ assert.equal(parseStoredDetailsHeight("200"), 200);
 assert.equal(parseStoredDetailsHeight("12"), DETAILS_MIN_HEIGHT);
 assert.equal(parseStoredDetailsHeight("900", 1000), Math.round(1000 * DETAILS_MAX_VH));
 
-assert.equal(DETAILS_DOCK_STORAGE_KEY, "deluge-nova:details-dock");
-assert.equal(DETAILS_WIDTH_STORAGE_KEY, "deluge-nova:details-width");
+assert.equal(DETAILS_DOCK_STORAGE_KEY, "nova:details-dock");
+assert.equal(DETAILS_WIDTH_STORAGE_KEY, "nova:details-width");
 assert.equal(parseStoredDetailsDock(null), DETAILS_DEFAULT_DOCK);
 assert.equal(parseStoredDetailsDock(""), "bottom");
 assert.equal(parseStoredDetailsDock("bottom"), "bottom");
