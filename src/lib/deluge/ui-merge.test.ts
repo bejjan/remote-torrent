@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mergeSessionStats, mergeUiUpdate, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
+import { mergeSessionStats, mergeUiUpdate, overlayTorrentStatus, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
 import type { SessionStats, TorrentStatus, UiUpdate } from "./types";
 
 function torrent(partial: Partial<TorrentStatus> & Pick<TorrentStatus, "name">): TorrentStatus {
@@ -212,6 +212,24 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
   const merged = mergeUiUpdate(prev, next);
   assert.equal(merged.torrents && "idb" in merged.torrents, false);
   assert.ok(merged.torrents && "ida" in merged.torrents);
+}
+
+{
+  const rich = torrent({ name: "a.iso", max_connections: 80, max_upload_slots: 4, comment: "Demo" });
+  const grid = {
+    name: a.name,
+    queue: a.queue,
+    progress: a.progress,
+    state: a.state,
+    max_download_speed: a.max_download_speed,
+    max_upload_speed: a.max_upload_speed,
+  } as TorrentStatus;
+  const kept = overlayTorrentStatus(rich, grid, true);
+  assert.equal(kept?.max_connections, 80);
+  assert.equal(kept?.max_upload_slots, 4);
+  assert.equal(kept?.comment, "Demo");
+  const replaced = overlayTorrentStatus(rich, b, false);
+  assert.equal(replaced?.name, "b.iso");
 }
 
 console.log("ui-merge tests passed");
