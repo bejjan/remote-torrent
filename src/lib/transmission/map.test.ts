@@ -37,6 +37,13 @@ assert.equal(mapTransmissionState(downloading), "Downloading");
 assert.equal(torrentKey(downloading), "abc");
 assert.equal(mapTransmissionTorrent(downloading).progress, 50);
 assert.equal(mapTransmissionTorrent(downloading).label, "linux");
+assert.equal(
+  mapTransmissionTorrent({
+    ...downloading,
+    name: "Dune.Part.Two-R&amp;H.mkv",
+  }).name,
+  "Dune.Part.Two-R&H.mkv"
+);
 
 const errored: TransmissionTorrent = {
   id: 2,

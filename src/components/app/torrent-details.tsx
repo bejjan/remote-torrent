@@ -35,6 +35,7 @@ import {
   formatRatio,
   formatSwarmCount,
 } from "@/lib/deluge/format";
+import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
 import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
@@ -88,7 +89,7 @@ export function TorrentDetails({
       setFiles(tree);
       setPeers(status.peers || []);
       setTrackers(status.trackers || []);
-      setDetail(status);
+      setDetail(normalizeTorrentStatus(status));
     } catch {
       /* polling shell still has grid fields */
     }

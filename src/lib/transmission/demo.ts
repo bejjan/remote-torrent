@@ -300,6 +300,25 @@ function seedTorrents(): TransmissionTorrent[] {
       tracker: "udp://tracker.openbittorrent.com:6969/announce",
       queue: 0,
     }),
+    makeTorrent({
+      id: 9,
+      name: "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv",
+      size: 18.4 * 1024 ** 3,
+      progress: 1,
+      status: TR_STATUS.SEED,
+      down: 0,
+      up: 2.1 * 1024 ** 2,
+      labels: ["movies"],
+      tracker: "udp://tracker.opentrackr.org:1337/announce",
+      queue: 1,
+      files: [
+        {
+          name: "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv",
+          length: 18.4 * 1024 ** 3,
+          progress: 1,
+        },
+      ],
+    }),
   ];
 }
 
@@ -310,7 +329,7 @@ function getState(): TxDemoState {
     g.__novaTransmissionDemo = {
       sessions: new Set(),
       torrents,
-      nextId: 9,
+      nextId: 10,
       session: defaultSession(),
       webConfig: { show_sidebar: true, show_session_speed: true, sidebar_show_zero: false },
       knownLabels: new Set(["linux", "movies"]),

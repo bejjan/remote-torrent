@@ -1,4 +1,5 @@
 import { GRID_KEYS } from "@/lib/deluge/keys";
+import { normalizeTorrentMap, normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
 import type { SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
 
 /** Compare the fields the torrent grid actually renders / sorts on. */
@@ -20,7 +21,7 @@ export function reuseTorrentMap(
 ): Record<string, TorrentStatus> | null {
   // `torrents: null` is a disconnected / partial frame — do not empty the table.
   if (!next) return prev ?? next;
-  if (!prev) return next;
+  if (!prev) return normalizeTorrentMap(next);
 
   const prevKeys = Object.keys(prev);
   const nextKeys = Object.keys(next);
@@ -28,7 +29,7 @@ export function reuseTorrentMap(
   const out: Record<string, TorrentStatus> = {};
 
   for (const id of nextKeys) {
-    const incoming = next[id];
+    const incoming = normalizeTorrentStatus(next[id]);
     const existing = prev[id];
     const reused =
       existing && torrentStatusEqual(existing, incoming) ? existing : incoming;
@@ -84,7 +85,10 @@ function statsEqual(a: SessionStats, b: SessionStats): boolean {
  * for unchanged torrents / stats so the table does not remount or rebuild rows.
  */
 export function mergeUiUpdate(prev: UiUpdate | null, next: UiUpdate): UiUpdate {
-  if (!prev) return next;
+  if (!prev) {
+    const torrents = reuseTorrentMap(null, next.torrents);
+    return torrents === next.torrents ? next : { ...next, torrents };
+  }
 
   const torrents = reuseTorrentMap(prev.torrents, next.torrents);
   const stats = mergeSessionStats(prev.stats, next.stats);
@@ -114,7 +118,8 @@ export function overlayTorrentStatus(
   sameTorrent: boolean
 ): TorrentStatus | null {
   if (!next) return sameTorrent ? (prev ?? null) : null;
-  if (!prev || !sameTorrent) return next;
-  if (prev === next) return prev;
-  return { ...prev, ...next };
+  const incoming = normalizeTorrentStatus(next);
+  if (!prev || !sameTorrent) return incoming;
+  if (prev === incoming) return prev;
+  return { ...prev, ...incoming };
 }
