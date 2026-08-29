@@ -14,8 +14,10 @@ import {
   mergeKnownFilterNames,
   sidebarGroupRows,
   splitSpecialAll,
+  sidebarFilterTreeFromTorrents,
   stateAllCount,
   stateSidebarRows,
+  torrentMatchesSidebarFilter,
   visibleFilterTuples,
   type SidebarFilterRow,
 } from "./sidebar-filters";
@@ -449,6 +451,13 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /id="trackers"/);
   assert.match(src, /id="labels"/);
   assert.match(src, /useState\(emptyCollapsedGroups\)/, "default all expanded");
+  assert.match(src, /aria-busy=\{loading \|\| undefined\}/);
+  assert.match(src, /loading=\{loading\}/);
+  assert.match(
+    src,
+    /\{loading \? \(\s*<p className="px-2 py-1 text-sm text-muted-foreground">Loading…<\/p>/,
+    "groups show muted Loading… instead of a zero catalog"
+  );
   assert.doesNotMatch(src, /count=\{torrentCount\}/, "group headers do not take a torrent total");
   assert.match(
     src,
@@ -531,6 +540,43 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
 {
   const html = renderToString(
     createElement(FilterSidebar, {
+      filters: null,
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      loading: true,
+    })
+  );
+  assert.equal(
+    [...html.matchAll(/Loading…/g)].length,
+    3,
+    "State, Trackers, and Labels each show Loading…"
+  );
+  assert.equal(html.includes('aria-busy="true"'), true);
+  assert.equal(html.includes(">All<"), false, "catalog rows stay hidden while loading");
+  assert.equal(/>0</.test(html), false, "zero counts must not look like an empty session");
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: {
+        state: [["All", 0]],
+        tracker_host: [["All", 0]],
+        label: [["All", 0]],
+      },
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      loading: false,
+    })
+  );
+  assert.equal(html.includes("Loading…"), false, "empty after load is not a loading state");
+  assert.match(html, />All</);
+  assert.match(html, />0</, "empty daemon still shows All 0");
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
       filters: {
         state: [["All", 3], ["Downloading", 3]],
         tracker_host: [
@@ -582,6 +628,58 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   );
   assert.equal(capped.filter((row) => !row.isAll).length, 2);
   assert.ok(capped.some((row) => row.value === "t0"));
+}
+
+{
+  const checking = {
+    state: "Checking",
+    tracker_host: "bttracker.debian.org",
+    label: "linux",
+    download_payload_rate: 0,
+    upload_payload_rate: 0,
+  } as const;
+  const seeding = {
+    state: "Seeding",
+    tracker_host: "archive.ubuntu.com",
+    label: "linux",
+    download_payload_rate: 0,
+    upload_payload_rate: 1024,
+  } as const;
+  const all = { state: "All", tracker: "", label: "__all__" };
+  assert.equal(torrentMatchesSidebarFilter(checking as never, all), true);
+  assert.equal(
+    torrentMatchesSidebarFilter(checking as never, { ...all, state: "Checking" }),
+    true
+  );
+  assert.equal(
+    torrentMatchesSidebarFilter(seeding as never, { ...all, state: "Checking" }),
+    false
+  );
+
+  const tree = sidebarFilterTreeFromTorrents(
+    [checking, seeding] as never,
+    { state: "Checking", tracker: "", label: "__all__" }
+  );
+  assert.deepEqual(
+    Object.fromEntries(tree.tracker_host),
+    { All: 1, "bttracker.debian.org": 1 }
+  );
+  assert.equal(tree.state.find(([name]) => name === "Checking")?.[1], 1);
+  assert.equal(tree.state.find(([name]) => name === "Seeding")?.[1], 1);
+  assert.equal(tree.state.find(([name]) => name === "All")?.[1], 2);
+
+  const byTracker = sidebarFilterTreeFromTorrents(
+    [checking, seeding] as never,
+    { state: "All", tracker: "bttracker.debian.org", label: "__all__" }
+  );
+  assert.equal(byTracker.state.find(([name]) => name === "Checking")?.[1], 1);
+  assert.equal(byTracker.state.find(([name]) => name === "Seeding")?.[1], 0);
+  assert.equal(byTracker.state.find(([name]) => name === "All")?.[1], 1);
+  assert.deepEqual(Object.fromEntries(byTracker.tracker_host), {
+    All: 2,
+    "bttracker.debian.org": 1,
+    "archive.ubuntu.com": 1,
+  });
 }
 
 console.log("sidebar-filters tests passed");

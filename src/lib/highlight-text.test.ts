@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { decodeHtmlEntities } from "./html-entities";
 import {
   matchesSearchQuery,
   normalizeSearchText,
@@ -77,6 +81,23 @@ assert.equal(searchHighlightRegExp("..."), null);
   const re = searchHighlightRegExp("game of thrones");
   assert.ok(re);
   assert.match("Game.of.Thrones.S01", re);
+}
+
+{
+  const decoded = decodeHtmlEntities(
+    "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&amp;H.mkv"
+  );
+  assert.equal(decoded.includes("&amp;"), false);
+  assert.equal(decoded.includes("R&H"), true);
+  const parts = splitHighlightParts(decoded, "R&H");
+  assert.equal(parts.some((part) => part.match && part.text === "R&H"), true);
+}
+
+{
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../components/app/highlight-text.tsx"), "utf8");
+  assert.match(source, /<mark key=\{index\} className="search-hit">/);
+  assert.match(source, /\{part\.text\}/);
+  assert.doesNotMatch(source, /dangerouslySetInnerHTML\s*=/);
 }
 
 console.log("highlight-text tests passed");

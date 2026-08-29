@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mergeSessionStats, mergeUiUpdate, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
+import { mergeSessionStats, mergeUiUpdate, overlayTorrentStatus, reuseTorrentMap, torrentStatusEqual } from "./ui-merge";
 import type { SessionStats, TorrentStatus, UiUpdate } from "./types";
 
 function torrent(partial: Partial<TorrentStatus> & Pick<TorrentStatus, "name">): TorrentStatus {
@@ -212,6 +212,51 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
   const merged = mergeUiUpdate(prev, next);
   assert.equal(merged.torrents && "idb" in merged.torrents, false);
   assert.ok(merged.torrents && "ida" in merged.torrents);
+}
+
+{
+  const rich = torrent({ name: "a.iso", max_connections: 80, max_upload_slots: 4, comment: "Demo" });
+  const grid = {
+    name: a.name,
+    queue: a.queue,
+    progress: a.progress,
+    state: a.state,
+    max_download_speed: a.max_download_speed,
+    max_upload_speed: a.max_upload_speed,
+  } as TorrentStatus;
+  const kept = overlayTorrentStatus(rich, grid, true);
+  assert.equal(kept?.max_connections, 80);
+  assert.equal(kept?.max_upload_slots, 4);
+  assert.equal(kept?.comment, "Demo");
+  const replaced = overlayTorrentStatus(rich, b, false);
+  assert.equal(replaced?.name, "b.iso");
+}
+
+{
+  const encoded = torrent({ name: "Dune.Part.Two-R&amp;H.mkv", progress: 10 });
+  const decodedName = "Dune.Part.Two-R&H.mkv";
+  const first = mergeUiUpdate(null, {
+    connected: true,
+    torrents: { dune: encoded },
+    filters: null,
+    stats: null,
+  });
+  assert.equal(first.torrents?.dune.name, decodedName);
+
+  const second = mergeUiUpdate(first, {
+    connected: true,
+    torrents: { dune: { ...encoded } },
+    filters: null,
+    stats: null,
+  });
+  assert.equal(second.torrents, first.torrents);
+  assert.equal(second.torrents?.dune.name, decodedName);
+
+  const fromStatus = torrent({ name: decodedName, progress: 10 });
+  const overlaid = overlayTorrentStatus(first.torrents?.dune, encoded, true);
+  assert.equal(overlaid?.name, decodedName);
+  const fromDecoded = overlayTorrentStatus(fromStatus, encoded, true);
+  assert.equal(fromDecoded?.name, decodedName);
 }
 
 console.log("ui-merge tests passed");

@@ -75,7 +75,7 @@ const STATE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
   Checking: { Icon: SearchCheck, className: "text-[color:var(--checking)]" },
   Queued: { Icon: Clock, className: "text-[color:var(--queued)]" },
   Error: { Icon: CircleAlert, className: "text-destructive" },
-  Active: { Icon: Activity, className: "text-muted-foreground" },
+  Active: { Icon: Activity, className: "text-[color:var(--seeding)]" },
 };
 
 export function FilterSidebar({
@@ -87,6 +87,7 @@ export function FilterSidebar({
   labelPluginEnabled = null,
   definedLabels = EMPTY_LABELS,
   showLabelGroup = true,
+  loading = false,
   className,
 }: {
   filters: Record<string, FilterTuple[]> | null;
@@ -97,6 +98,7 @@ export function FilterSidebar({
   labelPluginEnabled?: boolean | null;
   definedLabels?: string[];
   showLabelGroup?: boolean;
+  loading?: boolean;
   className?: string;
 }) {
   const [newLabel, setNewLabel] = useState("");
@@ -164,12 +166,13 @@ export function FilterSidebar({
 
   return (
     <ScrollArea className={cn("h-full", className)}>
-      <div className="flex flex-col gap-5 p-3">
+      <div className="flex flex-col gap-5 p-3" aria-busy={loading || undefined}>
         <FilterGroup
           id="state"
           title="State"
           collapsed={collapsedGroups.has("state")}
           onToggle={() => toggleGroup("state")}
+          loading={loading}
         >
           {stateCatalog.map(([name, count]) => (
             <FilterButton
@@ -189,6 +192,7 @@ export function FilterSidebar({
           title="Trackers"
           collapsed={collapsedGroups.has("trackers")}
           onToggle={() => toggleGroup("trackers")}
+          loading={loading}
         >
           {trackers.map((row) => (
             <FilterButton
@@ -209,6 +213,7 @@ export function FilterSidebar({
           title="Labels"
           collapsed={collapsedGroups.has("labels")}
           onToggle={() => toggleGroup("labels")}
+          loading={loading}
         >
           {labels.map((row) => {
             const item = (
@@ -358,12 +363,14 @@ function FilterGroup({
   title,
   collapsed,
   onToggle,
+  loading = false,
   children,
 }: {
   id: string;
   title: string;
   collapsed: boolean;
   onToggle: () => void;
+  loading?: boolean;
   children: React.ReactNode;
 }) {
   const panelId = `sidebar-group-${id}`;
@@ -386,7 +393,11 @@ function FilterGroup({
         </button>
       </h3>
       <div id={panelId} hidden={collapsed} className={collapsed ? "hidden" : "flex flex-col gap-0.5"}>
-        {children}
+        {loading ? (
+          <p className="px-2 py-1 text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          children
+        )}
       </div>
     </section>
   );

@@ -29,13 +29,16 @@ import {
   formatBytes,
   formatDate,
   formatDuration,
-  formatEta,
   formatProgress,
   formatRate,
   formatRatio,
+  formatTorrentEta,
+  formatTorrentRate,
   formatSwarmCount,
 } from "@/lib/deluge/format";
+import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
 import type { DetailsDock } from "@/lib/deluge/ui-layout";
+import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -60,10 +63,13 @@ export function TorrentDetails({
   const [trackers, setTrackers] = useState<TorrentTracker[]>([]);
   const [detail, setDetail] = useState<TorrentStatus | null>(torrent);
   const loadGen = useRef(0);
+  const detailTorrentId = useRef<string | null>(torrentId);
 
   useEffect(() => {
-    setDetail(torrent);
-  }, [torrent]);
+    const sameTorrent = detailTorrentId.current === torrentId && torrentId != null;
+    detailTorrentId.current = torrentId;
+    setDetail((prev) => overlayTorrentStatus(prev, torrent, sameTorrent));
+  }, [torrent, torrentId]);
 
   const loadDetails = useCallback(async () => {
     if (!torrentId) {
@@ -85,7 +91,7 @@ export function TorrentDetails({
       setFiles(tree);
       setPeers(status.peers || []);
       setTrackers(status.trackers || []);
-      setDetail(status);
+      setDetail(normalizeTorrentStatus(status));
     } catch {
       /* polling shell still has grid fields */
     }
@@ -108,7 +114,6 @@ export function TorrentDetails({
     >
       <DetailsHeader
         name={detail?.name || "Details"}
-        hash={torrentId}
         dock={dock ?? "bottom"}
         onDockChange={onDockChange}
         onClose={onClose}
@@ -144,7 +149,11 @@ export function TorrentDetails({
             <PeerTable peers={peers} />
           </TabsContent>
           <TabsContent value="options" className="min-h-0 min-w-0 overflow-auto p-3">
-            <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
+            <OptionsForm
+              key={`${torrentId}:${typeof detail.max_connections === "number" || typeof detail.max_upload_slots === "number" ? "ready" : "pending"}`}
+              torrentId={torrentId}
+              torrent={detail}
+            />
           </TabsContent>
           <TabsContent value="trackers" className="min-h-0 min-w-0 overflow-auto p-3">
             <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
@@ -159,40 +168,30 @@ export function TorrentDetails({
   );
 }
 
-function DetailsTitle({ name, hash }: { name: string; hash: string | null }) {
+function DetailsTitle({ name }: { name: string }) {
   return (
     <div className="min-w-0 flex-1 overflow-hidden">
       <div className="truncate text-sm font-medium" title={name}>
         {name}
       </div>
-      {hash ? (
-        <div
-          className="line-clamp-2 min-w-0 break-all font-mono text-[11px] leading-snug text-muted-foreground"
-          title={hash}
-        >
-          {hash}
-        </div>
-      ) : null}
     </div>
   );
 }
 
 function DetailsHeader({
   name,
-  hash,
   dock,
   onDockChange,
   onClose,
 }: {
   name: string;
-  hash: string | null;
   dock: DetailsDock;
   onDockChange?: (dock: DetailsDock) => void;
   onClose?: () => void;
 }) {
-  const title = <DetailsTitle name={name} hash={hash} />;
+  const title = <DetailsTitle name={name} />;
   const controls = (
-    <div className="flex shrink-0 items-center pt-px">
+    <div className="flex shrink-0 items-center">
       {onDockChange ? <DetailsDockControl dock={dock} onDockChange={onDockChange} /> : null}
       {onClose ? (
         <Button
@@ -209,13 +208,13 @@ function DetailsHeader({
   );
 
   return (
-    <div className="flex min-w-0 items-start gap-1 overflow-hidden border-b px-2 py-1">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b px-2 py-1">
       {onDockChange ? (
         <ContextMenu>
           <ContextMenuTrigger className="min-w-0 flex-1 overflow-hidden">
             {title}
           </ContextMenuTrigger>
-          <ContextMenuContent className="min-w-48" side="bottom" align="end">
+          <ContextMenuContent className="min-w-56" side="bottom" align="end">
           <ContextMenuRadioGroup
             value={dock}
             onValueChange={(value) => {
@@ -266,7 +265,7 @@ function DetailsDockControl({
         >
           <MoreHorizontal />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuContent align="end" className="min-w-56">
           <DropdownMenuRadioGroup
             value={dock}
             onValueChange={(value) => {
@@ -296,77 +295,114 @@ function Muted({ children }: { children: React.ReactNode }) {
 }
 
 function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
-  const wrapRows = new Set(["Tracker", "Tracker status", "Download folder", "Message", "Comment", "Creator"]);
-  const rows: [string, React.ReactNode][] = [
-    ["Name", torrent.name],
-    ["State", <StateBadge key="s" state={torrent.state} message={torrent.message} />],
-    ["Size", `${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`],
-    ["ETA", formatEta(torrent.eta)],
-    ["Ratio", formatRatio(torrent.ratio)],
-    ["Seeds", formatSwarmCount(torrent.num_seeds, torrent.total_seeds)],
-    ["Peers", formatSwarmCount(torrent.num_peers, torrent.total_peers)],
-    ["Availability", torrent.distributed_copies.toFixed(3)],
-    ["Tracker", torrent.tracker_host],
-    ["Tracker status", torrent.tracker_status],
-    ["Download folder", torrent.download_location],
-    ["Added", formatDate(torrent.time_added)],
-    ["Completed", formatDate(torrent.completed_time)],
-    ["Active time", formatDuration(torrent.active_time)],
-    ["Seeding time", formatDuration(torrent.seeding_time)],
-    ["Pieces", `${torrent.num_pieces} × ${formatBytes(torrent.piece_length, 0)}`],
-    ["Message", torrent.message || "—"],
-    ["Comment", torrent.comment || "—"],
-    ["Creator", torrent.creator || "—"],
-    ["Label", torrent.label || "—"],
-    ["Owner", torrent.owner || "—"],
-  ];
   return (
-    <div className="grid min-w-0 gap-3">
-      <div className="grid min-w-0 gap-1.5">
-        <div className="flex min-w-0 items-center justify-between gap-2 text-sm">
-          <span className="text-xs text-muted-foreground">Progress</span>
-          <span className="tabular shrink-0 text-sm">{formatProgress(torrent.progress)}</span>
+    <div className="grid min-w-0 gap-4">
+      <StatusGroup title="Transfer">
+        <div className="grid min-w-0 gap-1.5">
+          <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
+            <span className="shrink-0 text-xs text-muted-foreground">Progress</span>
+            <span className="min-w-0 truncate text-right tabular">{formatProgress(torrent.progress)}</span>
+          </div>
+          <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn("h-full rounded-full", stateBarClass(torrent.state))}
+              style={{ width: `${Math.min(100, Math.max(0, torrent.progress))}%` }}
+            />
+          </div>
         </div>
-        <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn("h-full rounded-full", stateBarClass(torrent.state))}
-            style={{ width: `${Math.min(100, Math.max(0, torrent.progress))}%` }}
+        <StatusFieldList>
+          <StatusRow label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
+          <StatusRow label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
+          <StatusRow label="Download speed" value={formatTorrentRate(torrent.download_payload_rate)} />
+          <StatusRow label="Upload speed" value={formatTorrentRate(torrent.upload_payload_rate)} />
+        </StatusFieldList>
+      </StatusGroup>
+      <StatusGroup title="State">
+        <StatusFieldList>
+          <StatusRow label="Name" value={torrent.name} wrap />
+          <StatusRow
+            label="State"
+            value={<StateBadge state={torrent.state} message={torrent.message} />}
           />
-        </div>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @min-[360px]:grid-cols-2">
-          <TransferStat label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
-          <TransferStat label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
-          <TransferStat label="Download speed" value={formatRate(torrent.download_payload_rate)} />
-          <TransferStat label="Upload speed" value={formatRate(torrent.upload_payload_rate)} />
-        </div>
-      </div>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm @min-[360px]:grid-cols-2 @min-[640px]:grid-cols-3">
-        {rows.map(([k, v]) => {
-          const text = typeof v === "string" ? v : undefined;
-          return (
-            <div key={k} className="min-w-0">
-              <dt className="text-xs text-muted-foreground">{k}</dt>
-              <dd
-                className={cn("min-w-0", wrapRows.has(k) ? "break-all" : "truncate")}
-                title={text}
-              >
-                {v}
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
+          <StatusRow
+            label="Size"
+            value={`${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`}
+          />
+          <StatusRow label="ETA" value={formatTorrentEta(torrent.eta, torrent.progress)} />
+          <StatusRow label="Ratio" value={formatRatio(torrent.ratio)} />
+          <StatusRow label="Seeds" value={formatSwarmCount(torrent.num_seeds, torrent.total_seeds)} />
+          <StatusRow label="Peers" value={formatSwarmCount(torrent.num_peers, torrent.total_peers)} />
+          <StatusRow label="Availability" value={torrent.distributed_copies.toFixed(3)} />
+          <StatusRow label="Label" value={torrent.label || "—"} />
+          <StatusRow label="Owner" value={torrent.owner || "—"} />
+        </StatusFieldList>
+      </StatusGroup>
+      <StatusGroup title="Times">
+        <StatusFieldList>
+          <StatusRow label="Added" value={formatDate(torrent.time_added)} />
+          <StatusRow label="Completed" value={formatDate(torrent.completed_time)} />
+          <StatusRow label="Active time" value={formatDuration(torrent.active_time)} />
+          <StatusRow label="Seeding time" value={formatDuration(torrent.seeding_time)} />
+        </StatusFieldList>
+      </StatusGroup>
+      <StatusGroup title="Paths">
+        <StatusFieldList>
+          <StatusRow label="Tracker" value={torrent.tracker_host} wrap />
+          <StatusRow label="Tracker status" value={torrent.tracker_status} wrap />
+          <StatusRow label="Download folder" value={torrent.download_location} wrap />
+        </StatusFieldList>
+      </StatusGroup>
+      <StatusGroup title="Info">
+        <StatusFieldList>
+          <StatusRow
+            label="Pieces"
+            value={`${torrent.num_pieces} × ${formatBytes(torrent.piece_length, 0)}`}
+          />
+          <StatusRow label="Message" value={torrent.message || "—"} wrap />
+          <StatusRow label="Comment" value={torrent.comment || "—"} wrap />
+          <StatusRow label="Creator" value={torrent.creator || "—"} wrap />
+        </StatusFieldList>
+      </StatusGroup>
     </div>
   );
 }
 
-function TransferStat({ label, value }: { label: string; value: string }) {
+function StatusGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-2">
-      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate tabular" title={value}>
+    <section className="grid min-w-0 gap-1.5">
+      <h3 className="text-xs font-medium text-foreground">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function StatusFieldList({ children }: { children: React.ReactNode }) {
+  return (
+    <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-1.5 text-sm @min-[480px]:grid-cols-2">
+      {children}
+    </dl>
+  );
+}
+
+function StatusRow({
+  label,
+  value,
+  wrap,
+}: {
+  label: string;
+  value: React.ReactNode;
+  wrap?: boolean;
+}) {
+  const text = typeof value === "string" ? value : undefined;
+  return (
+    <div className="flex min-w-0 items-baseline justify-between gap-3">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd
+        className={cn("min-w-0 text-right tabular", wrap ? "break-all" : "truncate")}
+        title={text}
+      >
         {value}
-      </span>
+      </dd>
     </div>
   );
 }

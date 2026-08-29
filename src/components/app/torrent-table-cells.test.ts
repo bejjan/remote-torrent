@@ -17,6 +17,10 @@ assert.match(table, /min-w-0 truncate/);
 assert.match(table, /applyVisibleSelection/);
 assert.match(table, /visibleSelectionState/);
 assert.match(table, /TorrentColumnCell/);
+assert.match(table, /case "name":/);
+assert.match(table, /hit\(t\.name\)/);
+assert.match(table, /HighlightText/);
+assert.doesNotMatch(table, /dangerouslySetInnerHTML/);
 
 assert.match(
   table,

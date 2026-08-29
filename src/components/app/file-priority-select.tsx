@@ -1,55 +1,78 @@
 "use client";
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
-  FILE_PRIORITY_OPTIONS,
-  FILE_PRIORITY_SELECT_ITEMS,
-  canonicalizeFilePriority,
-} from "@/lib/deluge/files-tree";
+  FILE_PRIORITY_ICONS,
+  FILE_PRIORITY_NAMES,
+  filePriorityPresentation,
+} from "@/components/app/file-priority-presentation";
+import { FILE_PRIORITY_OPTIONS } from "@/lib/deluge/files-tree";
+import { cn } from "@/lib/utils";
+
+export { filePriorityPresentation } from "@/components/app/file-priority-presentation";
 
 export function FilePrioritySelect({
   value,
   mixed,
   onChange,
   className,
+  disabled,
 }: {
   value: string | number;
   mixed?: boolean;
   onChange: (value: number) => void;
   className?: string;
+  disabled?: boolean;
 }) {
-  const selected = mixed ? "mixed" : String(canonicalizeFilePriority(Number(value)));
-  const items = mixed ? { mixed: "Mixed", ...FILE_PRIORITY_SELECT_ITEMS } : FILE_PRIORITY_SELECT_ITEMS;
+  const current = filePriorityPresentation(value, mixed);
+  const CurrentIcon = current.Icon;
+  const [open, setOpen] = useState(false);
+
   return (
-    <Select
-      value={selected}
-      items={items}
-      onValueChange={(v) => {
-        if (v == null || v === "mixed") return;
-        onChange(Number(v));
-      }}
-    >
-      <SelectTrigger size="sm" className={className ?? "min-w-0 w-36"}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {mixed ? (
-          <SelectItem value="mixed" disabled>
-            Mixed
-          </SelectItem>
-        ) : null}
-        {FILE_PRIORITY_OPTIONS.map((opt) => (
-          <SelectItem key={opt.value} value={String(opt.value)}>
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
+        disabled={disabled}
+        render={
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={disabled}
+            className={cn("shrink-0 text-muted-foreground", className)}
+            aria-label={`Priority: ${current.label}`}
+            title={current.label}
+          />
+        }
+      >
+        <CurrentIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="top" className="w-auto min-w-40">
+        <DropdownMenuRadioGroup
+          value={mixed ? "" : current.key}
+          onValueChange={(next) => {
+            if (next == null || next === "" || next === "mixed") return;
+            onChange(Number(next));
+            setOpen(false);
+          }}
+        >
+          {FILE_PRIORITY_OPTIONS.map((opt) => {
+            const ItemIcon = FILE_PRIORITY_ICONS[opt.value];
+            return (
+              <DropdownMenuRadioItem key={opt.value} value={String(opt.value)}>
+                <ItemIcon />
+                {FILE_PRIORITY_NAMES[opt.value]}
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

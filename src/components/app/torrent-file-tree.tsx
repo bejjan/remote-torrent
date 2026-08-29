@@ -12,8 +12,6 @@ import { formatBytes, formatProgress } from "@/lib/deluge/format";
 import type { FileNode } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
-const FILE_PRIORITY_CLASS = "h-7 w-[6.75rem] min-w-0 shrink-0 @min-[420px]:w-36";
-
 export function FileTree({
   node,
   torrentId,
@@ -63,14 +61,12 @@ function FileTreeNode({
   if (node.type === "file") {
     return (
       <TreeRow
-        leading={<span className="inline-block size-6 shrink-0" aria-hidden />}
         icon={<FileKindIcon name={name} />}
         name={name}
         size={node.size}
         progress={node.progress}
         action={
           <FilePrioritySelect
-            className={FILE_PRIORITY_CLASS}
             value={node.priority}
             onChange={(priority) => {
               void setFilePriorities(torrentId, [node.index], priority, onApplied);
@@ -113,7 +109,6 @@ function FileTreeNode({
           size={fileTreeSize(node)}
           action={
             <FilePrioritySelect
-              className={FILE_PRIORITY_CLASS}
               value={shared ?? "mixed"}
               mixed={shared == null}
               onChange={(priority) => {
@@ -150,7 +145,7 @@ function TreeRow({
   progress,
   action,
 }: {
-  leading: ReactNode;
+  leading?: ReactNode;
   icon: ReactNode;
   name: string;
   nameClass?: string;
@@ -171,16 +166,14 @@ function TreeRow({
           {progress != null ? <span>{formatProgress(progress * 100)}</span> : null}
         </div>
       </div>
-      <span className="tabular hidden w-16 shrink-0 text-right text-xs text-muted-foreground @min-[420px]:inline">
+      <span className="tabular hidden shrink-0 text-right text-xs text-muted-foreground @min-[420px]:inline">
         {formatBytes(size)}
       </span>
       {progress != null ? (
-        <span className="tabular hidden w-10 shrink-0 text-right text-xs @min-[420px]:inline">
+        <span className="tabular hidden shrink-0 text-right text-xs @min-[420px]:inline">
           {formatProgress(progress * 100)}
         </span>
-      ) : (
-        <span className="hidden w-10 shrink-0 @min-[420px]:inline" aria-hidden />
-      )}
+      ) : null}
       {action}
     </div>
   );

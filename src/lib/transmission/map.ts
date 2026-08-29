@@ -1,5 +1,6 @@
 import { trackerHost } from "@/lib/deluge/format";
 import { DEFAULT_FILE_PRIORITY } from "@/lib/deluge/files-tree";
+import { normalizeTorrentName } from "@/lib/deluge/torrent-name";
 import type {
   FileDir,
   FileLeaf,
@@ -108,7 +109,7 @@ export function mapTransmissionTorrent(torrent: TransmissionTorrent): TorrentSta
   const activity = Number(torrent.activityDate ?? 0);
   return {
     queue: queued && queuePos >= 0 ? queuePos : state === "Downloading" ? queuePos : -1,
-    name: torrent.name || torrentKey(torrent),
+    name: normalizeTorrentName(torrent.name || torrentKey(torrent)),
     total_wanted: size,
     state,
     progress: checking && recheck > 0 && recheck <= 1 ? recheck * 100 : progress,

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { PrefNavIcon } from "@/components/app/pref-nav-icon";
 import { rpc } from "@/lib/deluge/client";
 import { asBool, asNumber, asString, cloneConfig, dirtyConfig, isEmptyConfig } from "@/lib/deluge/pref-config";
 import { isWebSessionSpeedVisible, isWebSidebarVisible } from "@/lib/deluge/web-config";
@@ -84,18 +85,19 @@ export function TransmissionPreferences({
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <nav className="w-44 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
+        <nav className="w-48 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
           {NAV.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setPage(item.id)}
               className={cn(
-                "flex w-full rounded-md px-2 py-1.5 text-left text-sm",
+                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
                 page === item.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"
               )}
             >
-              {item.label}
+              <PrefNavIcon pageId={item.id} />
+              <span className="min-w-0 truncate">{item.label}</span>
             </button>
           ))}
         </nav>

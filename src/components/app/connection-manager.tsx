@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Loader2, Plus, PlugZap, Power, PowerOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Brand } from "@/components/app/brand";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { rpc } from "@/lib/deluge/client";
 import type { HostInfo, HostStatus } from "@/lib/deluge/types";
 
@@ -166,19 +167,25 @@ export function ConnectionManager({
                     <td className="px-3 py-2 text-muted-foreground">{row.version || "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-1">
-                        <Button size="sm" disabled={busy === id} onClick={() => void connect(id)}>
+                        <HostActionBtn
+                          label="Connect"
+                          size="sm"
+                          variant="default"
+                          disabled={busy === id}
+                          onClick={() => void connect(id)}
+                        >
                           {busy === id ? <Loader2 className="animate-spin" /> : <PlugZap />}
                           <span className="hidden sm:inline">Connect</span>
-                        </Button>
-                        <Button size="icon-sm" variant="outline" onClick={() => void start(id)}>
+                        </HostActionBtn>
+                        <HostActionBtn label="Start" variant="outline" onClick={() => void start(id)}>
                           <Power />
-                        </Button>
-                        <Button size="icon-sm" variant="outline" onClick={() => void stop(id)}>
+                        </HostActionBtn>
+                        <HostActionBtn label="Stop" variant="outline" onClick={() => void stop(id)}>
                           <PowerOff />
-                        </Button>
-                        <Button size="icon-sm" variant="ghost" onClick={() => void remove(id)}>
+                        </HostActionBtn>
+                        <HostActionBtn label="Remove" onClick={() => void remove(id)}>
                           <Trash2 />
-                        </Button>
+                        </HostActionBtn>
                       </div>
                     </td>
                   </tr>
@@ -243,12 +250,41 @@ export function ConnectionManager({
       </div>
       <Card className="w-full min-w-0 max-w-3xl">
         <CardHeader>
-          <Brand />
+          <Brand markClassName="size-10" />
           <CardTitle>Connection Manager</CardTitle>
           <CardDescription>Choose a Deluge daemon to control.</CardDescription>
         </CardHeader>
         <CardContent>{body}</CardContent>
       </Card>
     </div>
+  );
+}
+
+function HostActionBtn({
+  label,
+  children,
+  onClick,
+  disabled,
+  variant = "ghost",
+  size = "icon-sm",
+}: {
+  label: string;
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "ghost" | "outline" | "default";
+  size?: "icon-sm" | "sm";
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button variant={variant} size={size} aria-label={label} disabled={disabled} onClick={onClick} />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { getStoredClientKind, rpc } from "@/lib/deluge/client";
-import { buildTorrentOptionsPayload } from "@/lib/deluge/torrent-options";
+import { buildTorrentOptionsPayload, optionLimitInput } from "@/lib/deluge/torrent-options";
 import type { TorrentStatus } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +16,8 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
   const transmission = getStoredClientKind() === "transmission";
   const [maxDown, setMaxDown] = useState(String(torrent.max_download_speed));
   const [maxUp, setMaxUp] = useState(String(torrent.max_upload_speed));
-  const [maxConn, setMaxConn] = useState(String(torrent.max_connections));
-  const [maxSlots, setMaxSlots] = useState(String(torrent.max_upload_slots));
+  const [maxConn, setMaxConn] = useState(optionLimitInput(torrent.max_connections));
+  const [maxSlots, setMaxSlots] = useState(optionLimitInput(torrent.max_upload_slots));
   const [auto, setAuto] = useState(Boolean(torrent.is_auto_managed));
   const [stopRatio, setStopRatio] = useState(Boolean(torrent.stop_at_ratio));
   const [ratio, setRatio] = useState(String(torrent.stop_ratio ?? ""));
@@ -86,6 +86,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
                 id={`${uid}-conn`}
                 value={maxConn}
                 onChange={setMaxConn}
+                placeholder="Unlimited"
                 title="−1 unlimited"
               />
             </OptionRow>
@@ -94,6 +95,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
                 id={`${uid}-slots`}
                 value={maxSlots}
                 onChange={setMaxSlots}
+                placeholder="Unlimited"
                 title="−1 unlimited"
               />
             </OptionRow>
@@ -208,6 +210,7 @@ function NumInput({
   onChange,
   suffix,
   title,
+  placeholder,
   disabled,
 }: {
   id: string;
@@ -215,6 +218,7 @@ function NumInput({
   onChange: (v: string) => void;
   suffix?: string;
   title?: string;
+  placeholder?: string;
   disabled?: boolean;
 }) {
   return (
@@ -223,6 +227,7 @@ function NumInput({
         id={id}
         value={value}
         title={title}
+        placeholder={placeholder}
         disabled={disabled}
         inputMode="decimal"
         onChange={(e) => onChange(e.target.value)}
