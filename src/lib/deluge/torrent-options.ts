@@ -40,6 +40,18 @@ export function optionNumber(raw: string, fallback = -1): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Display value for Deluge connection / slot limits.
+ * Missing, non-finite, or −1 (unlimited) become an empty input so the UI never
+ * paints the literal strings `undefined` / `null`.
+ */
+export function optionLimitInput(value: unknown): string {
+  if (value == null || value === "") return "";
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return "";
+  return String(n);
+}
+
 export function buildTorrentOptionsPayload(values: TorrentOptionsFormValues): TorrentOptionsPayload {
   return {
     max_download_speed: optionNumber(values.maxDownloadSpeed),

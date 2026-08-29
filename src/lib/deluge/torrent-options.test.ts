@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildTorrentOptionsPayload, optionNumber } from "./torrent-options";
+import { buildTorrentOptionsPayload, optionLimitInput, optionNumber } from "./torrent-options";
 
 const payload = buildTorrentOptionsPayload({
   maxDownloadSpeed: "512",
@@ -38,5 +38,20 @@ assert.equal(optionNumber("12.5"), 12.5);
 assert.equal(optionNumber(""), -1);
 assert.equal(optionNumber("nope"), -1);
 assert.equal(optionNumber("nope", 2), 2);
+
+assert.equal(optionLimitInput(undefined), "");
+assert.equal(optionLimitInput(null), "");
+assert.equal(optionLimitInput(-1), "");
+assert.equal(optionLimitInput(Number.NaN), "");
+assert.equal(optionLimitInput("undefined"), "");
+assert.equal(optionLimitInput("null"), "");
+assert.equal(optionLimitInput(""), "");
+assert.equal(optionLimitInput(0), "0");
+assert.equal(optionLimitInput(80), "80");
+assert.equal(optionLimitInput("4"), "4");
+
+assert.equal(optionNumber(optionLimitInput(undefined)), -1);
+assert.equal(optionNumber(optionLimitInput(-1)), -1);
+assert.equal(optionNumber(optionLimitInput(80)), 80);
 
 console.log("torrent-options tests passed");

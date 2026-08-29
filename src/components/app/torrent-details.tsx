@@ -143,7 +143,11 @@ export function TorrentDetails({
             <PeerTable peers={peers} />
           </TabsContent>
           <TabsContent value="options" className="min-h-0 min-w-0 overflow-auto p-3">
-            <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
+            <OptionsForm
+              key={`${torrentId}:${typeof detail.max_connections === "number" || typeof detail.max_upload_slots === "number" ? "ready" : "pending"}`}
+              torrentId={torrentId}
+              torrent={detail}
+            />
           </TabsContent>
           <TabsContent value="trackers" className="min-h-0 min-w-0 overflow-auto p-3">
             <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />

@@ -53,6 +53,12 @@ const options = readFileSync(join(dir, "torrent-options-form.tsx"), "utf8");
 assert.match(options, /@min-\[440px\]:grid-cols-2/);
 assert.match(options, /min-w-0 w-full font-mono/);
 assert.match(options, /grid-cols-\[minmax\(0,1fr\)_auto\]/);
+assert.match(options, /optionLimitInput\(torrent\.max_connections\)/);
+assert.match(options, /optionLimitInput\(torrent\.max_upload_slots\)/);
+assert.match(options, /placeholder="Unlimited"/);
+assert.match(details, /key=\{`\$\{torrentId\}:\$\{typeof detail\.max_connections === "number"/);
+assert.doesNotMatch(options, /String\(torrent\.max_connections\)/);
+assert.doesNotMatch(options, /String\(torrent\.max_upload_slots\)/);
 assert.doesNotMatch(options, /md:grid-cols-2/);
 
 assert.match(tree, /from "@\/components\/app\/file-tree-icons"/);
