@@ -2,6 +2,8 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronsDown,
   ChevronsUp,
   FolderInput,
@@ -45,17 +47,18 @@ import {
   formatBytes,
   formatDate,
   formatDuration,
-  formatEta,
   formatLimit,
   formatProgress,
   formatQueue,
-  formatRate,
+  formatTorrentEta,
+  formatTorrentRate,
   formatRatio,
   formatSwarmCount,
 } from "@/lib/deluge/format";
 import {
   COLUMN_REORDER_DRAG_THRESHOLD,
   TORRENT_COLUMNS,
+  columnDropEdge,
   dropIndexFromX,
   isIdentityColumnDrop,
   type TorrentColumn,
@@ -450,8 +453,6 @@ export const TorrentTable = memo(function TorrentTable({
   }
 
   const dragFromIndex = dragId ? shownColumns.findIndex((column) => column.id === dragId) : -1;
-  const showDropIndicator =
-    dragFromIndex >= 0 && dropIndex != null && !isIdentityColumnDrop(dragFromIndex, dropIndex);
 
   return (
     <div
@@ -488,13 +489,10 @@ export const TorrentTable = memo(function TorrentTable({
                 />
               </th>
               {shownColumns.map((column, index) => {
-                const dropEdge = showDropIndicator
-                  ? dropIndex === index
-                    ? "before"
-                    : dropIndex === shownColumns.length && index === shownColumns.length - 1
-                      ? "after"
-                      : null
-                  : null;
+                const dropEdge =
+                  dragFromIndex >= 0 && dropIndex != null
+                    ? columnDropEdge(index, dropIndex, dragFromIndex, shownColumns.length)
+                    : null;
                 return (
                   <Th
                     key={column.id}
@@ -654,6 +652,16 @@ const TorrentRow = memo(function TorrentRow({
           <ChevronsUp /> Queue top
         </ContextMenuItem>
         <ContextMenuItem
+          onClick={() => handlersRef.current.act("core.queue_up", handlersRef.current.selectForContext(id))}
+        >
+          <ArrowUp /> Queue up
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => handlersRef.current.act("core.queue_down", handlersRef.current.selectForContext(id))}
+        >
+          <ArrowDown /> Queue down
+        </ContextMenuItem>
+        <ContextMenuItem
           onClick={() =>
             handlersRef.current.act("core.queue_bottom", handlersRef.current.selectForContext(id))
           }
@@ -665,7 +673,7 @@ const TorrentRow = memo(function TorrentRow({
             handlersRef.current.move(handlersRef.current.selectForContext(id));
           }}
         >
-          <FolderInput /> Move storage
+          <FolderInput /> Move storage…
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() =>
@@ -728,8 +736,8 @@ function Th({
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
       aria-grabbed={dragging || undefined}
       className={cn(
-        "relative overflow-hidden px-2 py-2 select-none",
-        dragging ? "cursor-grabbing opacity-50" : "cursor-grab",
+        "relative overflow-visible px-2 py-2 select-none",
+        dragging ? "cursor-grabbing" : "cursor-grab",
         active ? "bg-muted/40 text-foreground" : "text-muted-foreground"
       )}
       onPointerDown={onReorderPointerDown}
@@ -739,14 +747,14 @@ function Th({
         <span
           aria-hidden
           data-drop-indicator="before"
-          className="pointer-events-none absolute inset-y-0 left-0 z-30 w-0.5 bg-primary"
+          className="pointer-events-none absolute inset-y-0 left-0 z-30 w-0.5 -translate-x-1/2 bg-primary"
         />
       ) : null}
       {dropEdge === "after" ? (
         <span
           aria-hidden
           data-drop-indicator="after"
-          className="pointer-events-none absolute inset-y-0 right-0 z-30 w-0.5 bg-primary"
+          className="pointer-events-none absolute inset-y-0 right-0 z-30 w-0.5 translate-x-1/2 bg-primary"
         />
       ) : null}
       <button
@@ -758,6 +766,7 @@ function Th({
         }}
         className={cn(
           "inline-flex max-w-full cursor-grab items-center gap-1 truncate",
+          dragging && "opacity-50",
           active ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
         )}
       >
@@ -823,17 +832,17 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       case "down":
         return (
           <td className="px-2 py-1.5 tabular text-[color:var(--downloading)]">
-            {hit(formatRate(t.download_payload_rate))}
+            {hit(formatTorrentRate(t.download_payload_rate))}
           </td>
         );
       case "up":
         return (
           <td className="px-2 py-1.5 tabular text-[color:var(--seeding)]">
-            {hit(formatRate(t.upload_payload_rate))}
+            {hit(formatTorrentRate(t.upload_payload_rate))}
           </td>
         );
       case "eta":
-        return <td className="px-2 py-1.5 tabular">{hit(formatEta(t.eta))}</td>;
+        return <td className="px-2 py-1.5 tabular">{hit(formatTorrentEta(t.eta, t.progress))}</td>;
       case "ratio":
         return <td className="px-2 py-1.5 tabular">{hit(formatRatio(t.ratio))}</td>;
       case "seeds":

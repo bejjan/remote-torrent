@@ -7,6 +7,8 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(dir, "preferences-dialog.tsx"), "utf8");
 
 assert.match(source, /CORE_NAV_GROUPS/);
+assert.match(source, /PrefNavIcon/);
+assert.match(source, /w-48/);
 assert.match(source, /dirtyConfig/);
 assert.match(source, /core\.set_config/);
 assert.match(source, /web\.set_config/);

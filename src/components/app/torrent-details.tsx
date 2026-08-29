@@ -29,10 +29,11 @@ import {
   formatBytes,
   formatDate,
   formatDuration,
-  formatEta,
   formatProgress,
   formatRate,
   formatRatio,
+  formatTorrentEta,
+  formatTorrentRate,
   formatSwarmCount,
 } from "@/lib/deluge/format";
 import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
@@ -312,8 +313,8 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
         <StatusFieldList>
           <StatusRow label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
           <StatusRow label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
-          <StatusRow label="Download speed" value={formatRate(torrent.download_payload_rate)} />
-          <StatusRow label="Upload speed" value={formatRate(torrent.upload_payload_rate)} />
+          <StatusRow label="Download speed" value={formatTorrentRate(torrent.download_payload_rate)} />
+          <StatusRow label="Upload speed" value={formatTorrentRate(torrent.upload_payload_rate)} />
         </StatusFieldList>
       </StatusGroup>
       <StatusGroup title="State">
@@ -327,7 +328,7 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
             label="Size"
             value={`${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`}
           />
-          <StatusRow label="ETA" value={formatEta(torrent.eta)} />
+          <StatusRow label="ETA" value={formatTorrentEta(torrent.eta, torrent.progress)} />
           <StatusRow label="Ratio" value={formatRatio(torrent.ratio)} />
           <StatusRow label="Seeds" value={formatSwarmCount(torrent.num_seeds, torrent.total_seeds)} />
           <StatusRow label="Peers" value={formatSwarmCount(torrent.num_peers, torrent.total_peers)} />
