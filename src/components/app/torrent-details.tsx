@@ -220,7 +220,7 @@ function DetailsHeader({
             value={dock}
             onValueChange={(value) => {
               if (value === "bottom" || value === "right") {
-                window.setTimeout(() => onDockChange(value), 0);
+                window.setTimeout(() => onDockChange(value), 200);
               }
             }}
           >
@@ -272,7 +272,7 @@ function DetailsDockControl({
             onValueChange={(value) => {
               if (value === "bottom" || value === "right") {
                 setMenuOpen(false);
-                window.setTimeout(() => onDockChange(value), 0);
+                window.setTimeout(() => onDockChange(value), 200);
               }
             }}
           >
