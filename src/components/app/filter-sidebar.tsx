@@ -43,6 +43,7 @@ import {
 } from "@/lib/deluge/label-plugin";
 import {
   FILTER_ALL,
+  SIDEBAR_TRACKER_ROW_CAP,
   completeStateFilters,
   isVisibleFilterRow,
   sidebarGroupRows,
@@ -109,6 +110,8 @@ export function FilterSidebar({
     allValue: "",
     emptyLabel: "(empty)",
     namedAllLabel: "All (tracker)",
+    maxNamedRows: SIDEBAR_TRACKER_ROW_CAP,
+    keepValue: selected.tracker,
   });
   const labels = sidebarGroupRows(filters?.label ?? EMPTY_TUPLES, {
     showZero,

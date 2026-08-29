@@ -66,5 +66,9 @@ assert.match(login, /aria-label="Client"/);
 assert.match(login, /role="radiogroup"/);
 assert.match(login, /"deluge" \? "Deluge" : "Transmission"/);
 assert.match(login, /Transmission RPC URL/);
+assert.match(login, /Admin: synthetic session/);
+assert.match(login, /Use dummy data/);
+assert.match(login, /Torrent count/);
+assert.match(login, /nova:admin-demo|setStoredAdminDemo|admin-demo/);
 
 console.log("torrent-shell toolbar breakpoint tests passed");

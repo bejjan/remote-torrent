@@ -3,6 +3,9 @@ import type { FilterTuple } from "./types";
 
 export const FILTER_ALL = "All";
 
+/** Cap named tracker rows so a live 2k+ catalog cannot mount thousands of filter buttons. */
+export const SIDEBAR_TRACKER_ROW_CAP = 80;
+
 export interface SidebarFilterSelection {
   state: string;
   tracker: string;
@@ -153,6 +156,10 @@ export function sidebarGroupRows(
     emptyValue?: string;
     /** Names that should appear even when count is 0 (e.g. labels from `label.get_labels`). */
     knownNames?: string[];
+    /** Keep the busiest named rows; All is never dropped. */
+    maxNamedRows?: number;
+    /** Always keep this named value even when it falls outside the cap. */
+    keepValue?: string;
   }
 ): SidebarFilterRow[] {
   const { special, rest } = splitSpecialAll(mergeKnownFilterNames(items, options.knownNames));
@@ -172,7 +179,27 @@ export function sidebarGroupRows(
       keepZero: Boolean(name) && known.has(name),
     });
   }
-  return rows;
+  return capNamedSidebarRows(rows, options.maxNamedRows, options.keepValue);
+}
+
+/** Keep All plus the highest-count named rows (and an optional selected value). */
+export function capNamedSidebarRows(
+  rows: SidebarFilterRow[],
+  maxNamedRows?: number,
+  keepValue?: string
+): SidebarFilterRow[] {
+  if (maxNamedRows == null || maxNamedRows < 1) return rows;
+  const all = rows.filter((row) => row.isAll);
+  const named = rows.filter((row) => !row.isAll);
+  if (named.length <= maxNamedRows) return rows;
+  const kept = new Set<string>();
+  if (keepValue) kept.add(keepValue);
+  const ranked = [...named].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  for (const row of ranked) {
+    if (kept.size >= maxNamedRows) break;
+    kept.add(row.value);
+  }
+  return [...all, ...named.filter((row) => kept.has(row.value))];
 }
 
 /** Insert known filter names missing from `web.update_ui` so a fresh label still lists. */

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { handleTransmissionDemoRpc } from "@/lib/transmission/demo";
 import type { TransmissionRpcRequest } from "@/lib/transmission/types";
 import {
@@ -25,7 +26,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ result: resolved.error, arguments: {} }, { status: 400 });
   }
   if (resolved.demo) {
-    const demo = handleTransmissionDemoRpc(body);
+    const demo = handleTransmissionDemoRpc(
+      body,
+      parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))
+    );
     return withTransmissionCookies(NextResponse.json(demo), undefined, authSetCookie(req));
   }
   try {

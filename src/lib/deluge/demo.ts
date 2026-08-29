@@ -1,4 +1,10 @@
 import { randomBytes, randomUUID } from "crypto";
+import {
+  adminDemoCacheKey,
+  generateSyntheticTorrentSpecs,
+  type AdminDemoConfig,
+  type SyntheticTorrentSpec,
+} from "../demo/admin-catalog";
 import { parseMagnetName, trackerHost } from "./format";
 import { isLtConfigPlugin } from "./plugin-pages";
 import {
@@ -82,7 +88,12 @@ interface DemoState {
   lastTick: number;
 }
 
-type GlobalDemo = typeof globalThis & { __delugeNovaDemo?: DemoState };
+type GlobalDemo = typeof globalThis & {
+  __delugeNovaDemo?: DemoState;
+  __delugeNovaAdminDemo?: { key: string; state: DemoState };
+};
+
+const delugeSessions = new Set<string>();
 
 function defaultLabelOptions(): LabelOptions {
   return {
@@ -141,40 +152,53 @@ function makeTorrent(opts: {
   queue: number;
   message?: string;
   files: FileDir;
+  lite?: boolean;
 }): ExtraTorrent {
   const totalDone = Math.round((opts.size * opts.progress) / 100);
   const remaining = opts.size - totalDone;
   const queueAge = Math.abs(opts.queue);
   const added = nowSec() - 86400 * (1 + queueAge);
-  const peers: TorrentPeer[] = [
-    {
-      client: "qBittorrent 5.1.0",
-      country: "DE",
-      down_speed: Math.round(opts.down * 0.4),
-      up_speed: Math.round(opts.up * 0.3),
-      ip: "91.64.12." + (10 + queueAge),
-      progress: Math.min(1, opts.progress / 100 + 0.1),
-      seed: opts.progress >= 100 ? 1 : 0,
-    },
-    {
-      client: "Transmission 4.0",
-      country: "US",
-      down_speed: Math.round(opts.down * 0.25),
-      up_speed: Math.round(opts.up * 0.5),
-      ip: "203.0.113." + (20 + queueAge),
-      progress: Math.min(1, opts.progress / 100 + 0.05),
-      seed: 1,
-    },
-    {
-      client: "Deluge 2.1.1",
-      country: "NL",
-      down_speed: Math.round(opts.down * 0.2),
-      up_speed: Math.round(opts.up * 0.15),
-      ip: "198.51.100." + (30 + queueAge),
-      progress: opts.progress / 100,
-      seed: 0,
-    },
-  ];
+  const peers: TorrentPeer[] = opts.lite
+    ? [
+        {
+          client: "qBittorrent 5.1.0",
+          country: "DE",
+          down_speed: Math.round(opts.down * 0.4),
+          up_speed: Math.round(opts.up * 0.3),
+          ip: "91.64.12." + (10 + (queueAge % 200)),
+          progress: Math.min(1, opts.progress / 100 + 0.1),
+          seed: opts.progress >= 100 ? 1 : 0,
+        },
+      ]
+    : [
+        {
+          client: "qBittorrent 5.1.0",
+          country: "DE",
+          down_speed: Math.round(opts.down * 0.4),
+          up_speed: Math.round(opts.up * 0.3),
+          ip: "91.64.12." + (10 + queueAge),
+          progress: Math.min(1, opts.progress / 100 + 0.1),
+          seed: opts.progress >= 100 ? 1 : 0,
+        },
+        {
+          client: "Transmission 4.0",
+          country: "US",
+          down_speed: Math.round(opts.down * 0.25),
+          up_speed: Math.round(opts.up * 0.5),
+          ip: "203.0.113." + (20 + queueAge),
+          progress: Math.min(1, opts.progress / 100 + 0.05),
+          seed: 1,
+        },
+        {
+          client: "Deluge 2.1.1",
+          country: "NL",
+          down_speed: Math.round(opts.down * 0.2),
+          up_speed: Math.round(opts.up * 0.15),
+          ip: "198.51.100." + (30 + queueAge),
+          progress: opts.progress / 100,
+          seed: 0,
+        },
+      ];
   const status: TorrentStatus = {
     queue: opts.queue,
     name: opts.name,
@@ -591,18 +615,46 @@ function seedTorrents(): Record<string, ExtraTorrent> {
   };
 }
 
-function createState(): DemoState {
+function extraFromSpec(spec: SyntheticTorrentSpec): ExtraTorrent {
+  return makeTorrent({
+    name: spec.name,
+    size: spec.size,
+    progress: spec.progress,
+    state: spec.state,
+    down: spec.down,
+    up: spec.up,
+    label: spec.label,
+    tracker: spec.tracker,
+    queue: spec.queue,
+    message: spec.message,
+    lite: true,
+    files: {
+      type: "dir",
+      contents: { [spec.name]: fileLeaf(0, spec.size, spec.progress / 100) },
+    },
+  });
+}
+
+function createAdminTorrents(config: AdminDemoConfig): Record<string, ExtraTorrent> {
+  const out: Record<string, ExtraTorrent> = {};
+  for (const spec of generateSyntheticTorrentSpecs(config)) {
+    out[spec.hash] = extraFromSpec(spec);
+  }
+  return out;
+}
+
+function createState(torrents?: Record<string, ExtraTorrent>): DemoState {
   const button_state = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
   for (let d = 0; d < 7; d++) {
     for (let h = 0; h < 8; h++) button_state[d][h] = 1;
     for (let h = 1; h < 6; h++) button_state[d][h] = 2;
   }
   return {
-    sessions: new Set(),
+    sessions: delugeSessions,
     connected: true,
     hosts: [[HOST_ID, "127.0.0.1", 58846, "localclient"]],
     hostOnline: true,
-    torrents: seedTorrents(),
+    torrents: torrents ?? seedTorrents(),
     config: defaultConfig(),
     webConfig: {
       sidebar: true,
@@ -692,8 +744,21 @@ function createState(): DemoState {
   };
 }
 
-function getState(): DemoState {
+function getState(admin?: AdminDemoConfig | null): DemoState {
   const g = globalThis as GlobalDemo;
+  if (admin?.enabled) {
+    const key = adminDemoCacheKey(admin);
+    if (!g.__delugeNovaAdminDemo || g.__delugeNovaAdminDemo.key !== key) {
+      const torrents = createAdminTorrents(admin);
+      const state = createState(torrents);
+      for (const extra of Object.values(torrents)) {
+        const label = extra.status.label;
+        if (label && !(label in state.labels)) state.labels[label] = defaultLabelOptions();
+      }
+      g.__delugeNovaAdminDemo = { key, state };
+    }
+    return g.__delugeNovaAdminDemo.state;
+  }
   if (!g.__delugeNovaDemo) g.__delugeNovaDemo = createState();
   const state = g.__delugeNovaDemo;
   if (!state.ltconfig) {
@@ -709,8 +774,12 @@ function getState(): DemoState {
   return state;
 }
 
-function requireAuth(cookieHeader: string | null) {
-  const state = getState();
+export function resetDelugeAdminDemo() {
+  delete (globalThis as GlobalDemo).__delugeNovaAdminDemo;
+}
+
+function requireAuth(cookieHeader: string | null, admin?: AdminDemoConfig | null) {
+  const state = getState(admin);
   const sid = parseCookie(cookieHeader)["_session_id"];
   if (!sid || !state.sessions.has(sid)) {
     throw Object.assign(new Error("Not authenticated"), { code: 1 });
@@ -1055,11 +1124,15 @@ export interface DemoResult {
   setCookie?: string | null;
 }
 
-export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null): DemoResult {
+export function handleDemoRpc(
+  body: JsonRpcRequest,
+  cookieHeader: string | null,
+  admin?: AdminDemoConfig | null
+): DemoResult {
   const id = body.id ?? 0;
   const method = body.method;
   const params = Array.isArray(body.params) ? body.params : [];
-  const state = getState();
+  const state = getState(admin);
 
   try {
     if (!method) throw new Error("Missing method");
@@ -1067,12 +1140,12 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
       method === "auth.login" ||
       method === "auth.check_session" ||
       method === "web.connected";
-    if (!open) requireAuth(cookieHeader);
+    if (!open) requireAuth(cookieHeader, admin);
 
     switch (method) {
       case "auth.login": {
         const password = String(params[0] ?? "");
-        if (password !== DEMO_PASSWORD) {
+        if (!admin?.enabled && password !== DEMO_PASSWORD) {
           return { id, result: false, error: null };
         }
         const sid = randomBytes(16).toString("hex");
@@ -1393,7 +1466,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
             t.status.state = "Moving";
             t.status.download_location = dest;
             setTimeout(() => {
-              const cur = getState().torrents[tid];
+              const cur = getState(admin).torrents[tid];
               if (cur && cur.status.state === "Moving") {
                 cur.status.state = cur.status.progress >= 100 ? "Seeding" : "Downloading";
               }
@@ -1712,8 +1785,12 @@ function applyPriorities(node: FileNode, prios: number[]) {
   for (const child of Object.values(node.contents)) applyPriorities(child, prios);
 }
 
-export function handleDemoUpload(filename: string, size: number): { success: boolean; files: string[] } {
-  const state = getState();
+export function handleDemoUpload(
+  filename: string,
+  size: number,
+  admin?: AdminDemoConfig | null
+): { success: boolean; files: string[] } {
+  const state = getState(admin);
   const path = `/tmp/deluge-web/uploads/${randomUUID()}-${filename || "upload.torrent"}`;
   const name = (filename || "upload.torrent").replace(/\.torrent$/i, "") || "upload";
   const bytes = size || 400_000_000;

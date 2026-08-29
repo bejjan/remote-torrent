@@ -6,6 +6,8 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { FilterSidebar } from "../../components/app/filter-sidebar";
 import {
+  SIDEBAR_TRACKER_ROW_CAP,
+  capNamedSidebarRows,
   clampSidebarSelection,
   completeStateFilters,
   isVisibleFilterRow,
@@ -420,6 +422,7 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   const here = dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(join(here, "../../components/app/filter-sidebar.tsx"), "utf8");
   const formatSrc = readFileSync(join(here, "format.ts"), "utf8");
+  assert.match(src, /SIDEBAR_TRACKER_ROW_CAP/);
   assert.match(src, /completeStateFilters\(filters\?\.state\)/, "paint the injected catalog");
   assert.match(
     src,
@@ -545,6 +548,40 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.equal(html.includes("s2/favicons"), false, "empty and invalid hosts must not fetch favicons");
   assert.equal(html.includes("icons.duckduckgo.com"), false);
   assert.match(html, /lucide-globe/, "empty tracker hosts fall back to Globe");
+}
+
+{
+  const many: FilterTuple[] = [
+    ["All", 2000],
+    ...Array.from({ length: 200 }, (_, i) => [`tracker-${i}.example`, 200 - (i % 50)] as FilterTuple),
+  ];
+  const rows = sidebarGroupRows(many, {
+    showZero: false,
+    fallbackAllCount: 2000,
+    allValue: "",
+    emptyLabel: "(empty)",
+    namedAllLabel: "All (tracker)",
+    maxNamedRows: SIDEBAR_TRACKER_ROW_CAP,
+    keepValue: "tracker-199.example",
+  });
+  assert.ok(rows.length <= SIDEBAR_TRACKER_ROW_CAP + 1);
+  assert.ok(rows.some((row) => row.value === "tracker-199.example"));
+  assert.equal(rows[0].isAll, true);
+  const capped = capNamedSidebarRows(
+    [
+      { value: "", label: "All", count: 10, isAll: true },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        value: `t${i}`,
+        label: `t${i}`,
+        count: i,
+        isAll: false,
+      })),
+    ],
+    2,
+    "t0"
+  );
+  assert.equal(capped.filter((row) => !row.isAll).length, 2);
+  assert.ok(capped.some((row) => row.value === "t0"));
 }
 
 console.log("sidebar-filters tests passed");

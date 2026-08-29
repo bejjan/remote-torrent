@@ -4,6 +4,11 @@ import {
   getStoredTransmissionUsername,
   setSessionTransmissionPassword,
 } from "@/lib/backend/client-kind";
+import {
+  ADMIN_DEMO_HEADER,
+  encodeAdminDemoHeader,
+  getStoredAdminDemo,
+} from "@/lib/demo/admin-catalog";
 import { readLocalStorage, removeLocalStorage, storageKey, writeLocalStorage } from "@/lib/storage";
 import { normalizeTransmissionRpcUrl } from "@/lib/transmission/url";
 import { formatUnknownMethodMessage } from "./plugins";
@@ -78,6 +83,11 @@ export class DelugeError extends Error {
 
 function proxyHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "X-Torrent-Client": getStoredClientKind() };
+  const admin = getStoredAdminDemo();
+  if (admin.enabled) {
+    headers[ADMIN_DEMO_HEADER] = encodeAdminDemoHeader(admin);
+    return headers;
+  }
   if (getStoredClientKind() === "transmission") {
     const url = getStoredTransmissionUrl();
     if (url) headers["X-Transmission-URL"] = url;
