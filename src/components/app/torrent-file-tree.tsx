@@ -12,7 +12,7 @@ import { formatBytes, formatProgress } from "@/lib/deluge/format";
 import type { FileNode } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
-const FILE_PRIORITY_CLASS = "h-7 w-[6.75rem] min-w-0 shrink-0 @min-[420px]/details:w-36";
+const FILE_PRIORITY_CLASS = "h-7 w-[6.75rem] min-w-0 shrink-0 @min-[420px]:w-36";
 
 export function FileTree({
   node,
@@ -166,20 +166,20 @@ function TreeRow({
         <div className={cn("min-w-0 truncate", nameClass)} title={name}>
           {name}
         </div>
-        <div className="flex min-w-0 gap-x-2 text-[11px] tabular text-muted-foreground @min-[420px]/details:hidden">
+        <div className="flex min-w-0 gap-x-2 text-[11px] tabular text-muted-foreground @min-[420px]:hidden">
           <span>{formatBytes(size)}</span>
           {progress != null ? <span>{formatProgress(progress * 100)}</span> : null}
         </div>
       </div>
-      <span className="tabular hidden w-16 shrink-0 text-right text-xs text-muted-foreground @min-[420px]/details:inline">
+      <span className="tabular hidden w-16 shrink-0 text-right text-xs text-muted-foreground @min-[420px]:inline">
         {formatBytes(size)}
       </span>
       {progress != null ? (
-        <span className="tabular hidden w-10 shrink-0 text-right text-xs @min-[420px]/details:inline">
+        <span className="tabular hidden w-10 shrink-0 text-right text-xs @min-[420px]:inline">
           {formatProgress(progress * 100)}
         </span>
       ) : (
-        <span className="hidden w-10 shrink-0 @min-[420px]/details:inline" aria-hidden />
+        <span className="hidden w-10 shrink-0 @min-[420px]:inline" aria-hidden />
       )}
       {action}
     </div>

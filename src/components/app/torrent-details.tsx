@@ -104,7 +104,7 @@ export function TorrentDetails({
     <Tabs
       value={tab}
       onValueChange={setTab}
-      className={cn("@container/details flex h-full min-h-0 min-w-0 flex-col gap-0", className)}
+      className={cn("@container flex h-full min-h-0 min-w-0 flex-col gap-0", className)}
     >
       <DetailsHeader
         name={detail?.name || "Details"}
@@ -316,14 +316,14 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
             style={{ width: `${Math.min(100, Math.max(0, torrent.progress))}%` }}
           />
         </div>
-        <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @min-[360px]/details:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @min-[360px]:grid-cols-2">
           <TransferStat label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
           <TransferStat label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
           <TransferStat label="Download speed" value={formatRate(torrent.download_payload_rate)} />
           <TransferStat label="Upload speed" value={formatRate(torrent.upload_payload_rate)} />
         </div>
       </div>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm @min-[360px]/details:grid-cols-2 @min-[640px]/details:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm @min-[360px]:grid-cols-2 @min-[640px]:grid-cols-3">
         {rows.map(([k, v]) => {
           const text = typeof v === "string" ? v : undefined;
           return (
@@ -358,7 +358,7 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
   if (!peers.length) return <Muted>No connected peers.</Muted>;
   return (
     <div className="min-w-0">
-      <ul className="grid gap-2 @min-[520px]/details:hidden">
+      <ul className="grid gap-2 @min-[520px]:hidden">
         {peers.map((p, i) => (
           <li
             key={`${p.ip}-${i}`}
@@ -382,7 +382,7 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
           </li>
         ))}
       </ul>
-      <div className="hidden min-w-0 overflow-x-auto @min-[520px]/details:block">
+      <div className="hidden min-w-0 overflow-x-auto @min-[520px]:block">
         <table className="w-full min-w-[28rem] text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr>
@@ -392,7 +392,7 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
               <th className="py-1 pr-2 font-medium">Progress</th>
               <th className="py-1 pr-2 font-medium">Down</th>
               <th className="py-1 pr-2 font-medium">Up</th>
-              <th className="hidden py-1 font-medium @min-[640px]/details:table-cell">Seed</th>
+              <th className="hidden py-1 font-medium @min-[640px]:table-cell">Seed</th>
             </tr>
           </thead>
           <tbody>
@@ -410,7 +410,7 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
                 <td className="py-1 pr-2 tabular">{formatProgress(p.progress * 100)}</td>
                 <td className="py-1 pr-2 tabular">{formatRate(p.down_speed)}</td>
                 <td className="py-1 pr-2 tabular">{formatRate(p.up_speed)}</td>
-                <td className="hidden py-1 @min-[640px]/details:table-cell">{p.seed ? "Yes" : "No"}</td>
+                <td className="hidden py-1 @min-[640px]:table-cell">{p.seed ? "Yes" : "No"}</td>
               </tr>
             ))}
           </tbody>
@@ -466,7 +466,7 @@ function TrackersForm({
           </tbody>
         </table>
       </div>
-      <div className="flex min-w-0 flex-col gap-2 @min-[400px]/details:flex-row">
+      <div className="flex min-w-0 flex-col gap-2 @min-[400px]:flex-row">
         <Input
           className="min-w-0 w-full"
           placeholder="udp://tracker.example:6969/announce"
@@ -475,7 +475,7 @@ function TrackersForm({
         />
         <Button
           variant="outline"
-          className="shrink-0 @min-[400px]/details:self-auto"
+          className="shrink-0 @min-[400px]:self-auto"
           onClick={() => {
             if (!url.trim()) return;
             void save([...trackers, { url: url.trim(), tier: 0 }]);
