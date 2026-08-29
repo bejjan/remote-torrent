@@ -243,7 +243,7 @@ export function ConnectionManager({
       </div>
       <Card className="w-full min-w-0 max-w-3xl">
         <CardHeader>
-          <Brand />
+          <Brand markClassName="size-10" />
           <CardTitle>Connection Manager</CardTitle>
           <CardDescription>Choose a Deluge daemon to control.</CardDescription>
         </CardHeader>

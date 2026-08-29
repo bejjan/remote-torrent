@@ -645,7 +645,7 @@ export function TorrentShell({
           ) : null}
           <Brand
             className="min-w-0 shrink"
-            markClassName="size-7"
+            markClassName="size-6"
             wordmarkClassName="hidden sm:inline"
             onClick={() => setAboutOpen(true)}
           />

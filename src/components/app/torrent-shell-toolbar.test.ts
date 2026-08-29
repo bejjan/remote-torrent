@@ -56,6 +56,8 @@ assert.match(shell, /data-torrent-search/);
 assert.match(brand, /wordmarkClassName/);
 assert.match(brand, /min-w-0 truncate font-heading/);
 assert.match(brand, /shrink-0/);
+assert.match(brand, /\/logo\.png/);
+assert.doesNotMatch(brand, /bg-primary text-primary-foreground/);
 
 assert.match(login, /minmax\(0,1fr\)/);
 assert.match(login, /min-w-0 max-w-md/);
