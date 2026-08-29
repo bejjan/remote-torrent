@@ -159,6 +159,24 @@ export function TorrentDetails({
   );
 }
 
+function DetailsTitle({ name, hash }: { name: string; hash: string | null }) {
+  return (
+    <div className="min-w-0 flex-1 overflow-hidden">
+      <div className="truncate text-sm font-medium" title={name}>
+        {name}
+      </div>
+      {hash ? (
+        <div
+          className="line-clamp-2 min-w-0 break-all font-mono text-[11px] leading-snug text-muted-foreground"
+          title={hash}
+        >
+          {hash}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DetailsHeader({
   name,
   hash,
@@ -172,61 +190,54 @@ function DetailsHeader({
   onDockChange?: (dock: DetailsDock) => void;
   onClose?: () => void;
 }) {
-  const bar = (
-    <div className="flex min-w-0 items-start gap-1 overflow-hidden px-2 py-1">
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <div className="truncate text-sm font-medium" title={name}>
-          {name}
-        </div>
-        {hash ? (
-          <div
-            className="line-clamp-2 min-w-0 break-all font-mono text-[11px] leading-snug text-muted-foreground"
-            title={hash}
-          >
-            {hash}
-          </div>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center pt-px">
-        {onDockChange ? <DetailsDockControl dock={dock} onDockChange={onDockChange} /> : null}
-        {onClose ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Close details"
-            className="text-muted-foreground"
-            onClick={onClose}
-          >
-            <X />
-          </Button>
-        ) : null}
-      </div>
+  const title = <DetailsTitle name={name} hash={hash} />;
+  const controls = (
+    <div className="flex shrink-0 items-center pt-px">
+      {onDockChange ? <DetailsDockControl dock={dock} onDockChange={onDockChange} /> : null}
+      {onClose ? (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Close details"
+          className="text-muted-foreground"
+          onClick={onClose}
+        >
+          <X />
+        </Button>
+      ) : null}
     </div>
   );
 
-  if (!onDockChange) return <div className="border-b">{bar}</div>;
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="block min-w-0 border-b">{bar}</ContextMenuTrigger>
-      <ContextMenuContent className="min-w-48" side="bottom" align="end">
-        <ContextMenuRadioGroup
-          value={dock}
-          onValueChange={(value) => {
-            if (value === "bottom" || value === "right") onDockChange(value);
-          }}
-        >
-          <ContextMenuRadioItem value="bottom">
-            <PanelBottom />
-            Display at bottom
-          </ContextMenuRadioItem>
-          <ContextMenuRadioItem value="right">
-            <PanelRight />
-            Display on the right
-          </ContextMenuRadioItem>
-        </ContextMenuRadioGroup>
-      </ContextMenuContent>
-    </ContextMenu>
+    <div className="flex min-w-0 items-start gap-1 overflow-hidden border-b px-2 py-1">
+      {onDockChange ? (
+        <ContextMenu>
+          <ContextMenuTrigger className="min-w-0 flex-1 overflow-hidden">
+            {title}
+          </ContextMenuTrigger>
+          <ContextMenuContent className="min-w-48" side="bottom" align="end">
+            <ContextMenuRadioGroup
+              value={dock}
+              onValueChange={(value) => {
+                if (value === "bottom" || value === "right") onDockChange(value);
+              }}
+            >
+              <ContextMenuRadioItem value="bottom">
+                <PanelBottom />
+                Display at bottom
+              </ContextMenuRadioItem>
+              <ContextMenuRadioItem value="right">
+                <PanelRight />
+                Display on the right
+              </ContextMenuRadioItem>
+            </ContextMenuRadioGroup>
+          </ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        title
+      )}
+      {controls}
+    </div>
   );
 }
 
