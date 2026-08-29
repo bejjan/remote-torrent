@@ -172,7 +172,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       </div>
       <Card className="relative w-full min-w-0 max-w-md py-6 ring-1 ring-primary/15">
         <CardHeader className="gap-3">
-          <Brand />
+          <Brand markClassName="size-10" />
           <div className="min-w-0">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription className="mt-1 text-pretty">

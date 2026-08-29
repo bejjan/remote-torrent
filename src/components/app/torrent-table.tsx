@@ -2,6 +2,8 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronsDown,
   ChevronsUp,
   FolderInput,
@@ -650,6 +652,16 @@ const TorrentRow = memo(function TorrentRow({
           <ChevronsUp /> Queue top
         </ContextMenuItem>
         <ContextMenuItem
+          onClick={() => handlersRef.current.act("core.queue_up", handlersRef.current.selectForContext(id))}
+        >
+          <ArrowUp /> Queue up
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => handlersRef.current.act("core.queue_down", handlersRef.current.selectForContext(id))}
+        >
+          <ArrowDown /> Queue down
+        </ContextMenuItem>
+        <ContextMenuItem
           onClick={() =>
             handlersRef.current.act("core.queue_bottom", handlersRef.current.selectForContext(id))
           }
@@ -661,7 +673,7 @@ const TorrentRow = memo(function TorrentRow({
             handlersRef.current.move(handlersRef.current.selectForContext(id));
           }}
         >
-          <FolderInput /> Move storage
+          <FolderInput /> Move storage…
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() =>

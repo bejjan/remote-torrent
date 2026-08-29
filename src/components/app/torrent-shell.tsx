@@ -2,22 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
-  ChevronsDown,
-  ChevronsUp,
-  FolderInput,
+  Info,
   LogOut,
   Menu,
-  MoreHorizontal,
-  Pause,
-  Play,
+  PanelLeft,
   Plus,
-  RefreshCw,
   Search,
   Server,
   Settings,
-  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +19,7 @@ import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
-import { ThemeToggle } from "@/components/app/theme-toggle";
+import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
 import {
   AddTorrentDialog,
@@ -51,7 +43,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { clientCapabilities, getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
@@ -63,9 +54,18 @@ import {
   labelRpcErrorMessage,
 } from "@/lib/deluge/label-plugin";
 import {
+  addTorrentShortcutTitle,
   classifyEscapeTarget,
+  decideAddTorrentShortcutAction,
   decideEscapeSelectionAction,
+  decideTorrentSearchFindAction,
+  DEFAULT_ADD_TORRENT_LABEL,
+  DEFAULT_TORRENT_SEARCH_PLACEHOLDER,
   hasOpenDismissibleOverlay,
+  isMacPlatform,
+  torrentSearchPlaceholder,
+  torrentSearchShortcutTitle,
+  TORRENT_SEARCH_SELECTOR,
 } from "@/lib/deluge/escape-selection";
 import {
   clampSidebarSelection,
@@ -179,12 +179,20 @@ export function TorrentShell({
   const searchValueRef = useRef(search);
   const selectedRef = useRef(selected);
   const activeIdRef = useRef(activeId);
+  const wantSearchFocusRef = useRef(false);
   const pollGen = useRef(0);
+  const [searchFieldTitle, setSearchFieldTitle] = useState<string | undefined>(undefined);
+  const [searchPlaceholder, setSearchPlaceholder] = useState(DEFAULT_TORRENT_SEARCH_PLACEHOLDER);
+  const [addTorrentLabel, setAddTorrentLabel] = useState(DEFAULT_ADD_TORRENT_LABEL);
   searchValueRef.current = search;
   selectedRef.current = selected;
   activeIdRef.current = activeId;
 
   useEffect(() => {
+    const isMac = isMacPlatform(navigator.userAgent);
+    setSearchFieldTitle(torrentSearchShortcutTitle(isMac));
+    setSearchPlaceholder(torrentSearchPlaceholder(isMac));
+    setAddTorrentLabel(addTorrentShortcutTitle(isMac));
     setVisibleColumnIds(loadTorrentColumnVisibility());
     setColumnOrder(loadTorrentColumnOrder());
     setSidebarWidth(loadSidebarWidth());
@@ -349,6 +357,7 @@ export function TorrentShell({
     () => sidebarFilterTreeFromTorrents(Object.values(ui?.torrents ?? {}), filters),
     [ui?.torrents, filters]
   );
+  const sidebarLoading = loading && !ui;
   const visibleTorrents = useMemo(
     () => filterTorrentMap(ui?.torrents, filters),
     [ui?.torrents, filters]
@@ -473,12 +482,44 @@ export function TorrentShell({
   const openAdd = useCallback(() => setAddOpen(true), []);
 
   useEffect(() => {
+    if (!wantSearchFocusRef.current) return;
+    if (focusVisibleTorrentSearch()) wantSearchFocusRef.current = false;
+  }, [searchExpanded]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const overlayOpen = hasOpenDismissibleOverlay(document);
+      const targetKind = classifyEscapeTarget(event.target);
+      const isMac = isMacPlatform(navigator.userAgent);
+      const shortcutInput = {
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        defaultPrevented: event.defaultPrevented,
+        overlayOpen,
+        targetKind,
+        isMac,
+      };
+      const findAction = decideTorrentSearchFindAction(shortcutInput);
+      if (findAction === "focus-search") {
+        event.preventDefault();
+        if (focusVisibleTorrentSearch()) return;
+        wantSearchFocusRef.current = true;
+        setSearchExpanded(true);
+        return;
+      }
+      if (decideAddTorrentShortcutAction(shortcutInput) === "open-add") {
+        event.preventDefault();
+        setAddOpen(true);
+        return;
+      }
       const action = decideEscapeSelectionAction({
         key: event.key,
         defaultPrevented: event.defaultPrevented,
-        overlayOpen: hasOpenDismissibleOverlay(document),
-        targetKind: classifyEscapeTarget(event.target),
+        overlayOpen,
+        targetKind,
         search: searchValueRef.current,
         selectedCount: selectedRef.current.size,
         hasActiveId: activeIdRef.current != null,
@@ -498,72 +539,6 @@ export function TorrentShell({
 
   const downloadPath =
     primaryTorrent?.download_location || "/home/deluge/Downloads";
-
-  const hasSelection = selectedIds.length > 0;
-  const toolbar = (
-    <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-      <ToolBtn label="Add torrent" onClick={() => setAddOpen(true)}>
-        <Plus />
-      </ToolBtn>
-      <ToolBtn label="Pause" disabled={!hasSelection} onClick={() => void act("core.pause_torrent")}>
-        <Pause />
-      </ToolBtn>
-      <ToolBtn label="Resume" disabled={!hasSelection} onClick={() => void act("core.resume_torrent")}>
-        <Play />
-      </ToolBtn>
-      <ToolBtn label="Remove" disabled={!hasSelection} onClick={() => setRemoveOpen(true)}>
-        <Trash2 />
-      </ToolBtn>
-      <ToolBtn
-        label="Queue top"
-        className="hidden md:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => void act("core.queue_top")}
-      >
-        <ChevronsUp />
-      </ToolBtn>
-      <ToolBtn
-        label="Queue up"
-        className="hidden md:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => void act("core.queue_up")}
-      >
-        <ArrowUp />
-      </ToolBtn>
-      <ToolBtn
-        label="Queue down"
-        className="hidden md:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => void act("core.queue_down")}
-      >
-        <ArrowDown />
-      </ToolBtn>
-      <ToolBtn
-        label="Queue bottom"
-        className="hidden md:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => void act("core.queue_bottom")}
-      >
-        <ChevronsDown />
-      </ToolBtn>
-      <ToolBtn
-        label="Move storage"
-        className="hidden lg:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => setMoveOpen(true)}
-      >
-        <FolderInput />
-      </ToolBtn>
-      <ToolBtn
-        label="Force recheck"
-        className="hidden lg:inline-flex"
-        disabled={!hasSelection}
-        onClick={() => void act("core.force_recheck")}
-      >
-        <RefreshCw />
-      </ToolBtn>
-    </div>
-  );
 
   const table = (
     <TorrentTable
@@ -625,7 +600,15 @@ export function TorrentShell({
             >
               <X />
             </Button>
-            <SearchField autoFocus value={search} onChange={setSearch} className="min-w-0 flex-1" />
+            <SearchField
+              autoFocus
+              value={search}
+              onChange={setSearch}
+              title={searchFieldTitle}
+              placeholder={searchPlaceholder}
+              className="min-w-0 flex-1"
+            />
+            <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
           </div>
         ) : null}
         <div
@@ -642,25 +625,56 @@ export function TorrentShell({
               onClick={() => setSidebarOpen(true)}
               aria-label="Filters"
             >
-              <Menu />
+              <PanelLeft />
             </Button>
           ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
+              <Menu />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-52">
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
+                <Info /> About Nova
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>
+                <Settings /> Preferences…
+              </DropdownMenuItem>
+              {caps.connectionManager ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
+                    <Server /> Connection Manager…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
+                    <Server /> Open hosts page
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              <DropdownMenuSeparator />
+              <ThemeMenuSub />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
+                <LogOut /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Brand
             className="min-w-0 shrink"
-            markClassName="size-7"
+            markClassName="size-6"
             wordmarkClassName="hidden sm:inline"
-            onClick={() => setAboutOpen(true)}
           />
-          {toolbar}
           <SearchField
             value={search}
             onChange={setSearch}
+            title={searchFieldTitle}
+            placeholder={searchPlaceholder}
             className="relative ml-auto min-w-0 max-w-xs flex-1 max-sm:hidden"
           />
           <Button
             variant="ghost"
             size="icon-sm"
-            className="relative shrink-0 sm:hidden"
+            className="relative ml-auto shrink-0 sm:hidden"
             aria-label="Search torrents"
             aria-expanded={false}
             onClick={() => setSearchExpanded(true)}
@@ -670,79 +684,7 @@ export function TorrentShell({
               <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
             ) : null}
           </Button>
-          <ToolBtn label="Preferences" className="hidden sm:inline-flex" onClick={() => setPrefsOpen(true)}>
-            <Settings />
-          </ToolBtn>
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
-              <MoreHorizontal />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-52">
-              <OverflowItem
-                className="md:hidden"
-                disabled={!hasSelection}
-                onClick={() => void act("core.queue_top")}
-              >
-                <ChevronsUp /> Queue top
-              </OverflowItem>
-              <OverflowItem
-                className="md:hidden"
-                disabled={!hasSelection}
-                onClick={() => void act("core.queue_up")}
-              >
-                <ArrowUp /> Queue up
-              </OverflowItem>
-              <OverflowItem
-                className="md:hidden"
-                disabled={!hasSelection}
-                onClick={() => void act("core.queue_down")}
-              >
-                <ArrowDown /> Queue down
-              </OverflowItem>
-              <OverflowItem
-                className="md:hidden"
-                disabled={!hasSelection}
-                onClick={() => void act("core.queue_bottom")}
-              >
-                <ChevronsDown /> Queue bottom
-              </OverflowItem>
-              <OverflowItem
-                className="lg:hidden"
-                disabled={!hasSelection}
-                onClick={() => setMoveOpen(true)}
-              >
-                <FolderInput /> Move storage
-              </OverflowItem>
-              <OverflowItem
-                className="lg:hidden"
-                disabled={!hasSelection}
-                onClick={() => void act("core.force_recheck")}
-              >
-                <RefreshCw /> Force recheck
-              </OverflowItem>
-              <OverflowItem className="sm:hidden" onClick={() => setPrefsOpen(true)}>
-                <Settings /> Preferences
-              </OverflowItem>
-              {caps.connectionManager ? (
-                <>
-                  <DropdownMenuSeparator className="lg:hidden" />
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
-                    <Server /> Connection Manager
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-                    <Server /> Open hosts page
-                  </DropdownMenuItem>
-                </>
-              ) : (
-                <DropdownMenuSeparator className="lg:hidden" />
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
-                <LogOut /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <ThemeToggle />
+          <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
         </div>
       </header>
 
@@ -768,6 +710,7 @@ export function TorrentShell({
                 definedLabels={labels}
                 onLabelsChanged={onLabelsChanged}
                 showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
+                loading={sidebarLoading}
                 className="h-full min-w-0"
               />
             </aside>
@@ -852,6 +795,7 @@ export function TorrentShell({
             definedLabels={labels}
             onLabelsChanged={onLabelsChanged}
             showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
+            loading={sidebarLoading}
           />
         </SheetContent>
       </Sheet>
@@ -905,16 +849,31 @@ export function TorrentShell({
   );
 }
 
+function focusVisibleTorrentSearch(): boolean {
+  const nodes = document.querySelectorAll<HTMLInputElement>(TORRENT_SEARCH_SELECTOR);
+  for (const node of nodes) {
+    if (node.getClientRects().length === 0) continue;
+    node.focus();
+    node.select();
+    return true;
+  }
+  return false;
+}
+
 function SearchField({
   value,
   onChange,
   className,
   autoFocus,
+  title,
+  placeholder,
 }: {
   value: string;
   onChange: (next: string) => void;
   className?: string;
   autoFocus?: boolean;
+  title?: string;
+  placeholder: string;
 }) {
   return (
     <div className={cn("relative min-w-0", className)}>
@@ -923,8 +882,9 @@ function SearchField({
         data-torrent-search=""
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search torrents"
+        placeholder={placeholder}
         aria-label="Search torrents"
+        title={title}
         autoFocus={autoFocus}
         className="h-8 min-w-0 pl-7"
       />
@@ -932,58 +892,12 @@ function SearchField({
   );
 }
 
-function OverflowItem({
-  children,
-  onClick,
-  disabled,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  className?: string;
-}) {
+function AddTorrentButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <DropdownMenuItem
-      className={cn("whitespace-nowrap", className)}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </DropdownMenuItem>
-  );
-}
-
-function ToolBtn({
-  label,
-  children,
-  onClick,
-  disabled,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  className?: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
-            className={cn("disabled:opacity-40 disabled:text-muted-foreground", className)}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <Button className="h-8 min-w-0 shrink" onClick={onClick} title={label}>
+      <Plus />
+      <span className="max-[20rem]:hidden">{label}</span>
+      <span className="hidden max-[20rem]:inline">Add</span>
+    </Button>
   );
 }
