@@ -634,7 +634,7 @@ export function TorrentShell({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-52">
               <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
-                <Info /> About Nova
+                <Info /> About torro
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>

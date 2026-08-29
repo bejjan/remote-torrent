@@ -23,13 +23,13 @@ assert.equal(isWebSessionSpeedVisible({ show_session_speed: false }), false);
 assert.equal(isWebSessionSpeedVisible({ show_session_speed: 0 }), false);
 assert.equal(isWebSessionSpeedVisible({ show_session_speed: 1 }), true);
 
-assert.equal(DEFAULT_DOCUMENT_TITLE, "Nova");
-assert.equal(sessionSpeedDocumentTitle(0, 0, false), "Nova");
+assert.equal(DEFAULT_DOCUMENT_TITLE, "torro");
+assert.equal(sessionSpeedDocumentTitle(0, 0, false), "torro");
 assert.equal(
   sessionSpeedDocumentTitle(1.2 * 1024 ** 2, 200 * 1024, true),
-  "↓1.2 MiB/s ↑200 KiB/s — Nova"
+  "↓1.2 MiB/s ↑200 KiB/s — torro"
 );
-assert.equal(sessionSpeedDocumentTitle(0, 0, true), "↓0 B/s ↑0 B/s — Nova");
+assert.equal(sessionSpeedDocumentTitle(0, 0, true), "↓0 B/s ↑0 B/s — torro");
 assert.equal(
   sessionSpeedDocumentTitle(512, 1024, false, "Other"),
   "Other"
@@ -65,15 +65,15 @@ assert.equal(
 );
 
 {
-  const target = { title: "Nova" };
-  assert.equal(writeDocumentTitleIfChanged(target, "Nova"), false);
-  assert.equal(target.title, "Nova");
+  const target = { title: "torro" };
+  assert.equal(writeDocumentTitleIfChanged(target, "torro"), false);
+  assert.equal(target.title, "torro");
   const withSpeeds = sessionSpeedDocumentTitle(1024, 2048, true);
   assert.equal(writeDocumentTitleIfChanged(target, withSpeeds), true);
   assert.equal(target.title, withSpeeds);
   assert.equal(writeDocumentTitleIfChanged(target, withSpeeds), false);
   assert.equal(writeDocumentTitleIfChanged(target, sessionSpeedDocumentTitle(1, 2, false)), true);
-  assert.equal(target.title, "Nova");
+  assert.equal(target.title, "torro");
 }
 
 console.log("web-config tests passed");

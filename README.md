@@ -1,6 +1,14 @@
-# Nova
+# torro
+
+<p align="center">
+  <img src="public/logo.svg" width="72" height="72" alt="torro" />
+</p>
 
 A modern web UI for [Deluge](https://www.deluge-torrent.org/) and [Transmission](https://transmissionbt.com/). It talks to `deluge-web` over JSON-RPC or to Transmission RPC (`POST /transmission/rpc`), or runs a built-in demo backend so you can explore the client without a daemon.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="torro torrent dashboard with filters, progress, and live speeds" />
+</p>
 
 Licensed under [GPL-3.0](./LICENSE).
 
@@ -12,6 +20,16 @@ Licensed under [GPL-3.0](./LICENSE).
 - Deluge preferences and plugin surfaces (Label, Scheduler, Extractor, Execute, Notifications, Blocklist, AutoAdd, ltConfig)
 - Transmission preferences subset via `session-get` / `session-set` (directories, speed, queue, peers, network)
 - Desktop and mobile (sidebar and details as sheets)
+
+## Screenshots
+
+### Preferences
+
+Deluge and Transmission settings in one dialog.
+
+<p align="center">
+  <img src="docs/screenshots/preferences.png" alt="torro preferences dialog" />
+</p>
 
 ## Demo mode
 
@@ -49,7 +67,7 @@ You can also set `DELUGE_WEB_URL` in `.env.local` instead of the login field.
 
 You can also set `TRANSMISSION_RPC_URL` in `.env.local`.
 
-Nova never talks to the daemon from the browser. Next.js proxies Deluge at `/api/json` and `/api/upload`, and Transmission at `/api/json` (Deluge-shaped facade), `/api/transmission`, and `/api/transmission/upload`.
+torro never talks to the daemon from the browser. Next.js proxies Deluge at `/api/json` and `/api/upload`, and Transmission at `/api/json` (Deluge-shaped facade), `/api/transmission`, and `/api/transmission/upload`.
 
 ## Environment
 

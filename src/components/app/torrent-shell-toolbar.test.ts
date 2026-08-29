@@ -79,11 +79,12 @@ assert.ok(
   "hamburger sits left of the logo"
 );
 assert.match(header, /ThemeMenuSub/);
-assert.match(header, /About Nova/);
-assert.doesNotMatch(header, /About Nova…/);
+assert.match(header, /About torro/);
+assert.doesNotMatch(header, /About Nova/);
+assert.doesNotMatch(header, /About torro…/);
 assert.ok(
-  header.indexOf("About Nova") < header.indexOf("Preferences…"),
-  "About Nova sits above Preferences in the hamburger"
+  header.indexOf("About torro") < header.indexOf("Preferences…"),
+  "About torro sits above Preferences in the hamburger"
 );
 assert.doesNotMatch(header, /More actions/);
 assert.doesNotMatch(header, /ThemeToggle/);
@@ -141,9 +142,11 @@ assert.equal(
 assert.match(brand, /wordmarkClassName/);
 assert.match(brand, /min-w-0 truncate font-heading/);
 assert.match(brand, /shrink-0/);
-assert.match(brand, /\/logo\.png/);
+assert.match(brand, /\/logo\.svg/);
+assert.match(brand, />torro</);
 assert.doesNotMatch(brand, /bg-primary text-primary-foreground/);
 
+assert.match(login, /Connect torro/);
 assert.match(login, /minmax\(0,1fr\)/);
 assert.match(login, /min-w-0 max-w-md/);
 assert.match(login, /px-3 py-8 sm:px-4/);

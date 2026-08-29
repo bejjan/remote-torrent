@@ -9,7 +9,7 @@ export function isWebSidebarVisible(web: Record<string, unknown> | null | undefi
 
 /**
  * Official Deluge web UI key `show_session_speed` (default on).
- * Nova uses it for both the window title and the status-bar rate widgets.
+ * torro uses it for both the window title and the status-bar rate widgets.
  */
 export function isWebSessionSpeedVisible(web: Record<string, unknown> | null | undefined): boolean {
   const value = web?.show_session_speed;
@@ -57,7 +57,7 @@ export function holdLastSessionRates(
 
 /**
  * Official Deluge puts session rates in `document.title` when `show_session_speed`
- * is on, e.g. `↓1.2 MiB/s ↑200 KiB/s — Nova`.
+ * is on, e.g. `↓1.2 MiB/s ↑200 KiB/s — torro`.
  */
 export function sessionSpeedDocumentTitle(
   downloadRate: number,

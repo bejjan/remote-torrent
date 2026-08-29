@@ -246,7 +246,7 @@ function makeTorrent(opts: {
     num_files: countFiles(opts.files),
     message: opts.message ?? "",
     comment: "Demo torrent",
-    creator: "Nova",
+    creator: "torro",
     max_connections: -1,
     max_upload_slots: -1,
     stop_at_ratio: false,
