@@ -51,7 +51,7 @@ export function FilePrioritySelect({
       >
         <CurrentIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-auto min-w-40">
+      <DropdownMenuContent align="end" side="top" className="w-auto min-w-40">
         <DropdownMenuRadioGroup
           value={mixed ? "" : current.key}
           onValueChange={(next) => {
