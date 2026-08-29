@@ -12,8 +12,6 @@ import { formatBytes, formatProgress } from "@/lib/deluge/format";
 import type { FileNode } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
-const FILE_PRIORITY_CLASS = "h-7 w-[6.75rem] min-w-0 shrink-0 @min-[420px]:w-36";
-
 export function FileTree({
   node,
   torrentId,
@@ -69,7 +67,6 @@ function FileTreeNode({
         progress={node.progress}
         action={
           <FilePrioritySelect
-            className={FILE_PRIORITY_CLASS}
             value={node.priority}
             onChange={(priority) => {
               void setFilePriorities(torrentId, [node.index], priority, onApplied);
@@ -112,7 +109,6 @@ function FileTreeNode({
           size={fileTreeSize(node)}
           action={
             <FilePrioritySelect
-              className={FILE_PRIORITY_CLASS}
               value={shared ?? "mixed"}
               mixed={shared == null}
               onChange={(priority) => {
