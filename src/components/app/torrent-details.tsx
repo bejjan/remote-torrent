@@ -35,7 +35,7 @@ import {
   formatRatio,
   formatSwarmCount,
 } from "@/lib/deluge/format";
-import type { DetailsDock } from "@/lib/deluge/ui-layout";
+import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -60,10 +60,13 @@ export function TorrentDetails({
   const [trackers, setTrackers] = useState<TorrentTracker[]>([]);
   const [detail, setDetail] = useState<TorrentStatus | null>(torrent);
   const loadGen = useRef(0);
+  const detailTorrentId = useRef<string | null>(torrentId);
 
   useEffect(() => {
-    setDetail(torrent);
-  }, [torrent]);
+    const sameTorrent = detailTorrentId.current === torrentId && torrentId != null;
+    detailTorrentId.current = torrentId;
+    setDetail((prev) => overlayTorrentStatus(prev, torrent, sameTorrent));
+  }, [torrent, torrentId]);
 
   const loadDetails = useCallback(async () => {
     if (!torrentId) {

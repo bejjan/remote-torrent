@@ -26,7 +26,7 @@ assert.match(details, /DropdownMenuRadioGroup/);
 assert.match(details, /ContextMenuRadioGroup/);
 assert.doesNotMatch(details, /line-clamp-2 min-w-0 break-all font-mono/);
 assert.match(details, /min-w-56/);
-assert.match(details, /onDockChange/);
+assert.match(details, /overlayTorrentStatus/);
 assert.match(details, /TabsTrigger value="status"/);
 assert.match(details, /TabsTrigger value="files"/);
 assert.match(details, /TabsTrigger value="peers"/);

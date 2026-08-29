@@ -101,3 +101,20 @@ export function mergeUiUpdate(prev: UiUpdate | null, next: UiUpdate): UiUpdate {
 
   return { connected: next.connected, torrents, filters, stats };
 }
+
+/**
+ * Overlay a GRID_KEYS poll onto a richer details snapshot.
+ * `web.update_ui` omits option/status keys; replacing the object would drop
+ * `max_connections` / `max_upload_slots` (and pieces/comment) and remount the
+ * Options form as unset.
+ */
+export function overlayTorrentStatus(
+  prev: TorrentStatus | null | undefined,
+  next: TorrentStatus | null | undefined,
+  sameTorrent: boolean
+): TorrentStatus | null {
+  if (!next) return sameTorrent ? (prev ?? null) : null;
+  if (!prev || !sameTorrent) return next;
+  if (prev === next) return prev;
+  return { ...prev, ...next };
+}
