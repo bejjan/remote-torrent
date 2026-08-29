@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,9 +34,10 @@ export function FilePrioritySelect({
 }) {
   const current = filePriorityPresentation(value, mixed);
   const CurrentIcon = current.Icon;
+  const [open, setOpen] = useState(false);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         disabled={disabled}
         render={
@@ -57,6 +59,7 @@ export function FilePrioritySelect({
           onValueChange={(next) => {
             if (next == null || next === "" || next === "mixed") return;
             onChange(Number(next));
+            setOpen(false);
           }}
         >
           {FILE_PRIORITY_OPTIONS.map((opt) => {
