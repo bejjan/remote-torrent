@@ -793,7 +793,7 @@ export function TorrentShell({
                   edge="start"
                   ariaLabel="Resize torrent details"
                   onDelta={resizeDetailsWidth}
-                  className="w-1.5 translate-x-0 bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
+                  className="bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
                 />
               ) : (
                 <DragResizeHandle variant="row" ariaLabel="Resize torrent details" onDelta={resizeDetails} />

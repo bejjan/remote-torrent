@@ -248,9 +248,10 @@ function DetailsDockControl({
   dock: DetailsDock;
   onDockChange: (dock: DetailsDock) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="flex shrink-0 items-center self-stretch pr-1 pl-0.5">
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
           render={
             <Button
@@ -267,7 +268,10 @@ function DetailsDockControl({
           <DropdownMenuRadioGroup
             value={dock}
             onValueChange={(value) => {
-              if (value === "bottom" || value === "right") onDockChange(value);
+              if (value === "bottom" || value === "right") {
+                onDockChange(value);
+                setMenuOpen(false);
+              }
             }}
           >
             <DropdownMenuRadioItem value="bottom">
