@@ -115,12 +115,14 @@ export function AddTorrentDialog({
   const [fileDragOver, setFileDragOver] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chooseFileRef = useRef<HTMLButtonElement>(null);
   const loadGen = useRef(0);
   const transmission = getStoredClientKind() === "transmission";
 
   useEffect(() => {
     if (!open) {
       loadGen.current += 1;
+      setTab("file");
       return;
     }
     const gen = ++loadGen.current;
@@ -345,7 +347,10 @@ export function AddTorrentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] min-w-0 max-w-[calc(100%-2rem)] grid-cols-1 overflow-x-hidden overflow-y-auto sm:max-w-xl">
+      <DialogContent
+        className="max-h-[90vh] min-w-0 max-w-[calc(100%-2rem)] grid-cols-1 overflow-x-hidden overflow-y-auto sm:max-w-xl"
+        initialFocus={chooseFileRef}
+      >
         <DialogHeader>
           <DialogTitle>Add torrent</DialogTitle>
         </DialogHeader>
@@ -411,9 +416,12 @@ export function AddTorrentDialog({
               />
               <div className="flex min-w-0 items-center gap-x-3 gap-y-1.5">
                 <Button
+                  ref={chooseFileRef}
+                  id="add-torrent-choose-file"
                   type="button"
                   variant="outline"
                   className="shrink-0"
+                  autoFocus
                   aria-describedby="add-torrent-file-name"
                   onClick={() => fileInputRef.current?.click()}
                 >

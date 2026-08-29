@@ -28,13 +28,40 @@ assert.doesNotMatch(addDialog, /sm:max-w-2xl/);
 assert.doesNotMatch(addDialog, /sm:max-w-3xl/);
 
 assert.match(addDialog, /id="add-torrent-file-name"/);
+assert.match(addDialog, /id="add-torrent-choose-file"/);
+assert.match(addDialog, /chooseFileRef/);
+assert.match(addDialog, /initialFocus=\{chooseFileRef\}/);
+assert.match(addDialog, /ref=\{chooseFileRef\}/);
+assert.match(addDialog, /if \(!open\) \{[\s\S]*?setTab\("file"\)/);
 assert.match(addDialog, /min-w-0 flex-1 truncate overflow-hidden/);
 assert.match(addDialog, /Choose torrent file/);
 assert.match(addDialog, /Advanced settings/);
 
+const fileInput = addDialog.slice(addDialog.indexOf("<input"), addDialog.indexOf('id="add-torrent-choose-file"'));
+assert.match(fileInput, /type="file"/);
+assert.match(fileInput, /tabIndex=\{-1\}/);
+assert.doesNotMatch(fileInput, /autoFocus/);
+
+const chooseStart = addDialog.lastIndexOf("<Button", addDialog.indexOf('id="add-torrent-choose-file"'));
+const chooseBtn = addDialog.slice(chooseStart, addDialog.indexOf("Choose torrent file"));
+assert.match(chooseBtn, /autoFocus/);
+assert.match(chooseBtn, /ref=\{chooseFileRef\}/);
+assert.match(chooseBtn, /id="add-torrent-choose-file"/);
+
+const magnetTab = addDialog.slice(
+  addDialog.indexOf('TabsContent value="magnet"'),
+  addDialog.indexOf('TabsContent value="url"')
+);
+const urlTab = addDialog.slice(addDialog.indexOf('TabsContent value="url"'), addDialog.indexOf("TorrentPreviewCard"));
+assert.doesNotMatch(magnetTab, /autoFocus/);
+assert.doesNotMatch(urlTab, /autoFocus/);
+
 assert.match(addDialog, /<TorrentPreviewCard/);
 assert.doesNotMatch(addDialog, /preview \? <TorrentPreviewCard/);
 assert.match(addDialog, /className="min-h-16"/);
+assert.match(addDialog, /useState<AddTab>\("file"\)/);
+assert.doesNotMatch(addDialog, /useState<AddTab>\("(magnet|url)"\)/);
+assert.match(addDialog, /setTab\("file"\)/);
 assert.match(addDialog, /TabsContent value="file" className="grid min-h-16 min-w-0 gap-3 pt-3"/);
 assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-16 gap-3 pt-3"/);
 assert.match(addDialog, /TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3"/);

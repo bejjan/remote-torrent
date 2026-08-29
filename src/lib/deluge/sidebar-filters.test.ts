@@ -448,6 +448,13 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /id="trackers"/);
   assert.match(src, /id="labels"/);
   assert.match(src, /useState\(emptyCollapsedGroups\)/, "default all expanded");
+  assert.match(src, /aria-busy=\{loading \|\| undefined\}/);
+  assert.match(src, /loading=\{loading\}/);
+  assert.match(
+    src,
+    /\{loading \? \(\s*<p className="px-2 py-1 text-sm text-muted-foreground">Loading…<\/p>/,
+    "groups show muted Loading… instead of a zero catalog"
+  );
   assert.doesNotMatch(src, /count=\{torrentCount\}/, "group headers do not take a torrent total");
   assert.match(
     src,
@@ -525,6 +532,43 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     );
   }
   assert.match(html, />42</, "row counts such as All remain");
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: null,
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      loading: true,
+    })
+  );
+  assert.equal(
+    [...html.matchAll(/Loading…/g)].length,
+    3,
+    "State, Trackers, and Labels each show Loading…"
+  );
+  assert.equal(html.includes('aria-busy="true"'), true);
+  assert.equal(html.includes(">All<"), false, "catalog rows stay hidden while loading");
+  assert.equal(/>0</.test(html), false, "zero counts must not look like an empty session");
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: {
+        state: [["All", 0]],
+        tracker_host: [["All", 0]],
+        label: [["All", 0]],
+      },
+      selected: { state: "All", tracker: "", label: "__all__" },
+      onSelect() {},
+      loading: false,
+    })
+  );
+  assert.equal(html.includes("Loading…"), false, "empty after load is not a loading state");
+  assert.match(html, />All</);
+  assert.match(html, />0</, "empty daemon still shows All 0");
 }
 
 {
