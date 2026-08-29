@@ -797,17 +797,17 @@ export function TorrentShell({
                   : { height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }
               }
             >
-              {detailsDock === "right" ? (
-                <DragResizeHandle
-                  variant="sidebar"
-                  edge="start"
-                  ariaLabel="Resize torrent details"
-                  onDelta={resizeDetailsWidth}
-                  className="bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
-                />
-              ) : (
-                <DragResizeHandle variant="row" ariaLabel="Resize torrent details" onDelta={resizeDetails} />
-              )}
+              <DragResizeHandle
+                variant={detailsDock === "right" ? "sidebar" : "row"}
+                edge={detailsDock === "right" ? "start" : "end"}
+                ariaLabel="Resize torrent details"
+                onDelta={detailsDock === "right" ? resizeDetailsWidth : resizeDetails}
+                className={
+                  detailsDock === "right"
+                    ? "bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
+                    : undefined
+                }
+              />
               <div className="h-full min-h-0 overflow-hidden">{details}</div>
             </div>
           ) : null}

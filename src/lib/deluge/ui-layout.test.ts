@@ -142,7 +142,7 @@ assert.equal(parseStoredDetailsWidth("900", 1000), Math.round(1000 * DETAILS_MAX
 {
   const here = dirname(fileURLToPath(import.meta.url));
   const shell = readFileSync(join(here, "../../components/app/torrent-shell.tsx"), "utf8");
-  assert.match(shell, /variant="row"/);
+  assert.match(shell, /"sidebar" : "row"/);
   assert.match(shell, /Resize torrent details/);
   assert.match(shell, /loadDetailsHeight/);
   assert.match(shell, /saveDetailsHeight/);
@@ -154,7 +154,8 @@ assert.equal(parseStoredDetailsWidth("900", 1000), Math.round(1000 * DETAILS_MAX
   assert.match(shell, /saveDetailsDock/);
   assert.match(shell, /resizeDetailsWidth/);
   assert.match(shell, /width - dx/);
-  assert.match(shell, /edge="start"/);
+  assert.match(shell, /edge=\{detailsDock === "right" \? "start" : "end"\}/);
+  assert.match(shell, /variant=\{detailsDock === "right" \? "sidebar" : "row"\}/);
   assert.match(shell, /bg-transparent/);
   assert.match(shell, /bg-sidebar-border/);
   assert.match(shell, /data-details-dock=\{detailsDock\}/);
