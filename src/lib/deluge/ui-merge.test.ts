@@ -232,4 +232,31 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
   assert.equal(replaced?.name, "b.iso");
 }
 
+{
+  const encoded = torrent({ name: "Dune.Part.Two-R&amp;H.mkv", progress: 10 });
+  const decodedName = "Dune.Part.Two-R&H.mkv";
+  const first = mergeUiUpdate(null, {
+    connected: true,
+    torrents: { dune: encoded },
+    filters: null,
+    stats: null,
+  });
+  assert.equal(first.torrents?.dune.name, decodedName);
+
+  const second = mergeUiUpdate(first, {
+    connected: true,
+    torrents: { dune: { ...encoded } },
+    filters: null,
+    stats: null,
+  });
+  assert.equal(second.torrents, first.torrents);
+  assert.equal(second.torrents?.dune.name, decodedName);
+
+  const fromStatus = torrent({ name: decodedName, progress: 10 });
+  const overlaid = overlayTorrentStatus(first.torrents?.dune, encoded, true);
+  assert.equal(overlaid?.name, decodedName);
+  const fromDecoded = overlayTorrentStatus(fromStatus, encoded, true);
+  assert.equal(fromDecoded?.name, decodedName);
+}
+
 console.log("ui-merge tests passed");

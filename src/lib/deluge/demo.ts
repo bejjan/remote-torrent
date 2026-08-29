@@ -411,6 +411,7 @@ function seedTorrents(): Record<string, ExtraTorrent> {
   const suse = fakeHash("suse");
   const bunny = fakeHash("bunny");
   const checking = fakeHash("checking");
+  const dune = fakeHash("dune");
 
   return {
     [ubuntu]: makeTorrent({
@@ -565,6 +566,27 @@ function seedTorrents(): Record<string, ExtraTorrent> {
         },
       },
     }),
+    [dune]: makeTorrent({
+      name: "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv",
+      size: 18.4 * 1024 ** 3,
+      progress: 100,
+      state: "Seeding",
+      down: 0,
+      up: 2.1 * 1024 ** 2,
+      label: "movies",
+      tracker: "udp://tracker.opentrackr.org:1337/announce",
+      queue: -1,
+      files: {
+        type: "dir",
+        contents: {
+          "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv": fileLeaf(
+            0,
+            18.4 * 1024 ** 3,
+            1
+          ),
+        },
+      },
+    }),
     ...extraSeedTorrents(extraDemoTorrentCount()),
   };
 }
@@ -712,6 +734,23 @@ function pick<T extends object>(obj: T, keys: string[]): Record<string, unknown>
     if (key in obj) out[key] = (obj as Record<string, unknown>)[key];
   }
   return out;
+}
+
+/** Classic Deluge `web.update_ui` HTML-escapes `name`; `get_torrent_status` does not. */
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function torrentRowForUi(status: TorrentStatus, keys: string[]): Record<string, unknown> {
+  const row = keys.length ? pick(status, keys) : ({ ...status } as Record<string, unknown>);
+  if (typeof row.name === "string") {
+    row.name = escapeHtmlText(row.name);
+  }
+  return row;
 }
 
 function tickDownloads(state: DemoState) {
@@ -1112,9 +1151,7 @@ export function handleDemoRpc(body: JsonRpcRequest, cookieHeader: string | null)
         const torrents: Record<string, Record<string, unknown>> = {};
         for (const [tid, extra] of Object.entries(state.torrents)) {
           if (!matchesFilter(extra.status, filter)) continue;
-          torrents[tid] = keys.length
-            ? pick(extra.status, keys)
-            : ({ ...extra.status } as Record<string, unknown>);
+          torrents[tid] = torrentRowForUi(extra.status, keys);
         }
         return {
           id,
