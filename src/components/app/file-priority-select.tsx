@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  ChevronsDown,
-  ChevronsUp,
-  CircleSlash,
-  Equal,
-  Minus,
-  type LucideIcon,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,38 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  FILE_PRIORITY_OPTIONS,
-  canonicalizeFilePriority,
-  type CanonicalFilePriority,
-} from "@/lib/deluge/files-tree";
+  FILE_PRIORITY_ICONS,
+  FILE_PRIORITY_NAMES,
+  filePriorityPresentation,
+} from "@/components/app/file-priority-presentation";
+import { FILE_PRIORITY_OPTIONS } from "@/lib/deluge/files-tree";
 import { cn } from "@/lib/utils";
 
-const PRIORITY_ICONS = {
-  0: CircleSlash,
-  1: ChevronsDown,
-  4: Minus,
-  7: ChevronsUp,
-} as const satisfies Record<CanonicalFilePriority, LucideIcon>;
-
-/** Compact control labels (Skip / Low / Normal / High). */
-const PRIORITY_NAMES = {
-  0: "Skip",
-  1: "Low",
-  4: "Normal",
-  7: "High",
-} as const satisfies Record<CanonicalFilePriority, string>;
-
-export function filePriorityPresentation(value: string | number, mixed = false) {
-  if (mixed) {
-    return { key: "mixed", label: "Mixed", Icon: Equal };
-  }
-  const priority = canonicalizeFilePriority(Number(value));
-  return {
-    key: String(priority),
-    label: PRIORITY_NAMES[priority],
-    Icon: PRIORITY_ICONS[priority],
-  };
-}
+export { filePriorityPresentation } from "@/components/app/file-priority-presentation";
 
 export function FilePrioritySelect({
   value,
@@ -92,11 +60,11 @@ export function FilePrioritySelect({
           }}
         >
           {FILE_PRIORITY_OPTIONS.map((opt) => {
-            const ItemIcon = PRIORITY_ICONS[opt.value];
+            const ItemIcon = FILE_PRIORITY_ICONS[opt.value];
             return (
               <DropdownMenuRadioItem key={opt.value} value={String(opt.value)}>
                 <ItemIcon />
-                {PRIORITY_NAMES[opt.value]}
+                {FILE_PRIORITY_NAMES[opt.value]}
               </DropdownMenuRadioItem>
             );
           })}
