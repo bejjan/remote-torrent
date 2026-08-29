@@ -40,7 +40,7 @@ export function FilePrioritySelect({
         disabled={disabled}
         render={
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon-sm"
             disabled={disabled}
             className={cn("shrink-0 text-muted-foreground", className)}

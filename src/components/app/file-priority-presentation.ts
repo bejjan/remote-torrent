@@ -1,9 +1,9 @@
 import {
   ChevronsDown,
   ChevronsUp,
+  CircleDashed,
   CircleSlash,
   Equal,
-  Minus,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -14,7 +14,7 @@ import {
 export const FILE_PRIORITY_ICONS = {
   0: CircleSlash,
   1: ChevronsDown,
-  4: Minus,
+  4: Equal,
   7: ChevronsUp,
 } as const satisfies Record<CanonicalFilePriority, LucideIcon>;
 
@@ -28,7 +28,7 @@ export const FILE_PRIORITY_NAMES = {
 
 export function filePriorityPresentation(value: string | number, mixed = false) {
   if (mixed) {
-    return { key: "mixed", label: "Mixed", Icon: Equal };
+    return { key: "mixed", label: "Mixed", Icon: CircleDashed };
   }
   const priority = canonicalizeFilePriority(Number(value));
   return {
