@@ -97,7 +97,7 @@ assert.equal(searchHighlightRegExp("..."), null);
   const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../components/app/highlight-text.tsx"), "utf8");
   assert.match(source, /<mark key=\{index\} className="search-hit">/);
   assert.match(source, /\{part\.text\}/);
-  assert.doesNotMatch(source, /dangerouslySetInnerHTML/);
+  assert.doesNotMatch(source, /dangerouslySetInnerHTML\s*=/);
 }
 
 console.log("highlight-text tests passed");

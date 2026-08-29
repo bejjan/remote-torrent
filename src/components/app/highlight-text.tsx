@@ -6,7 +6,7 @@ import { splitHighlightParts } from "@/lib/highlight-text";
  * Empty queries render the original string.
  *
  * `text` must already be decoded (see `normalizeTorrentName`). Matches are
- * React text nodes so `&` is escaped by React — never `dangerouslySetInnerHTML`.
+ * React text nodes so `&` is escaped by React, not injected as HTML.
  */
 export function HighlightText({ text, query }: { text: string; query: string }) {
   const parts = splitHighlightParts(text, query);

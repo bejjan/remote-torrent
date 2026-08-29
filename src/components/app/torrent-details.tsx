@@ -36,6 +36,7 @@ import {
   formatSwarmCount,
 } from "@/lib/deluge/format";
 import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
+import type { DetailsDock } from "@/lib/deluge/ui-layout";
 import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
