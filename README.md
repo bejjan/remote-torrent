@@ -14,7 +14,9 @@ Licensed under [GPL-3.0](./LICENSE).
 
 ## Features
 
-- One layout for both clients: filters, searchable table, details tabs, and a full toolbar (add / pause / resume / remove / queue / move / recheck)
+- One layout for both clients: sidebar filters, searchable table, details pane, and **Add torrent**
+- Row actions for pause / resume / remove / queue / move / recheck
+- Menu for Preferences, Connection Manager, theme, and sign out
 - Connection screen: choose **Deluge** or **Transmission**, then URL and credentials
 - Connection Manager for Deluge `deluge-web` hosts (hidden in Transmission mode)
 - Deluge preferences and plugin surfaces (Label, Scheduler, Extractor, Execute, Notifications, Blocklist, AutoAdd, ltConfig)
@@ -23,9 +25,11 @@ Licensed under [GPL-3.0](./LICENSE).
 
 ## Screenshots
 
+Light-mode desktop views of the current UI.
+
 ### Preferences
 
-Deluge and Transmission settings in one dialog.
+Deluge and Transmission settings in one dialog, opened from the menu.
 
 <p align="center">
   <img src="docs/screenshots/preferences.png" alt="torro preferences dialog" />
@@ -44,7 +48,7 @@ Demo mode keeps an in-memory session (survives Next.js hot reload) and simulates
 
 On the connection screen, expand **Admin: synthetic session** at the bottom of the form. Turn on **Use dummy data**, pick Deluge or Transmission, and set **torrent count** (default 2000, max 10 000). URL can stay blank; password can be `deluge` or anything else — no daemon is contacted.
 
-This builds a separate in-memory catalog (stable if you keep the RNG seed) so the real table, sidebar filters, details pane, and polling run against thousands of torrents. 10 000 rows will be slow. Settings persist in `localStorage` under `nova:admin-demo`. The simple blank-URL demo is unchanged.
+This builds a separate in-memory catalog (stable if you keep the RNG seed) so the real table, sidebar filters, details pane, and polling run against thousands of torrents. 10 000 rows will be slow. Settings persist in `localStorage` under `nova:admin-demo`.
 
 ## Connecting
 
