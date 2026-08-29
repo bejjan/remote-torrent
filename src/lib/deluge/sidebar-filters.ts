@@ -1,5 +1,5 @@
 import { STATE_FILTERS } from "./keys";
-import type { FilterTuple } from "./types";
+import type { FilterTuple, TorrentStatus } from "./types";
 
 export const FILTER_ALL = "All";
 
@@ -214,4 +214,81 @@ export function clampSidebarSelection(
     if (!match) next.label = "__all__";
   }
   return next;
+}
+
+export function torrentMatchesSidebarFilter(
+  torrent: TorrentStatus,
+  selected: SidebarFilterSelection,
+  ignore?: "state" | "tracker" | "label"
+): boolean {
+  if (ignore !== "state" && selected.state && selected.state !== FILTER_ALL) {
+    if (selected.state === "Active") {
+      if (torrent.download_payload_rate <= 0 && torrent.upload_payload_rate <= 0) return false;
+    } else if (torrent.state !== selected.state) {
+      return false;
+    }
+  }
+  if (ignore !== "tracker" && selected.tracker) {
+    if ((torrent.tracker_host || "") !== selected.tracker) return false;
+  }
+  if (ignore !== "label" && selected.label && selected.label !== "__all__") {
+    const wanted = selected.label === "__none__" ? "" : selected.label;
+    if ((torrent.label || "") !== wanted) return false;
+  }
+  return true;
+}
+
+export function filterTorrentMap(
+  torrents: Record<string, TorrentStatus> | null | undefined,
+  selected: SidebarFilterSelection
+): Record<string, TorrentStatus> | null | undefined {
+  if (!torrents) return torrents;
+  const next: Record<string, TorrentStatus> = {};
+  for (const [id, torrent] of Object.entries(torrents)) {
+    if (torrentMatchesSidebarFilter(torrent, selected)) next[id] = torrent;
+  }
+  return next;
+}
+
+/** Counts for each sidebar group, excluding that group's own selection. */
+export function sidebarFilterTreeFromTorrents(
+  torrents: Iterable<TorrentStatus>,
+  selected: SidebarFilterSelection
+): Record<string, FilterTuple[]> {
+  const forState: TorrentStatus[] = [];
+  const forTracker: TorrentStatus[] = [];
+  const forLabel: TorrentStatus[] = [];
+  for (const torrent of torrents) {
+    if (torrentMatchesSidebarFilter(torrent, selected, "state")) forState.push(torrent);
+    if (torrentMatchesSidebarFilter(torrent, selected, "tracker")) forTracker.push(torrent);
+    if (torrentMatchesSidebarFilter(torrent, selected, "label")) forLabel.push(torrent);
+  }
+
+  const stateCounts = new Map<string, number>();
+  for (const name of STATE_FILTERS) stateCounts.set(name, 0);
+  stateCounts.set(FILTER_ALL, forState.length);
+  for (const torrent of forState) {
+    stateCounts.set(torrent.state, (stateCounts.get(torrent.state) ?? 0) + 1);
+    if (torrent.download_payload_rate > 0 || torrent.upload_payload_rate > 0) {
+      stateCounts.set("Active", (stateCounts.get("Active") ?? 0) + 1);
+    }
+  }
+
+  const trackers = new Map<string, number>();
+  for (const torrent of forTracker) {
+    const host = torrent.tracker_host || "";
+    trackers.set(host, (trackers.get(host) ?? 0) + 1);
+  }
+
+  const labels = new Map<string, number>();
+  for (const torrent of forLabel) {
+    const name = torrent.label || "";
+    labels.set(name, (labels.get(name) ?? 0) + 1);
+  }
+
+  return {
+    state: STATE_FILTERS.map((name) => [name, stateCounts.get(name) ?? 0]),
+    tracker_host: [["All", forTracker.length], ...trackers.entries()],
+    label: [["All", forLabel.length], ...labels.entries()],
+  };
 }

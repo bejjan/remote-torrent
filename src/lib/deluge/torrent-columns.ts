@@ -229,6 +229,25 @@ export function isIdentityColumnDrop(fromIndex: number, dropIndex: number): bool
   return dropIndex === fromIndex || dropIndex === fromIndex + 1;
 }
 
+/**
+ * Which header edge draws the drop line. Identity targets stay on the dragged
+ * column so the line is visible on its left/right instead of being omitted.
+ */
+export function columnDropEdge(
+  index: number,
+  dropIndex: number,
+  fromIndex: number,
+  columnCount: number
+): "before" | "after" | null {
+  if (fromIndex < 0 || columnCount <= 0) return null;
+  if (index === fromIndex && dropIndex === fromIndex) return "before";
+  if (index === fromIndex && dropIndex === fromIndex + 1) return "after";
+  if (isIdentityColumnDrop(fromIndex, dropIndex)) return null;
+  if (dropIndex === index) return "before";
+  if (dropIndex === columnCount && index === columnCount - 1) return "after";
+  return null;
+}
+
 export function visibleTorrentColumns(
   visibleIds: ReadonlySet<TorrentColumnId>,
   order?: readonly TorrentColumnId[]

@@ -34,19 +34,25 @@ assert.match(addDialog, /Advanced settings/);
 
 assert.match(addDialog, /<TorrentPreviewCard/);
 assert.doesNotMatch(addDialog, /preview \? <TorrentPreviewCard/);
-assert.match(addDialog, /className="min-h-28"/);
-assert.match(addDialog, /TabsContent value="file" className="grid min-h-28 min-w-0 gap-3 pt-3"/);
-assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-28 gap-3 pt-3"/);
-assert.match(addDialog, /TabsContent value="url" className="grid min-h-28 min-w-0 gap-3 pt-3"/);
+assert.match(addDialog, /className="min-h-16"/);
+assert.match(addDialog, /TabsContent value="file" className="grid min-h-16 min-w-0 gap-3 pt-3"/);
+assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-16 gap-3 pt-3"/);
+assert.match(addDialog, /TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3"/);
+assert.match(addDialog, /min-h-16 min-w-0 content-center/);
+assert.match(addDialog, /h-16 min-h-16 field-sizing-fixed/);
+assert.doesNotMatch(addDialog, /min-h-28/);
+assert.doesNotMatch(addDialog, /min-h-24/);
 assert.match(addDialog, /loadGen/);
 
 assert.match(preview, /min-w-0 truncate overflow-hidden font-medium/);
 assert.match(preview, /truncate overflow-hidden break-all font-mono/);
 assert.match(preview, /min-h-56 max-h-56 min-w-0 overflow-auto/);
 assert.match(preview, /File list will appear here/);
+assert.match(preview, /showFileGutter=\{fileCount > 1\}/);
 
 assert.match(tree, /flex min-w-0 items-center/);
-assert.match(tree, /min-w-0 flex-1 truncate overflow-hidden break-all/);
+assert.match(tree, /min-w-0 flex-1 truncate/);
+assert.match(tree, /showFileGutter \? <span className="inline-block size-6 shrink-0"/);
 assert.match(tree, /FileKindIcon/);
 assert.match(tree, /FolderTreeIcon/);
 assert.match(tree, /FilePrioritySelect/);

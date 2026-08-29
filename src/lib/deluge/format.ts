@@ -13,6 +13,22 @@ export function formatRate(bytesPerSec: number): string {
   return `${formatBytes(bytesPerSec)}/s`;
 }
 
+/** Per-torrent speeds: idle rows stay blank instead of "0 B/s". */
+export function formatTorrentRate(bytesPerSec: number): string {
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "—";
+  return formatRate(bytesPerSec);
+}
+
+export function isTorrentComplete(progress: number): boolean {
+  return Number.isFinite(progress) && progress >= 99.95;
+}
+
+/** Finished torrents have no remaining time; hide ∞ / leftover ETAs. */
+export function formatTorrentEta(seconds: number, progress: number): string {
+  if (isTorrentComplete(progress)) return "—";
+  return formatEta(seconds);
+}
+
 export function formatLimit(kibPerSec: number): string {
   if (kibPerSec < 0) return "∞";
   if (kibPerSec === 0) return "0 KiB/s";

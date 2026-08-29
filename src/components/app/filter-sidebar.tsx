@@ -74,7 +74,7 @@ const STATE_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
   Checking: { Icon: SearchCheck, className: "text-[color:var(--checking)]" },
   Queued: { Icon: Clock, className: "text-[color:var(--queued)]" },
   Error: { Icon: CircleAlert, className: "text-destructive" },
-  Active: { Icon: Activity, className: "text-muted-foreground" },
+  Active: { Icon: Activity, className: "text-[color:var(--seeding)]" },
 };
 
 export function FilterSidebar({

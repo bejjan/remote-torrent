@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { PrefNavIcon } from "@/components/app/pref-nav-icon";
 import { TransmissionPreferences } from "@/components/app/transmission-preferences";
 import { rpc, getStoredClientKind } from "@/lib/deluge/client";
 import {
@@ -220,7 +221,7 @@ export function PreferencesDialog({
           <DialogTitle>Preferences</DialogTitle>
         </DialogHeader>
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          <nav className="w-44 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
+          <nav className="w-48 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
             {CORE_NAV_GROUPS.map((group) => (
               <NavGroup
                 key={group.label}
@@ -228,7 +229,7 @@ export function PreferencesDialog({
                 hideTitle={group.pages.length === 1 && group.pages[0]?.label === group.label}
               >
                 {group.pages.map((p) => (
-                  <NavBtn key={p.id} active={page === p.id} onClick={() => setPage(p.id)}>
+                  <NavBtn key={p.id} pageId={p.id} active={page === p.id} onClick={() => setPage(p.id)}>
                     {p.label}
                   </NavBtn>
                 ))}
@@ -237,7 +238,7 @@ export function PreferencesDialog({
             {pluginNav.length > 0 ? (
               <NavGroup title="Plugins">
                 {pluginNav.map((p) => (
-                  <NavBtn key={p.id} active={page === p.id} onClick={() => setPage(p.id)}>
+                  <NavBtn key={p.id} pageId={p.id} active={page === p.id} onClick={() => setPage(p.id)}>
                     {p.label}
                   </NavBtn>
                 ))}
@@ -333,10 +334,12 @@ function NavGroup({
 }
 
 function NavBtn({
+  pageId,
   active,
   onClick,
   children,
 }: {
+  pageId: string;
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -346,11 +349,12 @@ function NavBtn({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full rounded-md px-2 py-1.5 text-left text-sm",
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
         active ? "bg-accent text-accent-foreground" : "hover:bg-muted"
       )}
     >
-      {children}
+      <PrefNavIcon pageId={pageId} />
+      <span className="min-w-0 truncate">{children}</span>
     </button>
   );
 }
