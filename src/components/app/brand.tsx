@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function Brand({
@@ -16,14 +16,14 @@ export function Brand({
 }) {
   const content = (
     <>
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm",
-          markClassName
-        )}
-      >
-        <Download className="size-4" />
-      </span>
+      <Image
+        src="/logo.png"
+        alt=""
+        width={64}
+        height={64}
+        className={cn("size-8 shrink-0 object-contain", markClassName)}
+        priority
+      />
       <span
         className={cn(
           "min-w-0 truncate font-heading text-base font-semibold tracking-tight",
