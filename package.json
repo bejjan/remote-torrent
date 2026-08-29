@@ -1,15 +1,18 @@
 {
-  "name": "tmp-scaffold",
+  "name": "nova",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
+  "description": "Modern web UI for Deluge and Transmission",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0 --port 43123",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0 --port 43123",
     "lint": "eslint"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@tanstack/react-virtual": "^3.14.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.35.0",

@@ -27,6 +27,7 @@ export const GRID_KEYS = [
   "completed_time",
   "time_since_transfer",
   "label",
+  "message",
 ] as const;
 
 export const STATUS_KEYS = [

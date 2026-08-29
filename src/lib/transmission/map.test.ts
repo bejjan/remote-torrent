@@ -1,0 +1,71 @@
+import assert from "node:assert/strict";
+import { mapTransmissionState, mapTransmissionTorrent, torrentKey, transmissionPriorityFromDeluge, delugePriorityFromTransmission, matchesTransmissionFilter, uniqueLabels } from "./map";
+import { TR_STATUS, type TransmissionTorrent } from "./types";
+import { normalizeTransmissionRpcUrl, DEFAULT_TRANSMISSION_PORT } from "./url";
+
+assert.equal(normalizeTransmissionRpcUrl(""), "");
+assert.equal(
+  normalizeTransmissionRpcUrl("127.0.0.1"),
+  `http://127.0.0.1:${DEFAULT_TRANSMISSION_PORT}/transmission/rpc`
+);
+assert.equal(
+  normalizeTransmissionRpcUrl("http://nas:9091"),
+  "http://nas:9091/transmission/rpc"
+);
+assert.equal(
+  normalizeTransmissionRpcUrl("http://nas:9091/transmission/rpc"),
+  "http://nas:9091/transmission/rpc"
+);
+assert.equal(
+  normalizeTransmissionRpcUrl("http://nas:9091/transmission"),
+  "http://nas:9091/transmission/rpc"
+);
+
+const downloading: TransmissionTorrent = {
+  id: 1,
+  name: "ubuntu.iso",
+  status: TR_STATUS.DOWNLOAD,
+  percentDone: 0.5,
+  hashString: "abc",
+  labels: ["linux"],
+  rateDownload: 100,
+  rateUpload: 10,
+  error: 0,
+  errorString: "",
+};
+assert.equal(mapTransmissionState(downloading), "Downloading");
+assert.equal(torrentKey(downloading), "abc");
+assert.equal(mapTransmissionTorrent(downloading).progress, 50);
+assert.equal(mapTransmissionTorrent(downloading).label, "linux");
+
+const errored: TransmissionTorrent = {
+  id: 2,
+  name: "bad",
+  status: TR_STATUS.STOPPED,
+  error: 3,
+  errorString: "No space",
+  hashString: "def",
+};
+assert.equal(mapTransmissionState(errored), "Error");
+
+assert.deepEqual(transmissionPriorityFromDeluge(0), { wanted: false, priority: 0 });
+assert.deepEqual(transmissionPriorityFromDeluge(4), { wanted: true, priority: 1 });
+assert.deepEqual(transmissionPriorityFromDeluge(7), { wanted: true, priority: 2 });
+assert.equal(delugePriorityFromTransmission(1, true), 4);
+assert.equal(delugePriorityFromTransmission(0, false), 0);
+
+assert.equal(
+  matchesTransmissionFilter(downloading, { label: ["linux"] }),
+  true
+);
+assert.equal(
+  matchesTransmissionFilter(downloading, { label: ["movies"] }),
+  false
+);
+assert.deepEqual(uniqueLabels([downloading, errored]), ["linux"]);
+
+assert.equal(mapTransmissionState({ id: 3, name: "q", status: TR_STATUS.DOWNLOAD_WAIT }), "Queued");
+assert.equal(mapTransmissionState({ id: 4, name: "c", status: TR_STATUS.CHECK }), "Checking");
+assert.equal(mapTransmissionState({ id: 5, name: "s", status: TR_STATUS.SEED }), "Seeding");
+
+console.log("transmission map tests passed");

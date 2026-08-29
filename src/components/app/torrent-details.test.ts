@@ -1,0 +1,87 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const dir = dirname(fileURLToPath(import.meta.url));
+const details = readFileSync(join(dir, "torrent-details.tsx"), "utf8");
+const tree = readFileSync(join(dir, "torrent-file-tree.tsx"), "utf8");
+const icons = readFileSync(join(dir, "file-tree-icons.tsx"), "utf8");
+
+assert.match(details, /from "@\/components\/app\/torrent-file-tree"/);
+assert.match(details, /key=\{torrentId\}/);
+assert.match(details, /<FileTree/);
+assert.doesNotMatch(details, /function FileTree/);
+
+assert.match(details, /DetailsHeader/);
+assert.match(details, /DetailsDockControl/);
+assert.match(details, /Display at bottom/);
+assert.match(details, /Display on the right/);
+assert.match(details, /aria-label="Details layout"/);
+assert.match(details, /aria-label="Close details"/);
+assert.match(details, /MoreHorizontal/);
+assert.match(details, /PanelBottom/);
+assert.match(details, /PanelRight/);
+assert.match(details, /DropdownMenuRadioGroup/);
+assert.match(details, /ContextMenuRadioGroup/);
+assert.match(details, /break-all font-mono/);
+assert.match(details, /onDockChange/);
+assert.match(details, /TabsTrigger value="status"/);
+assert.match(details, /TabsTrigger value="files"/);
+assert.match(details, /TabsTrigger value="peers"/);
+assert.match(details, /TabsTrigger value="options"/);
+assert.match(details, /TabsTrigger value="trackers"/);
+assert.match(details, /@container flex h-full min-h-0 min-w-0/);
+assert.match(details, /overflow-x-auto border-b/);
+assert.match(details, /@min-\[360px\]:grid-cols-2/);
+assert.match(details, /@min-\[640px\]:grid-cols-3/);
+assert.match(details, /@min-\[520px\]:hidden/);
+assert.match(details, /overflow-x-auto @min-\[520px\]:block/);
+assert.match(details, /min-w-0 truncate py-1 pr-2 font-mono text-xs" title=\{t\.url\}/);
+assert.match(details, /line-clamp-2 min-w-0 break-all font-mono/);
+assert.doesNotMatch(details, /sm:grid-cols-2 lg:grid-cols-3/);
+
+const options = readFileSync(join(dir, "torrent-options-form.tsx"), "utf8");
+assert.match(options, /@min-\[440px\]:grid-cols-2/);
+assert.match(options, /min-w-0 w-full font-mono/);
+assert.match(options, /grid-cols-\[minmax\(0,1fr\)_auto\]/);
+assert.doesNotMatch(options, /md:grid-cols-2/);
+
+assert.match(tree, /from "@\/components\/app\/file-tree-icons"/);
+assert.match(tree, /FileKindIcon/);
+assert.match(tree, /FolderTreeIcon/);
+assert.match(tree, /from "lucide-react"/);
+assert.match(tree, /ChevronDown/);
+assert.match(tree, /ChevronRight/);
+assert.match(tree, /defaultFolderExpanded\(depth, huge\)/);
+assert.match(tree, /isHugeFileTree\(node\)/);
+assert.match(tree, /aria-expanded=\{open\}/);
+assert.match(tree, /open \? "ml-3 min-w-0 overflow-hidden border-l pl-3" : "hidden"/);
+assert.match(tree, /min-w-0 truncate/);
+assert.match(tree, /@min-\[420px\]:w-36/);
+assert.match(tree, /@min-\[420px\]:hidden/);
+assert.match(tree, /FilePrioritySelect/);
+assert.match(tree, /core\.set_torrent_file_priorities/);
+assert.match(tree, /canonicalizeFilePriority/);
+assert.doesNotMatch(tree, /core\.set_file_priorities/);
+
+assert.match(icons, /from "lucide-react"/);
+assert.match(icons, /Captions/);
+assert.match(icons, /Disc3/);
+assert.match(icons, /FileArchive/);
+assert.match(icons, /FileImage/);
+assert.match(icons, /FileMusic/);
+assert.match(icons, /Film/);
+assert.match(icons, /FolderOpen/);
+assert.match(icons, /\bFolder\b/);
+assert.match(icons, /size-3\.5 shrink-0 text-muted-foreground/);
+assert.match(icons, /fileIconKind\(name\)/);
+assert.match(icons, /video: Film/);
+assert.match(icons, /audio: FileMusic/);
+assert.match(icons, /image: FileImage/);
+assert.match(icons, /archive: FileArchive/);
+assert.match(icons, /subtitle: Captions/);
+assert.match(icons, /disk: Disc3/);
+assert.match(icons, /file: File/);
+
+console.log("torrent-details files tree tests passed");
