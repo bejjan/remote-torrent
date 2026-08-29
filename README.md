@@ -1,17 +1,39 @@
-# Nova
+# torro
+
+<p align="center">
+  <img src="public/logo.svg" width="72" height="72" alt="torro" />
+</p>
 
 A modern web UI for [Deluge](https://www.deluge-torrent.org/) and [Transmission](https://transmissionbt.com/). It talks to `deluge-web` over JSON-RPC or to Transmission RPC (`POST /transmission/rpc`), or runs a built-in demo backend so you can explore the client without a daemon.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="torro torrent dashboard with filters, progress, and live speeds" />
+</p>
 
 Licensed under [GPL-3.0](./LICENSE).
 
 ## Features
 
-- One layout for both clients: filters, searchable table, details tabs, and a full toolbar (add / pause / resume / remove / queue / move / recheck)
+- One layout for both clients: sidebar filters, searchable table, details pane, and **Add torrent**
+- Row actions for pause / resume / remove / queue / move / recheck
+- Menu for Preferences, Connection Manager, theme, and sign out
 - Connection screen: choose **Deluge** or **Transmission**, then URL and credentials
 - Connection Manager for Deluge `deluge-web` hosts (hidden in Transmission mode)
 - Deluge preferences and plugin surfaces (Label, Scheduler, Extractor, Execute, Notifications, Blocklist, AutoAdd, ltConfig)
 - Transmission preferences subset via `session-get` / `session-set` (directories, speed, queue, peers, network)
 - Desktop and mobile (sidebar and details as sheets)
+
+## Screenshots
+
+Light-mode desktop views of the current UI.
+
+### Preferences
+
+Deluge and Transmission settings in one dialog, opened from the menu.
+
+<p align="center">
+  <img src="docs/screenshots/preferences.png" alt="torro preferences dialog" />
+</p>
 
 ## Demo mode
 
@@ -26,7 +48,7 @@ Demo mode keeps an in-memory session (survives Next.js hot reload) and simulates
 
 On the connection screen, expand **Admin: synthetic session** at the bottom of the form. Turn on **Use dummy data**, pick Deluge or Transmission, and set **torrent count** (default 2000, max 10 000). URL can stay blank; password can be `deluge` or anything else — no daemon is contacted.
 
-This builds a separate in-memory catalog (stable if you keep the RNG seed) so the real table, sidebar filters, details pane, and polling run against thousands of torrents. 10 000 rows will be slow. Settings persist in `localStorage` under `nova:admin-demo`. The simple blank-URL demo is unchanged.
+This builds a separate in-memory catalog (stable if you keep the RNG seed) so the real table, sidebar filters, details pane, and polling run against thousands of torrents. 10 000 rows will be slow. Settings persist in `localStorage` under `nova:admin-demo`.
 
 ## Connecting
 
@@ -49,7 +71,7 @@ You can also set `DELUGE_WEB_URL` in `.env.local` instead of the login field.
 
 You can also set `TRANSMISSION_RPC_URL` in `.env.local`.
 
-Nova never talks to the daemon from the browser. Next.js proxies Deluge at `/api/json` and `/api/upload`, and Transmission at `/api/json` (Deluge-shaped facade), `/api/transmission`, and `/api/transmission/upload`.
+torro never talks to the daemon from the browser. Next.js proxies Deluge at `/api/json` and `/api/upload`, and Transmission at `/api/json` (Deluge-shaped facade), `/api/transmission`, and `/api/transmission/upload`.
 
 ## Environment
 
