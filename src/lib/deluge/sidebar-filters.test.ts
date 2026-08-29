@@ -6,12 +6,14 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { FilterSidebar } from "../../components/app/filter-sidebar";
 import {
+  FILTER_DOWNLOADING,
   SIDEBAR_TRACKER_ROW_CAP,
   capNamedSidebarRows,
   clampSidebarSelection,
   completeStateFilters,
   isVisibleFilterRow,
   mergeKnownFilterNames,
+  selectSidebarState,
   sidebarGroupRows,
   splitSpecialAll,
   sidebarFilterTreeFromTorrents,
@@ -273,7 +275,7 @@ function allLabels(rows: SidebarFilterRow[]) {
     [["linux", 200]],
     false
   );
-  assert.equal(next.state, "All");
+  assert.equal(next.state, "Checking", "keep a catalog state even at count 0");
   assert.equal(next.tracker, "");
   assert.equal(next.label, "__all__");
 }
@@ -350,7 +352,44 @@ const liveStates: FilterTuple[] = [
     [["linux", 200]],
     false
   );
+  assert.equal(next.state, "Paused", "keep a catalog state even at count 0");
+}
+
+{
+  const emptyDownloading: FilterTuple[] = [
+    ["All", 3],
+    ["Seeding", 3],
+    ["Downloading", 0],
+  ];
+  const next = clampSidebarSelection(
+    selectSidebarState({ state: "All", tracker: "", label: "__all__" }, FILTER_DOWNLOADING),
+    emptyDownloading,
+    trackersWithAll,
+    [["linux", 200]],
+    false
+  );
+  assert.equal(next.state, FILTER_DOWNLOADING);
+}
+
+{
+  const next = clampSidebarSelection(
+    { state: "GoneState", tracker: "", label: "__all__" },
+    liveStates,
+    trackersWithAll,
+    [["linux", 200]],
+    false
+  );
   assert.equal(next.state, "All");
+}
+
+{
+  const selected = { state: "All", tracker: "cdn.example", label: "linux" };
+  assert.deepEqual(selectSidebarState(selected, FILTER_DOWNLOADING), {
+    state: FILTER_DOWNLOADING,
+    tracker: "cdn.example",
+    label: "linux",
+  });
+  assert.deepEqual(selected, { state: "All", tracker: "cdn.example", label: "linux" });
 }
 
 {
@@ -426,6 +465,8 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   const formatSrc = readFileSync(join(here, "format.ts"), "utf8");
   assert.match(src, /SIDEBAR_TRACKER_ROW_CAP/);
   assert.match(src, /completeStateFilters\(filters\?\.state\)/, "paint the injected catalog");
+  assert.match(src, /onSelect\(selectSidebarState\(selected, name\)\)/);
+  assert.match(src, /alwaysShow=\{name === FILTER_ALL \|\| selected\.state === name\}/);
   assert.match(
     src,
     /function FilterButton\([\s\S]*isVisibleFilterRow/,

@@ -68,8 +68,10 @@ import {
   TORRENT_SEARCH_SELECTOR,
 } from "@/lib/deluge/escape-selection";
 import {
+  FILTER_DOWNLOADING,
   clampSidebarSelection,
   filterTorrentMap,
+  selectSidebarState,
   sidebarFilterTreeFromTorrents,
 } from "@/lib/deluge/sidebar-filters";
 import {
@@ -816,7 +818,15 @@ export function TorrentShell({
         </SheetContent>
       </Sheet>
 
-      <AddTorrentDialog open={addOpen} onOpenChange={setAddOpen} defaultPath={downloadPath} />
+      <AddTorrentDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        defaultPath={downloadPath}
+        onAdded={() => {
+          setFilters((prev) => selectSidebarState(prev, FILTER_DOWNLOADING));
+          void poll();
+        }}
+      />
       <RemoveTorrentDialog
         open={removeOpen}
         onOpenChange={setRemoveOpen}
