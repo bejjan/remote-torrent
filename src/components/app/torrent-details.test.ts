@@ -24,7 +24,8 @@ assert.match(details, /PanelBottom/);
 assert.match(details, /PanelRight/);
 assert.match(details, /DropdownMenuRadioGroup/);
 assert.match(details, /ContextMenuRadioGroup/);
-assert.match(details, /break-all font-mono/);
+assert.doesNotMatch(details, /line-clamp-2 min-w-0 break-all font-mono/);
+assert.match(details, /min-w-56/);
 assert.match(details, /onDockChange/);
 assert.match(details, /TabsTrigger value="status"/);
 assert.match(details, /TabsTrigger value="files"/);
@@ -38,7 +39,7 @@ assert.match(details, /@min-\[640px\]:grid-cols-3/);
 assert.match(details, /@min-\[520px\]:hidden/);
 assert.match(details, /overflow-x-auto @min-\[520px\]:block/);
 assert.match(details, /min-w-0 truncate py-1 pr-2 font-mono text-xs" title=\{t\.url\}/);
-assert.match(details, /line-clamp-2 min-w-0 break-all font-mono/);
+assert.doesNotMatch(details, /hash=\{torrentId\}/);
 assert.doesNotMatch(details, /sm:grid-cols-2 lg:grid-cols-3/);
 
 const options = readFileSync(join(dir, "torrent-options-form.tsx"), "utf8");
