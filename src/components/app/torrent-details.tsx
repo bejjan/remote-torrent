@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, PanelBottom, PanelRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { FileTree } from "@/components/app/torrent-file-tree";
 import { OptionsForm } from "@/components/app/torrent-options-form";
@@ -45,12 +45,14 @@ export function TorrentDetails({
   className,
   dock,
   onDockChange,
+  onClose,
 }: {
   torrentId: string | null;
   torrent: TorrentStatus | null;
   className?: string;
   dock?: DetailsDock;
   onDockChange?: (dock: DetailsDock) => void;
+  onClose?: () => void;
 }) {
   const [tab, setTab] = useState("status");
   const [files, setFiles] = useState<FileNode | null>(null);
@@ -100,19 +102,21 @@ export function TorrentDetails({
 
   return (
     <Tabs value={tab} onValueChange={setTab} className={cn("flex h-full min-h-0 flex-col gap-0", className)}>
-      <div className="flex min-w-0 items-stretch border-b">
-        <div className="min-w-0 flex-1 overflow-x-auto px-2 pt-1">
-          <TabsList variant="line" className="w-max justify-start">
-            <TabsTrigger value="status">Status</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="peers">Peers</TabsTrigger>
-            <TabsTrigger value="options">Options</TabsTrigger>
-            <TabsTrigger value="trackers">Trackers</TabsTrigger>
-          </TabsList>
-        </div>
-        {onDockChange ? (
-          <DetailsDockControl dock={dock ?? "bottom"} onDockChange={onDockChange} />
-        ) : null}
+      <DetailsHeader
+        name={detail?.name || "Details"}
+        hash={torrentId}
+        dock={dock ?? "bottom"}
+        onDockChange={onDockChange}
+        onClose={onClose}
+      />
+      <div className="min-w-0 overflow-x-auto border-b px-2 pt-1">
+        <TabsList variant="line" className="w-max min-w-full justify-start">
+          <TabsTrigger value="status">Status</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="peers">Peers</TabsTrigger>
+          <TabsTrigger value="options">Options</TabsTrigger>
+          <TabsTrigger value="trackers">Trackers</TabsTrigger>
+        </TabsList>
       </div>
       {torrentId && detail ? (
         <>
@@ -151,6 +155,72 @@ export function TorrentDetails({
   );
 }
 
+function DetailsHeader({
+  name,
+  hash,
+  dock,
+  onDockChange,
+  onClose,
+}: {
+  name: string;
+  hash: string | null;
+  dock: DetailsDock;
+  onDockChange?: (dock: DetailsDock) => void;
+  onClose?: () => void;
+}) {
+  const bar = (
+    <div className="flex min-w-0 items-start gap-1 px-2 py-1">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium" title={name}>
+          {name}
+        </div>
+        {hash ? (
+          <div className="break-all font-mono text-[11px] leading-snug text-muted-foreground">{hash}</div>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center pt-px">
+        {onDockChange ? <DetailsDockControl dock={dock} onDockChange={onDockChange} /> : null}
+        {onClose ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Close details"
+            className="text-muted-foreground"
+            onClick={onClose}
+          >
+            <X />
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  if (!onDockChange) return <div className="border-b">{bar}</div>;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger className="block min-w-0 border-b">{bar}</ContextMenuTrigger>
+      <ContextMenuContent className="min-w-48" side="bottom" align="end">
+        <ContextMenuRadioGroup
+          value={dock}
+          onValueChange={(value) => {
+            if (value === "bottom" || value === "right") onDockChange(value);
+          }}
+        >
+          <ContextMenuRadioItem value="bottom">
+            <PanelBottom />
+            Display at bottom
+          </ContextMenuRadioItem>
+          <ContextMenuRadioItem value="right">
+            <PanelRight />
+            Display on the right
+          </ContextMenuRadioItem>
+        </ContextMenuRadioGroup>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
 function DetailsDockControl({
   dock,
   onDockChange,
@@ -158,41 +228,40 @@ function DetailsDockControl({
   dock: DetailsDock;
   onDockChange: (dock: DetailsDock) => void;
 }) {
-  const apply = (value: string) => {
-    if (value === "bottom" || value === "right") onDockChange(value);
-  };
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="flex shrink-0 items-center self-stretch pr-1 pl-0.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Details layout"
-                className="text-muted-foreground"
-              />
-            }
+    <div className="flex shrink-0 items-center self-stretch pr-1 pl-0.5">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Details layout"
+              className="text-muted-foreground"
+            />
+          }
+        >
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuRadioGroup
+            value={dock}
+            onValueChange={(value) => {
+              if (value === "bottom" || value === "right") onDockChange(value);
+            }}
           >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuRadioGroup value={dock} onValueChange={apply}>
-              <DropdownMenuRadioItem value="bottom">Display at bottom</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="right">Display on the right</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-44" side="bottom" align="end">
-        <ContextMenuRadioGroup value={dock} onValueChange={apply}>
-          <ContextMenuRadioItem value="bottom">Display at bottom</ContextMenuRadioItem>
-          <ContextMenuRadioItem value="right">Display on the right</ContextMenuRadioItem>
-        </ContextMenuRadioGroup>
-      </ContextMenuContent>
-    </ContextMenu>
+            <DropdownMenuRadioItem value="bottom">
+              <PanelBottom />
+              Display at bottom
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="right">
+              <PanelRight />
+              Display on the right
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 

@@ -598,6 +598,7 @@ export function TorrentShell({
       className="h-full"
       dock={detailsDock}
       onDockChange={changeDetailsDock}
+      onClose={closeDesktopDetails}
     />
   );
 
@@ -763,24 +764,22 @@ export function TorrentShell({
         ) : null}
         <div
           ref={mainColRef}
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1",
-            !mobile && detailsDock === "right" ? "flex-row" : "flex-col"
-          )}
+          className={cn("flex min-h-0 min-w-0 flex-1", dockRight ? "flex-row" : "flex-col")}
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{table}</div>
-          {!mobile ? (
-            detailsDock === "right" ? (
+          {desktopDetailsOpen ? (
+            dockRight ? (
               <div
                 className="relative min-h-0 min-w-0 shrink-0 self-stretch border-l"
                 data-details-dock="right"
-                style={{ width: detailsWidth, minWidth: DETAILS_MIN_WIDTH, maxWidth: "70vw" }}
+                style={{ width: detailsWidth, minWidth: DETAILS_MIN_WIDTH }}
               >
                 <DragResizeHandle
                   variant="sidebar"
                   edge="start"
                   ariaLabel="Resize torrent details"
                   onDelta={resizeDetailsWidth}
+                  className="w-1.5 translate-x-0 bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
                 />
                 <div className="h-full min-h-0 overflow-hidden">{details}</div>
               </div>
@@ -842,11 +841,18 @@ export function TorrentShell({
       </Sheet>
 
       <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent side="bottom" className="h-[80vh] p-0">
-          <SheetHeader className="p-3">
-            <SheetTitle className="truncate">{primaryTorrent?.name || "Details"}</SheetTitle>
+        <SheetContent side="bottom" className="h-[80vh] gap-0 p-0" showCloseButton={false}>
+          <SheetHeader className="sr-only">
+            <SheetTitle>{primaryTorrent?.name || "Details"}</SheetTitle>
           </SheetHeader>
-          <TorrentDetails torrentId={primary} torrent={primaryTorrent ?? null} className="h-[calc(80vh-3.5rem)]" />
+          <TorrentDetails
+            torrentId={primary}
+            torrent={primaryTorrent ?? null}
+            className="h-full"
+            dock={detailsDock}
+            onDockChange={changeDetailsDock}
+            onClose={() => setDetailsOpen(false)}
+          />
         </SheetContent>
       </Sheet>
 
