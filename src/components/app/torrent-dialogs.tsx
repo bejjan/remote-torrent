@@ -677,7 +677,6 @@ function AddFilesTree({
         </span>
         <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(node.length)}</span>
         <FilePrioritySelect
-          className="w-36 shrink-0"
           value={value}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, [node.index], next))}
         />
@@ -703,7 +702,6 @@ function AddFilesTree({
         </span>
         <span className="tabular w-20 shrink-0 text-right text-muted-foreground">{formatBytes(infoTreeSize(node))}</span>
         <FilePrioritySelect
-          className="w-36 shrink-0"
           value={shared == null ? "mixed" : String(shared)}
           mixed={shared == null}
           onChange={(next) => onPriorities(setPrioritiesForIndexes(priorities, indexes, next))}
