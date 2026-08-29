@@ -53,7 +53,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
   return (
     <form
-      className="grid grid-cols-1 gap-2.5 md:grid-cols-2"
+      className="grid min-w-0 grid-cols-1 gap-2.5 @min-[400px]/details:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
@@ -123,7 +123,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
         <OptionRow htmlFor={`${uid}-move`} label="Move completed">
           <Switch id={`${uid}-move`} size="sm" checked={Boolean(move)} onCheckedChange={setMove} />
         </OptionRow>
-        <div className="grid gap-1">
+        <div className="grid min-w-0 gap-1">
           <Label htmlFor={`${uid}-move-path`} className="text-xs font-normal text-muted-foreground">
             Completed path
           </Label>
@@ -132,7 +132,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
             value={movePath}
             disabled={!move}
             onChange={(e) => setMovePath(e.target.value)}
-            className="h-7 font-mono text-xs"
+            className="h-7 min-w-0 w-full font-mono text-xs"
           />
         </div>
       </OptionSection>
@@ -152,7 +152,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
         </OptionRow>
       </OptionSection>
 
-      <div className="md:col-span-2">
+      <div className="@min-[400px]/details:col-span-2">
         <Button type="submit" size="sm">
           Apply
         </Button>
@@ -163,7 +163,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
 function OptionSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-border bg-muted/40 p-2.5 dark:bg-muted/25">
+    <section className="min-w-0 rounded-md border border-border bg-muted/40 p-2.5 dark:bg-muted/25">
       <h3 className="mb-2 text-sm font-medium text-foreground">{title}</h3>
       <div className="grid gap-2">{children}</div>
     </section>
@@ -180,11 +180,11 @@ function OptionRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-7 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
-      <Label htmlFor={htmlFor} className="text-sm font-normal leading-snug">
+    <div className="grid min-h-7 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+      <Label htmlFor={htmlFor} className="min-w-0 text-sm font-normal leading-snug">
         {label}
       </Label>
-      {children}
+      <div className="min-w-0 shrink-0 justify-self-end">{children}</div>
     </div>
   );
 }
@@ -205,7 +205,7 @@ function NumInput({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex min-w-0 items-center gap-1.5">
       <Input
         id={id}
         value={value}
@@ -213,9 +213,9 @@ function NumInput({
         disabled={disabled}
         inputMode="decimal"
         onChange={(e) => onChange(e.target.value)}
-        className={cn("h-7 w-[5.5rem] max-w-[5.5rem] tabular text-right")}
+        className={cn("h-7 w-[5.5rem] min-w-0 max-w-full tabular text-right")}
       />
-      <span className="w-10 text-xs text-muted-foreground">{suffix ?? ""}</span>
+      {suffix ? <span className="w-10 shrink-0 text-xs text-muted-foreground">{suffix}</span> : null}
     </div>
   );
 }

@@ -35,7 +35,7 @@ export function FilePrioritySelect({
         onChange(Number(v));
       }}
     >
-      <SelectTrigger size="sm" className={className ?? "w-36"}>
+      <SelectTrigger size="sm" className={className ?? "min-w-0 w-36"}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

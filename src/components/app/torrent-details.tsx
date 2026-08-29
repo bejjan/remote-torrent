@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { FileTree } from "@/components/app/torrent-file-tree";
 import { OptionsForm } from "@/components/app/torrent-options-form";
 import { PeerCountry } from "@/components/app/peer-country";
-import { StateBadge } from "@/components/app/state-badge";
+import { StateBadge, stateBarClass } from "@/components/app/state-badge";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -101,7 +101,11 @@ export function TorrentDetails({
   }, [loadDetails]);
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className={cn("flex h-full min-h-0 flex-col gap-0", className)}>
+    <Tabs
+      value={tab}
+      onValueChange={setTab}
+      className={cn("@container/details flex h-full min-h-0 min-w-0 flex-col gap-0", className)}
+    >
       <DetailsHeader
         name={detail?.name || "Details"}
         hash={torrentId}
@@ -120,10 +124,10 @@ export function TorrentDetails({
       </div>
       {torrentId && detail ? (
         <>
-          <TabsContent value="status" className="min-h-0 overflow-auto p-3">
+          <TabsContent value="status" className="min-h-0 min-w-0 overflow-auto p-3">
             <StatusGrid torrent={detail} />
           </TabsContent>
-          <TabsContent value="files" className="min-h-0 overflow-auto p-3">
+          <TabsContent value="files" className="min-h-0 min-w-0 overflow-auto p-3">
             {files ? (
               <FileTree
                 key={torrentId}
@@ -136,13 +140,13 @@ export function TorrentDetails({
               <Muted>No files</Muted>
             )}
           </TabsContent>
-          <TabsContent value="peers" className="min-h-0 overflow-auto p-3">
+          <TabsContent value="peers" className="min-h-0 min-w-0 overflow-auto p-3">
             <PeerTable peers={peers} />
           </TabsContent>
-          <TabsContent value="options" className="min-h-0 overflow-auto p-3">
+          <TabsContent value="options" className="min-h-0 min-w-0 overflow-auto p-3">
             <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
           </TabsContent>
-          <TabsContent value="trackers" className="min-h-0 overflow-auto p-3">
+          <TabsContent value="trackers" className="min-h-0 min-w-0 overflow-auto p-3">
             <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
           </TabsContent>
         </>
@@ -169,13 +173,18 @@ function DetailsHeader({
   onClose?: () => void;
 }) {
   const bar = (
-    <div className="flex min-w-0 items-start gap-1 px-2 py-1">
-      <div className="min-w-0 flex-1">
+    <div className="flex min-w-0 items-start gap-1 overflow-hidden px-2 py-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         <div className="truncate text-sm font-medium" title={name}>
           {name}
         </div>
         {hash ? (
-          <div className="break-all font-mono text-[11px] leading-snug text-muted-foreground">{hash}</div>
+          <div
+            className="line-clamp-2 min-w-0 break-all font-mono text-[11px] leading-snug text-muted-foreground"
+            title={hash}
+          >
+            {hash}
+          </div>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center pt-px">
@@ -270,15 +279,11 @@ function Muted({ children }: { children: React.ReactNode }) {
 }
 
 function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
+  const wrapRows = new Set(["Name", "Tracker", "Tracker status", "Download folder", "Message", "Comment", "Creator"]);
   const rows: [string, React.ReactNode][] = [
     ["Name", torrent.name],
     ["State", <StateBadge key="s" state={torrent.state} message={torrent.message} />],
-    ["Progress", formatProgress(torrent.progress)],
     ["Size", `${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`],
-    ["Downloaded", formatBytes(torrent.total_payload_download)],
-    ["Uploaded", formatBytes(torrent.total_payload_upload)],
-    ["Download speed", formatRate(torrent.download_payload_rate)],
-    ["Upload speed", formatRate(torrent.upload_payload_rate)],
     ["ETA", formatEta(torrent.eta)],
     ["Ratio", formatRatio(torrent.ratio)],
     ["Seeds", formatSwarmCount(torrent.num_seeds, torrent.total_seeds)],
@@ -299,48 +304,119 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
     ["Owner", torrent.owner || "—"],
   ];
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-      {rows.map(([k, v]) => (
-        <div key={k} className="min-w-0">
-          <dt className="text-xs text-muted-foreground">{k}</dt>
-          <dd className="truncate">{v}</dd>
+    <div className="grid min-w-0 gap-3">
+      <div className="grid min-w-0 gap-1.5">
+        <div className="flex min-w-0 items-center justify-between gap-2 text-sm">
+          <span className="text-xs text-muted-foreground">Progress</span>
+          <span className="tabular shrink-0 text-sm">{formatProgress(torrent.progress)}</span>
         </div>
-      ))}
-    </dl>
+        <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn("h-full rounded-full", stateBarClass(torrent.state))}
+            style={{ width: `${Math.min(100, Math.max(0, torrent.progress))}%` }}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @min-[360px]/details:grid-cols-2">
+          <TransferStat label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
+          <TransferStat label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
+          <TransferStat label="Download speed" value={formatRate(torrent.download_payload_rate)} />
+          <TransferStat label="Upload speed" value={formatRate(torrent.upload_payload_rate)} />
+        </div>
+      </div>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm @min-[360px]/details:grid-cols-2 @min-[640px]/details:grid-cols-3">
+        {rows.map(([k, v]) => {
+          const text = typeof v === "string" ? v : undefined;
+          return (
+            <div key={k} className="min-w-0">
+              <dt className="text-xs text-muted-foreground">{k}</dt>
+              <dd
+                className={cn("min-w-0", wrapRows.has(k) ? "break-all" : "truncate")}
+                title={text}
+              >
+                {v}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
+}
+
+function TransferStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-baseline justify-between gap-2">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate tabular" title={value}>
+        {value}
+      </span>
+    </div>
   );
 }
 
 function PeerTable({ peers }: { peers: TorrentPeer[] }) {
   if (!peers.length) return <Muted>No connected peers.</Muted>;
   return (
-    <table className="w-full text-sm">
-      <thead className="text-left text-xs text-muted-foreground">
-        <tr>
-          <th className="py-1 font-medium">IP</th>
-          <th className="py-1 font-medium">Client</th>
-          <th className="py-1 font-medium">Country</th>
-          <th className="py-1 font-medium">Progress</th>
-          <th className="py-1 font-medium">Down</th>
-          <th className="py-1 font-medium">Up</th>
-          <th className="py-1 font-medium">Seed</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div className="min-w-0">
+      <ul className="grid gap-2 @min-[520px]/details:hidden">
         {peers.map((p, i) => (
-          <tr key={`${p.ip}-${i}`} className="border-t">
-            <td className="py-1 font-mono text-xs">{p.ip}</td>
-            <td className="py-1">{p.client}</td>
-            <td className="py-1">
+          <li
+            key={`${p.ip}-${i}`}
+            className="min-w-0 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 dark:bg-muted/25"
+          >
+            <div className="flex min-w-0 items-center gap-1.5">
               <PeerCountry country={p.country} />
-            </td>
-            <td className="py-1 tabular">{formatProgress(p.progress * 100)}</td>
-            <td className="py-1 tabular">{formatRate(p.down_speed)}</td>
-            <td className="py-1 tabular">{formatRate(p.up_speed)}</td>
-            <td className="py-1">{p.seed ? "Yes" : "No"}</td>
-          </tr>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs" title={p.ip}>
+                {p.ip}
+              </span>
+              {p.seed ? <span className="shrink-0 text-[11px] text-muted-foreground">Seed</span> : null}
+            </div>
+            <div className="mt-0.5 min-w-0 truncate text-xs text-muted-foreground" title={p.client}>
+              {p.client}
+            </div>
+            <div className="mt-0.5 flex min-w-0 flex-wrap gap-x-3 text-xs tabular">
+              <span>{formatProgress(p.progress * 100)}</span>
+              <span>↓ {formatRate(p.down_speed)}</span>
+              <span>↑ {formatRate(p.up_speed)}</span>
+            </div>
+          </li>
         ))}
-      </tbody>
-    </table>
+      </ul>
+      <div className="hidden min-w-0 overflow-x-auto @min-[520px]/details:block">
+        <table className="w-full min-w-[28rem] text-sm">
+          <thead className="text-left text-xs text-muted-foreground">
+            <tr>
+              <th className="py-1 pr-2 font-medium">IP</th>
+              <th className="py-1 pr-2 font-medium">Client</th>
+              <th className="py-1 pr-2 font-medium">Country</th>
+              <th className="py-1 pr-2 font-medium">Progress</th>
+              <th className="py-1 pr-2 font-medium">Down</th>
+              <th className="py-1 pr-2 font-medium">Up</th>
+              <th className="hidden py-1 font-medium @min-[640px]/details:table-cell">Seed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {peers.map((p, i) => (
+              <tr key={`${p.ip}-${i}`} className="border-t">
+                <td className="max-w-[9rem] truncate py-1 pr-2 font-mono text-xs" title={p.ip}>
+                  {p.ip}
+                </td>
+                <td className="max-w-[10rem] truncate py-1 pr-2" title={p.client}>
+                  {p.client}
+                </td>
+                <td className="py-1 pr-2">
+                  <PeerCountry country={p.country} />
+                </td>
+                <td className="py-1 pr-2 tabular">{formatProgress(p.progress * 100)}</td>
+                <td className="py-1 pr-2 tabular">{formatRate(p.down_speed)}</td>
+                <td className="py-1 pr-2 tabular">{formatRate(p.up_speed)}</td>
+                <td className="hidden py-1 @min-[640px]/details:table-cell">{p.seed ? "Yes" : "No"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -365,31 +441,41 @@ function TrackersForm({
   }
 
   return (
-    <div className="grid gap-3">
-      <table className="w-full text-sm">
-        <thead className="text-left text-xs text-muted-foreground">
-          <tr>
-            <th className="py-1 font-medium">URL</th>
-            <th className="py-1 font-medium">Tier</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trackers.map((t) => (
-            <tr key={t.url} className="border-t">
-              <td className="py-1 font-mono text-xs">{t.url}</td>
-              <td className="py-1">{t.tier}</td>
+    <div className="grid min-w-0 gap-3">
+      <div className="min-w-0 overflow-x-auto">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col />
+            <col className="w-12" />
+          </colgroup>
+          <thead className="text-left text-xs text-muted-foreground">
+            <tr>
+              <th className="py-1 pr-2 font-medium">URL</th>
+              <th className="py-1 font-medium">Tier</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex gap-2">
+          </thead>
+          <tbody>
+            {trackers.map((t) => (
+              <tr key={t.url} className="border-t">
+                <td className="min-w-0 truncate py-1 pr-2 font-mono text-xs" title={t.url}>
+                  {t.url}
+                </td>
+                <td className="py-1 tabular">{t.tier}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex min-w-0 flex-col gap-2 @min-[400px]/details:flex-row">
         <Input
+          className="min-w-0 w-full"
           placeholder="udp://tracker.example:6969/announce"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
         <Button
           variant="outline"
+          className="shrink-0 @min-[400px]/details:self-auto"
           onClick={() => {
             if (!url.trim()) return;
             void save([...trackers, { url: url.trim(), tier: 0 }]);

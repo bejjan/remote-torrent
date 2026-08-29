@@ -12,7 +12,7 @@ export function PeerCountry({ country }: { country: string }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+    <span className="inline-flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap">
       <span
         aria-hidden
         className="inline-flex h-4 max-h-4 shrink-0 items-center justify-center overflow-hidden text-[16px] leading-none"
