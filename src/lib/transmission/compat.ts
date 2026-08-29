@@ -1,3 +1,4 @@
+import type { AdminDemoConfig } from "../demo/admin-catalog";
 import type { JsonRpcRequest } from "@/lib/deluge/demo";
 import { formatUnknownMethodMessage } from "@/lib/deluge/plugins";
 import { inventDemoFilesTree, parseMagnetInfoHash, type TorrentFileInfo } from "@/lib/deluge/files-tree";
@@ -50,9 +51,10 @@ async function txCall(
   demo: boolean,
   live: TransmissionCaller | undefined,
   method: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
+  admin?: AdminDemoConfig | null
 ): Promise<TransmissionRpcResponse> {
-  if (demo) return handleTransmissionDemoRpc({ method, arguments: args });
+  if (demo) return handleTransmissionDemoRpc({ method, arguments: args }, admin);
   if (!live) throw new Error("Transmission RPC is not configured.");
   return live(method, args);
 }
@@ -62,13 +64,21 @@ function unwrap(res: TransmissionRpcResponse): Record<string, unknown> {
   return (res.arguments ?? {}) as Record<string, unknown>;
 }
 
-async function fetchTorrents(demo: boolean, live?: TransmissionCaller): Promise<TransmissionTorrent[]> {
-  const res = unwrap(await txCall(demo, live, "torrent-get", { fields: [...TORRENT_GET_FIELDS] }));
+async function fetchTorrents(
+  demo: boolean,
+  live?: TransmissionCaller,
+  admin?: AdminDemoConfig | null
+): Promise<TransmissionTorrent[]> {
+  const res = unwrap(await txCall(demo, live, "torrent-get", { fields: [...TORRENT_GET_FIELDS] }, admin));
   return (res.torrents as TransmissionTorrent[]) || [];
 }
 
-async function fetchSession(demo: boolean, live?: TransmissionCaller): Promise<TransmissionSession> {
-  return unwrap(await txCall(demo, live, "session-get")) as TransmissionSession;
+async function fetchSession(
+  demo: boolean,
+  live?: TransmissionCaller,
+  admin?: AdminDemoConfig | null
+): Promise<TransmissionSession> {
+  return unwrap(await txCall(demo, live, "session-get", undefined, admin)) as TransmissionSession;
 }
 
 function torrentById(torrents: TransmissionTorrent[], id: unknown): TransmissionTorrent | undefined {
@@ -85,12 +95,16 @@ export async function handleTransmissionCompat(
     cookieHeader: string | null;
     live?: TransmissionCaller;
     password?: string;
+    admin?: AdminDemoConfig | null;
   }
 ): Promise<CompatResult> {
   const id = body.id ?? 0;
   const method = body.method;
   const params = Array.isArray(body.params) ? body.params : [];
   const { demo, live } = opts;
+  const admin = opts.admin ?? null;
+  const call = (method: string, args?: Record<string, unknown>) =>
+    txCall(demo, live, method, args, admin);
   const fail = (message: string): CompatResult => ({
     id,
     result: null,
@@ -103,14 +117,14 @@ export async function handleTransmissionCompat(
     if (method === "auth.login") {
       const password = String(params[0] ?? opts.password ?? "");
       if (demo) {
-        const login = loginTransmissionDemo(password);
+        const login = loginTransmissionDemo(password, admin);
         return { id, result: login.ok, error: null, setCookie: login.setCookie };
       }
       const session = await txCall(false, live, "session-get");
       return { id, result: session.result === "success", error: null };
     }
     if (method === "auth.check_session") {
-      if (demo) return { id, result: isTransmissionDemoAuthed(opts.cookieHeader), error: null };
+      if (demo) return { id, result: isTransmissionDemoAuthed(opts.cookieHeader, admin), error: null };
       try {
         const session = await txCall(false, live, "session-get");
         return { id, result: session.result === "success", error: null };
@@ -119,11 +133,11 @@ export async function handleTransmissionCompat(
       }
     }
     if (method === "auth.delete_session") {
-      const cookies = demo ? [logoutTransmissionDemo(opts.cookieHeader)] : [];
+      const cookies = demo ? [logoutTransmissionDemo(opts.cookieHeader, admin)] : [];
       cookies.push("nova_tx_auth=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
       return { id, result: true, error: null, setCookie: cookies };
     }
-    if (!OPEN.has(method) && demo && !isTransmissionDemoAuthed(opts.cookieHeader)) {
+    if (!OPEN.has(method) && demo && !isTransmissionDemoAuthed(opts.cookieHeader, admin)) {
       throw new Error("Not authenticated");
     }
 
@@ -137,15 +151,15 @@ export async function handleTransmissionCompat(
       case "web.update_ui": {
         const keys = (params[0] as string[]) || [];
         const filter = params[1] as FilterDict | undefined;
-        const [torrents, session] = await Promise.all([fetchTorrents(demo, live), fetchSession(demo, live)]);
+        const [torrents, session] = await Promise.all([fetchTorrents(demo, live, admin), fetchSession(demo, live, admin)]);
         const labelsSupported = demo
-          ? transmissionDemoLabelsSupported()
+          ? transmissionDemoLabelsSupported(admin)
           : torrents.some((t) => Array.isArray(t.labels));
         return { id, result: mapUiUpdate(torrents, session, filter, labelsSupported, keys), error: null };
       }
       case "web.get_torrent_status":
       case "core.get_torrent_status": {
-        const torrents = await fetchTorrents(demo, live);
+        const torrents = await fetchTorrents(demo, live, admin);
         const torrent = torrentById(torrents, params[0]);
         if (!torrent) throw new Error("Unknown torrent");
         const status = mapTransmissionTorrent(torrent) as TorrentStatus & Record<string, unknown>;
@@ -160,30 +174,30 @@ export async function handleTransmissionCompat(
         return { id, result: base, error: null };
       }
       case "web.get_torrent_files": {
-        const torrents = await fetchTorrents(demo, live);
+        const torrents = await fetchTorrents(demo, live, admin);
         const torrent = torrentById(torrents, params[0]);
         if (!torrent) throw new Error("Unknown torrent");
         return { id, result: filesTreeFromTransmission(torrent), error: null };
       }
       case "web.get_free_space":
       case "core.get_free_space": {
-        const session = await fetchSession(demo, live);
+        const session = await fetchSession(demo, live, admin);
         return { id, result: Number(session["download-dir-free-space"] ?? 0) || 0, error: null };
       }
       case "web.get_config":
-        if (demo) return { id, result: getTransmissionDemoWebConfig(), error: null };
+        if (demo) return { id, result: getTransmissionDemoWebConfig(admin), error: null };
         return {
           id,
           result: { show_sidebar: true, show_session_speed: true, sidebar_show_zero: false },
           error: null,
         };
       case "web.set_config":
-        if (demo) setTransmissionDemoWebConfig((params[0] as Record<string, unknown>) || {});
+        if (demo) setTransmissionDemoWebConfig((params[0] as Record<string, unknown>) || {}, admin);
         return { id, result: null, error: null };
       case "web.get_plugins": {
         const labels = demo
-          ? transmissionDemoLabelsSupported()
-          : (await fetchTorrents(demo, live)).some((t) => Array.isArray(t.labels));
+          ? transmissionDemoLabelsSupported(admin)
+          : (await fetchTorrents(demo, live, admin)).some((t) => Array.isArray(t.labels));
         return {
           id,
           result: { available_plugins: labels ? ["Label"] : [], enabled_plugins: labels ? ["Label"] : [] },
@@ -193,13 +207,13 @@ export async function handleTransmissionCompat(
       case "core.get_enabled_plugins":
       case "core.get_available_plugins": {
         const labels = demo
-          ? transmissionDemoLabelsSupported()
-          : (await fetchTorrents(demo, live)).some((t) => Array.isArray(t.labels));
+          ? transmissionDemoLabelsSupported(admin)
+          : (await fetchTorrents(demo, live, admin)).some((t) => Array.isArray(t.labels));
         return { id, result: labels ? ["Label"] : [], error: null };
       }
       case "web.get_torrent_info": {
         const path = String(params[0] ?? "");
-        const upload = getTransmissionDemoUpload(path);
+        const upload = getTransmissionDemoUpload(path, admin);
         if (upload) {
           const info: TorrentFileInfo = {
             name: upload.name,
@@ -226,13 +240,13 @@ export async function handleTransmissionCompat(
         const items = (params[0] as { path: string; options?: Record<string, unknown> }[]) || [];
         for (const item of items) {
           const options = addOptionsToTransmission(item.options);
-          const upload = getTransmissionDemoUpload(item.path);
+          const upload = getTransmissionDemoUpload(item.path, admin);
           if (item.path.startsWith("magnet:")) {
-            unwrap(await txCall(demo, live, "torrent-add", { filename: item.path, ...options }));
+            unwrap(await call( "torrent-add", { filename: item.path, ...options }));
           } else if (upload?.metainfo && !demo) {
-            unwrap(await txCall(demo, live, "torrent-add", { metainfo: upload.metainfo, ...options }));
+            unwrap(await call( "torrent-add", { metainfo: upload.metainfo, ...options }));
           } else {
-            unwrap(await txCall(demo, live, "torrent-add", { filename: item.path, ...options }));
+            unwrap(await call( "torrent-add", { filename: item.path, ...options }));
           }
         }
         return { id, result: true, error: null };
@@ -241,48 +255,48 @@ export async function handleTransmissionCompat(
         return { id, result: String(params[0] ?? ""), error: null };
       case "core.pause_torrent":
       case "core.pause_torrents":
-        unwrap(await txCall(demo, live, "torrent-stop", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)) }));
+        unwrap(await call( "torrent-stop", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)) }));
         return { id, result: true, error: null };
       case "core.resume_torrent":
       case "core.resume_torrents":
-        unwrap(await txCall(demo, live, "torrent-start", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)) }));
+        unwrap(await call( "torrent-start", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)) }));
         return { id, result: true, error: null };
       case "core.remove_torrent":
       case "core.remove_torrents":
         unwrap(
-          await txCall(demo, live, "torrent-remove", {
-            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)),
+          await call( "torrent-remove", {
+            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)),
             "delete-local-data": Boolean(params[1]),
           })
         );
         return { id, result: true, error: null };
       case "core.force_recheck":
-        unwrap(await txCall(demo, live, "torrent-verify", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)) }));
+        unwrap(await call( "torrent-verify", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)) }));
         return { id, result: true, error: null };
       case "core.force_reannounce":
-        unwrap(await txCall(demo, live, "torrent-reannounce", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)) }));
+        unwrap(await call( "torrent-reannounce", { ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)) }));
         return { id, result: true, error: null };
       case "core.queue_top":
       case "core.queue_bottom":
       case "core.queue_up":
       case "core.queue_down": {
-        const torrents = await fetchTorrents(demo, live);
+        const torrents = await fetchTorrents(demo, live, admin);
         const ids = resolveTransmissionIds(params[0], torrents);
         const selected = torrents.filter((t) => ids.includes(t.id)).sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
         if (method === "core.queue_top") {
           let pos = 0;
           for (const torrent of selected) {
-            unwrap(await txCall(demo, live, "torrent-set", { ids: [torrent.id], queuePosition: pos++ }));
+            unwrap(await call( "torrent-set", { ids: [torrent.id], queuePosition: pos++ }));
           }
         } else if (method === "core.queue_bottom") {
           let pos = torrents.length;
           for (const torrent of [...selected].reverse()) {
-            unwrap(await txCall(demo, live, "torrent-set", { ids: [torrent.id], queuePosition: pos++ }));
+            unwrap(await call( "torrent-set", { ids: [torrent.id], queuePosition: pos++ }));
           }
         } else if (method === "core.queue_up") {
           for (const torrent of selected) {
             unwrap(
-              await txCall(demo, live, "torrent-set", {
+              await call( "torrent-set", {
                 ids: [torrent.id],
                 queuePosition: Math.max(0, (torrent.queuePosition ?? 0) - 1),
               })
@@ -291,7 +305,7 @@ export async function handleTransmissionCompat(
         } else {
           for (const torrent of [...selected].reverse()) {
             unwrap(
-              await txCall(demo, live, "torrent-set", {
+              await call( "torrent-set", {
                 ids: [torrent.id],
                 queuePosition: (torrent.queuePosition ?? 0) + 1,
               })
@@ -302,8 +316,8 @@ export async function handleTransmissionCompat(
       }
       case "core.move_storage":
         unwrap(
-          await txCall(demo, live, "torrent-set-location", {
-            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)),
+          await call( "torrent-set-location", {
+            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)),
             location: String(params[1] ?? ""),
             move: true,
           })
@@ -311,29 +325,29 @@ export async function handleTransmissionCompat(
         return { id, result: true, error: null };
       case "core.set_torrent_options":
         unwrap(
-          await txCall(demo, live, "torrent-set", {
-            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)),
+          await call( "torrent-set", {
+            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)),
             ...torrentOptionsToTransmission((params[1] as Record<string, unknown>) || {}),
           })
         );
         return { id, result: true, error: null };
       case "core.set_torrent_file_priorities":
         unwrap(
-          await txCall(demo, live, "torrent-set", {
-            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live)),
+          await call( "torrent-set", {
+            ids: resolveTransmissionIds(params[0], await fetchTorrents(demo, live, admin)),
             ...filePrioritiesToTransmissionArgs((params[1] as number[]) || []),
           })
         );
         return { id, result: true, error: null };
       case "core.set_torrent_trackers": {
-        const torrents = await fetchTorrents(demo, live);
+        const torrents = await fetchTorrents(demo, live, admin);
         const torrent = torrentById(torrents, Array.isArray(params[0]) ? params[0][0] : params[0]);
         if (!torrent) throw new Error("Unknown torrent");
         const next = (params[1] as { url: string }[]) || [];
         const current = new Set((torrent.trackers ?? []).map((t) => t.announce));
         const wanted = new Set(next.map((t) => t.url));
         unwrap(
-          await txCall(demo, live, "torrent-set", {
+          await call( "torrent-set", {
             ids: [torrent.id],
             trackerAdd: next.map((t) => t.url).filter((url) => !current.has(url)),
             trackerRemove: [...current].filter((url) => !wanted.has(url)),
@@ -343,7 +357,7 @@ export async function handleTransmissionCompat(
       }
       case "core.add_torrent_magnet":
         unwrap(
-          await txCall(demo, live, "torrent-add", {
+          await call( "torrent-add", {
             filename: String(params[0] ?? ""),
             ...addOptionsToTransmission((params[1] as Record<string, unknown>) || {}),
           })
@@ -351,7 +365,7 @@ export async function handleTransmissionCompat(
         return { id, result: parseMagnetInfoHash(String(params[0] ?? "")), error: null };
       case "core.add_torrent_url":
         unwrap(
-          await txCall(demo, live, "torrent-add", {
+          await call( "torrent-add", {
             filename: String(params[0] ?? ""),
             ...addOptionsToTransmission((params[1] as Record<string, unknown>) || {}),
           })
@@ -360,55 +374,55 @@ export async function handleTransmissionCompat(
       case "core.add_torrent_file":
       case "core.add_torrent_file_async":
         unwrap(
-          await txCall(demo, live, "torrent-add", {
+          await call( "torrent-add", {
             metainfo: String(params[1] ?? ""),
             ...addOptionsToTransmission((params[2] as Record<string, unknown>) || {}),
           })
         );
         return { id, result: true, error: null };
       case "core.get_config":
-        return { id, result: sessionToCoreConfig(await fetchSession(demo, live)), error: null };
+        return { id, result: sessionToCoreConfig(await fetchSession(demo, live, admin)), error: null };
       case "core.set_config": {
         const patch = coreConfigToSession((params[0] as Record<string, unknown>) || {});
-        if (Object.keys(patch).length) unwrap(await txCall(demo, live, "session-set", patch));
+        if (Object.keys(patch).length) unwrap(await call( "session-set", patch));
         return { id, result: true, error: null };
       }
       case "core.get_config_value": {
-        const cfg = sessionToCoreConfig(await fetchSession(demo, live));
+        const cfg = sessionToCoreConfig(await fetchSession(demo, live, admin));
         return { id, result: cfg[String(params[0])], error: null };
       }
       case "core.get_config_values": {
-        const cfg = sessionToCoreConfig(await fetchSession(demo, live));
+        const cfg = sessionToCoreConfig(await fetchSession(demo, live, admin));
         const keys = (params[0] as string[]) || [];
         const out: Record<string, unknown> = {};
         for (const key of keys) out[key] = cfg[key];
         return { id, result: out, error: null };
       }
       case "core.get_version":
-        return { id, result: (await fetchSession(demo, live)).version || "Transmission", error: null };
+        return { id, result: (await fetchSession(demo, live, admin)).version || "Transmission", error: null };
       case "core.get_libtorrent_version": {
-        const session = await fetchSession(demo, live);
+        const session = await fetchSession(demo, live, admin);
         return { id, result: session["rpc-version"] != null ? `RPC ${session["rpc-version"]}` : null, error: null };
       }
       case "label.get_labels":
-        if (demo) return { id, result: transmissionDemoLabels(), error: null };
+        if (demo) return { id, result: transmissionDemoLabels(admin), error: null };
         {
-          const torrents = await fetchTorrents(demo, live);
+          const torrents = await fetchTorrents(demo, live, admin);
           if (!torrents.some((t) => Array.isArray(t.labels))) throw new Error("Unknown method");
           return { id, result: uniqueLabels(torrents), error: null };
         }
       case "label.add":
-        if (demo) addTransmissionDemoLabel(String(params[0] ?? "").trim());
+        if (demo) addTransmissionDemoLabel(String(params[0] ?? "").trim(), admin);
         return { id, result: true, error: null };
       case "label.remove": {
         const name = String(params[0] ?? "").trim();
-        if (demo) removeTransmissionDemoLabel(name);
+        if (demo) removeTransmissionDemoLabel(name, admin);
         else {
-          const torrents = await fetchTorrents(demo, live);
+          const torrents = await fetchTorrents(demo, live, admin);
           for (const torrent of torrents) {
             const labels = (torrent.labels ?? []).filter((l) => l !== name);
             if (labels.length !== (torrent.labels ?? []).length) {
-              unwrap(await txCall(demo, live, "torrent-set", { ids: [torrent.id], labels }));
+              unwrap(await call( "torrent-set", { ids: [torrent.id], labels }));
             }
           }
         }
@@ -418,13 +432,13 @@ export async function handleTransmissionCompat(
         const torrentId = params[0];
         const label = String(params[1] ?? "").trim();
         if (demo) {
-          setTransmissionDemoTorrentLabel(String(torrentId), label);
+          setTransmissionDemoTorrentLabel(String(torrentId), label, admin);
           return { id, result: true, error: null };
         }
-        const torrents = await fetchTorrents(demo, live);
+        const torrents = await fetchTorrents(demo, live, admin);
         const torrent = torrentById(torrents, torrentId);
         if (!torrent) throw new Error("Unknown torrent");
-        unwrap(await txCall(demo, live, "torrent-set", { ids: [torrent.id], labels: label ? [label] : [] }));
+        unwrap(await call( "torrent-set", { ids: [torrent.id], labels: label ? [label] : [] }));
         return { id, result: true, error: null };
       }
       case "label.get_options":

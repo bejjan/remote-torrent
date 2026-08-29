@@ -1,5 +1,6 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { normalizeDelugeWebUrl, sanitizePublicUrl } from "@/lib/deluge/web-url";
 
 export const PROXY_TIMEOUT_MS = 15_000;
@@ -38,6 +39,9 @@ export function resolveDelugeTarget(req: NextRequest): {
   demo: boolean;
   error?: string;
 } {
+  if (parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))?.enabled) {
+    return { target: "", demo: true };
+  }
   // Private/LAN hosts are allowed; this app's purpose is to reach a home NAS.
   const raw =
     req.headers.get("x-deluge-url")?.trim() || process.env.DELUGE_WEB_URL?.trim() || "";

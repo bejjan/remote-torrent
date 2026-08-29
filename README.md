@@ -22,6 +22,12 @@ On the connection screen, pick the client type, leave the URL blank, and sign in
 
 Demo mode keeps an in-memory session (survives Next.js hot reload) and simulates live download progress.
 
+## Load test / admin dummy data
+
+On the connection screen, expand **Admin: synthetic session** at the bottom of the form. Turn on **Use dummy data**, pick Deluge or Transmission, and set **torrent count** (default 2000, max 10 000). URL can stay blank; password can be `deluge` or anything else — no daemon is contacted.
+
+This builds a separate in-memory catalog (stable if you keep the RNG seed) so the real table, sidebar filters, details pane, and polling run against thousands of torrents. 10 000 rows will be slow. Settings persist in `localStorage` under `nova:admin-demo`. The simple blank-URL demo is unchanged.
+
 ## Connecting
 
 ### Deluge

@@ -1,5 +1,6 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import {
   PROXY_TIMEOUT_MS,
   describeProxyError,
@@ -39,6 +40,9 @@ export function resolveTransmissionTarget(req: NextRequest): {
   demo: boolean;
   error?: string;
 } {
+  if (parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))?.enabled) {
+    return { target: "", demo: true };
+  }
   const raw =
     req.headers.get("x-transmission-url")?.trim() ||
     process.env.TRANSMISSION_RPC_URL?.trim() ||

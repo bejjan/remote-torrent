@@ -1,4 +1,10 @@
 import { randomBytes } from "crypto";
+import {
+  adminDemoCacheKey,
+  generateSyntheticTorrentSpecs,
+  type AdminDemoConfig,
+  type SyntheticTorrentSpec,
+} from "../demo/admin-catalog";
 import { parseMagnetName } from "@/lib/deluge/format";
 import { inventDemoFilesTree, parseMagnetInfoHash, type TorrentInfoDir } from "@/lib/deluge/files-tree";
 import { resolveTransmissionIds, torrentKey } from "./map";
@@ -33,7 +39,30 @@ interface TxDemoState {
   labelsSupported: boolean;
 }
 
-type GlobalTx = typeof globalThis & { __novaTransmissionDemo?: TxDemoState };
+type GlobalTx = typeof globalThis & {
+  __novaTransmissionDemo?: TxDemoState;
+  __novaTransmissionAdminDemo?: { key: string; state: TxDemoState };
+};
+
+const txSessions = new Set<string>();
+
+function trStatusFor(state: SyntheticTorrentSpec["state"]): number {
+  switch (state) {
+    case "Downloading":
+      return TR_STATUS.DOWNLOAD;
+    case "Seeding":
+      return TR_STATUS.SEED;
+    case "Checking":
+      return TR_STATUS.CHECK;
+    case "Queued":
+      return TR_STATUS.DOWNLOAD_WAIT;
+    case "Error":
+      return TR_STATUS.STOPPED;
+    case "Paused":
+    default:
+      return TR_STATUS.STOPPED;
+  }
+}
 
 function nowSec(): number {
   return Math.floor(Date.now() / 1000);
@@ -112,6 +141,7 @@ function makeTorrent(opts: {
   tracker: string;
   queue: number;
   error?: string;
+  hash?: string;
   files?: { name: string; length: number; progress: number }[];
 }): TransmissionTorrent {
   const done = Math.round(opts.size * opts.progress);
@@ -142,7 +172,7 @@ function makeTorrent(opts: {
     doneDate: opts.progress >= 1 ? nowSec() - 3600 : 0,
     activityDate: nowSec() - 12,
     downloadDir: "/home/transmission/Downloads",
-    hashString: fakeHash(opts.name),
+    hashString: opts.hash ?? fakeHash(opts.name),
     labels: opts.labels ?? [],
     files,
     fileStats: files.map((f) => ({ bytesCompleted: f.bytesCompleted, wanted: true, priority: 1 })),
@@ -300,47 +330,129 @@ function seedTorrents(): TransmissionTorrent[] {
       tracker: "udp://tracker.openbittorrent.com:6969/announce",
       queue: 0,
     }),
+    makeTorrent({
+      id: 9,
+      name: "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv",
+      size: 18.4 * 1024 ** 3,
+      progress: 1,
+      status: TR_STATUS.SEED,
+      down: 0,
+      up: 2.1 * 1024 ** 2,
+      labels: ["movies"],
+      tracker: "udp://tracker.opentrackr.org:1337/announce",
+      queue: 1,
+      files: [
+        {
+          name: "Dune.Part.Two.2024.REPACK.2160p.UPSCALE.WEB.HEVC.10Bit.AAC.2.0-R&H.mkv",
+          length: 18.4 * 1024 ** 3,
+          progress: 1,
+        },
+      ],
+    }),
   ];
 }
 
-function getState(): TxDemoState {
+function torrentFromSpec(spec: SyntheticTorrentSpec, id: number): TransmissionTorrent {
+  return makeTorrent({
+    id,
+    name: spec.name,
+    size: spec.size,
+    progress: spec.progress / 100,
+    status: trStatusFor(spec.state),
+    down: spec.down,
+    up: spec.up,
+    labels: spec.label ? [spec.label] : [],
+    tracker: spec.tracker,
+    queue: spec.queue < 0 ? 0 : spec.queue,
+    error: spec.message,
+    hash: spec.hash,
+  });
+}
+
+function emptyTxState(torrents: TransmissionTorrent[], nextId: number, labels: string[]): TxDemoState {
+  return {
+    sessions: txSessions,
+    torrents,
+    nextId,
+    session: defaultSession(),
+    webConfig: { show_sidebar: true, show_session_speed: true, sidebar_show_zero: false },
+    knownLabels: new Set(labels),
+    uploads: {},
+    lastTick: Date.now(),
+    labelsSupported: true,
+  };
+}
+
+function getState(admin?: AdminDemoConfig | null): TxDemoState {
   const g = globalThis as GlobalTx;
+  if (admin?.enabled) {
+    const key = adminDemoCacheKey(admin);
+    if (!g.__novaTransmissionAdminDemo || g.__novaTransmissionAdminDemo.key !== key) {
+      const specs = generateSyntheticTorrentSpecs(admin);
+      const torrents = specs.map((spec, i) => torrentFromSpec(spec, i + 1));
+      const labels = specs.map((s) => s.label).filter((label): label is string => Boolean(label));
+      g.__novaTransmissionAdminDemo = {
+        key,
+        state: emptyTxState(torrents, torrents.length + 1, labels),
+      };
+    }
+    return g.__novaTransmissionAdminDemo.state;
+  }
   if (!g.__novaTransmissionDemo) {
-    const torrents = seedTorrents();
-    g.__novaTransmissionDemo = {
-      sessions: new Set(),
-      torrents,
-      nextId: 9,
-      session: defaultSession(),
-      webConfig: { show_sidebar: true, show_session_speed: true, sidebar_show_zero: false },
-      knownLabels: new Set(["linux", "movies"]),
-      uploads: {},
-      lastTick: Date.now(),
-      labelsSupported: true,
-    };
+    g.__novaTransmissionDemo = emptyTxState(seedTorrents(), 10, ["linux", "movies"]);
   }
   return g.__novaTransmissionDemo;
 }
 
+export function resetTransmissionAdminDemo() {
+  delete (globalThis as GlobalTx).__novaTransmissionAdminDemo;
+}
+
 function tickDownloads(state: TxDemoState) {
   const now = Date.now();
-  const dt = Math.min(5, (now - state.lastTick) / 1000);
+  const dt = Math.min(5, Math.max(0.2, (now - state.lastTick) / 1000));
   state.lastTick = now;
   for (const torrent of state.torrents) {
-    if (torrent.status !== TR_STATUS.DOWNLOAD) continue;
-    const rate = Number(torrent.rateDownload ?? 0) || 0;
-    if (rate <= 0) continue;
     const size = Number(torrent.sizeWhenDone ?? 0) || 0;
-    const done = Math.min(size, (Number(torrent.downloadedEver ?? 0) || 0) + rate * dt);
-    torrent.downloadedEver = done;
-    torrent.leftUntilDone = Math.max(0, size - done);
-    torrent.percentDone = size > 0 ? done / size : 1;
-    if (size > 0 && done >= size) {
-      torrent.status = TR_STATUS.SEED;
-      torrent.percentDone = 1;
-      torrent.rateDownload = 0;
-      torrent.isFinished = true;
-      torrent.doneDate = nowSec();
+    if (torrent.status === TR_STATUS.DOWNLOAD) {
+      const rate = Number(torrent.rateDownload ?? 0) || 0;
+      if (rate > 0 && size > 0) {
+        const done = Math.min(size, (Number(torrent.downloadedEver ?? 0) || 0) + rate * dt);
+        torrent.downloadedEver = done;
+        torrent.leftUntilDone = Math.max(0, size - done);
+        torrent.percentDone = done / size;
+        if (done >= size) {
+          torrent.status = TR_STATUS.SEED;
+          torrent.percentDone = 1;
+          torrent.rateDownload = 0;
+          torrent.isFinished = true;
+          torrent.doneDate = nowSec();
+        }
+      }
+      torrent.rateDownload = Math.max(
+        80 * 1024,
+        (Number(torrent.rateDownload ?? 0) || 0) + (Math.random() - 0.5) * 200 * 1024
+      );
+      torrent.rateUpload = Math.max(
+        0,
+        (Number(torrent.rateUpload ?? 0) || 0) + (Math.random() - 0.45) * 20 * 1024
+      );
+    } else if (torrent.status === TR_STATUS.SEED) {
+      const up = Number(torrent.rateUpload ?? 0) || 0;
+      torrent.uploadedEver = (Number(torrent.uploadedEver ?? 0) || 0) + up * dt;
+      torrent.uploadRatio = size > 0 ? (Number(torrent.uploadedEver ?? 0) || 0) / size : 0;
+      torrent.rateUpload = Math.max(32 * 1024, up + (Math.random() - 0.5) * 80 * 1024);
+    } else if (torrent.status === TR_STATUS.CHECK) {
+      const next = Math.min(1, (Number(torrent.percentDone ?? 0) || 0) + dt * 0.04);
+      torrent.percentDone = next;
+      torrent.recheckProgress = next;
+      if (next >= 1) {
+        torrent.status = TR_STATUS.SEED;
+        torrent.percentDone = 1;
+        torrent.isFinished = true;
+        torrent.recheckProgress = 1;
+        torrent.doneDate = nowSec();
+      }
     }
   }
 }
@@ -390,28 +502,42 @@ export function transmissionDemoCookie(header: string | null): string | undefine
   return parseCookie(header)[TX_SESSION_COOKIE];
 }
 
-export function isTransmissionDemoAuthed(cookieHeader: string | null): boolean {
+export function isTransmissionDemoAuthed(
+  cookieHeader: string | null,
+  admin?: AdminDemoConfig | null
+): boolean {
   const sid = transmissionDemoCookie(cookieHeader);
-  return Boolean(sid && getState().sessions.has(sid));
+  return Boolean(sid && getState(admin).sessions.has(sid));
 }
 
-export function loginTransmissionDemo(password: string): { ok: boolean; setCookie?: string } {
-  if (password !== DEMO_PASSWORD) return { ok: false };
+export function loginTransmissionDemo(
+  password: string,
+  admin?: AdminDemoConfig | null
+): { ok: boolean; setCookie?: string } {
+  if (!admin?.enabled && password !== DEMO_PASSWORD) return { ok: false };
   const sid = randomBytes(16).toString("hex");
-  getState().sessions.add(sid);
+  getState(admin).sessions.add(sid);
   return { ok: true, setCookie: `${TX_SESSION_COOKIE}=${sid}; Path=/; HttpOnly; SameSite=Lax` };
 }
 
-export function logoutTransmissionDemo(cookieHeader: string | null): string {
+export function logoutTransmissionDemo(
+  cookieHeader: string | null,
+  admin?: AdminDemoConfig | null
+): string {
   const sid = transmissionDemoCookie(cookieHeader);
-  if (sid) getState().sessions.delete(sid);
+  if (sid) getState(admin).sessions.delete(sid);
   return `${TX_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
 }
 
-export function handleTransmissionDemoUpload(name: string, size: number, metainfo = "") {
+export function handleTransmissionDemoUpload(
+  name: string,
+  size: number,
+  metainfo = "",
+  admin?: AdminDemoConfig | null
+) {
   const infoHash = fakeHash(name + String(size));
   const path = `/tmp/nova-tx-${infoHash}.torrent`;
-  getState().uploads[path] = {
+  getState(admin).uploads[path] = {
     name: name.replace(/\.torrent$/i, "") || name,
     size: size || 400 * 1024 ** 2,
     metainfo,
@@ -421,20 +547,26 @@ export function handleTransmissionDemoUpload(name: string, size: number, metainf
   return { success: true, files: [path] };
 }
 
-export function getTransmissionDemoUpload(path: string): UploadRecord | undefined {
-  return getState().uploads[path];
+export function getTransmissionDemoUpload(
+  path: string,
+  admin?: AdminDemoConfig | null
+): UploadRecord | undefined {
+  return getState(admin).uploads[path];
 }
 
-export function getTransmissionDemoWebConfig(): Record<string, unknown> {
-  return { ...getState().webConfig };
+export function getTransmissionDemoWebConfig(admin?: AdminDemoConfig | null): Record<string, unknown> {
+  return { ...getState(admin).webConfig };
 }
 
-export function setTransmissionDemoWebConfig(patch: Record<string, unknown>) {
-  Object.assign(getState().webConfig, patch);
+export function setTransmissionDemoWebConfig(
+  patch: Record<string, unknown>,
+  admin?: AdminDemoConfig | null
+) {
+  Object.assign(getState(admin).webConfig, patch);
 }
 
-export function transmissionDemoLabels(): string[] {
-  const state = getState();
+export function transmissionDemoLabels(admin?: AdminDemoConfig | null): string[] {
+  const state = getState(admin);
   const set = new Set(state.knownLabels);
   for (const torrent of state.torrents) {
     for (const label of torrent.labels ?? []) if (label) set.add(label);
@@ -442,35 +574,42 @@ export function transmissionDemoLabels(): string[] {
   return [...set].sort();
 }
 
-export function transmissionDemoLabelsSupported(): boolean {
-  return getState().labelsSupported;
+export function transmissionDemoLabelsSupported(admin?: AdminDemoConfig | null): boolean {
+  return getState(admin).labelsSupported;
 }
 
-export function addTransmissionDemoLabel(name: string) {
-  getState().knownLabels.add(name);
+export function addTransmissionDemoLabel(name: string, admin?: AdminDemoConfig | null) {
+  getState(admin).knownLabels.add(name);
 }
 
-export function removeTransmissionDemoLabel(name: string) {
-  const state = getState();
+export function removeTransmissionDemoLabel(name: string, admin?: AdminDemoConfig | null) {
+  const state = getState(admin);
   state.knownLabels.delete(name);
   for (const torrent of state.torrents) {
     torrent.labels = (torrent.labels ?? []).filter((l) => l !== name);
   }
 }
 
-export function setTransmissionDemoTorrentLabel(id: number | string, label: string) {
-  const state = getState();
+export function setTransmissionDemoTorrentLabel(
+  id: number | string,
+  label: string,
+  admin?: AdminDemoConfig | null
+) {
+  const state = getState(admin);
   for (const torrent of idsOf({ ids: [id] }, state)) {
     torrent.labels = label ? [label] : [];
   }
   if (label) state.knownLabels.add(label);
 }
 
-export function handleTransmissionDemoRpc(body: TransmissionRpcRequest): TransmissionRpcResponse {
+export function handleTransmissionDemoRpc(
+  body: TransmissionRpcRequest,
+  admin?: AdminDemoConfig | null
+): TransmissionRpcResponse {
   const method = body.method;
   const args = (body.arguments ?? {}) as Record<string, unknown>;
   const tag = body.tag;
-  const state = getState();
+  const state = getState(admin);
   tickDownloads(state);
 
   switch (method) {

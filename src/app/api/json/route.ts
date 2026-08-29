@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { clientKindFromRequest } from "@/lib/backend/request";
 import { handleDemoRpc, type JsonRpcRequest } from "@/lib/deluge/demo";
 import { jsonRpcError, proxyDeluge, resolveDelugeTarget } from "@/lib/deluge/proxy";
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
   const resolved = resolveDelugeTarget(req);
   if (resolved.error) return jsonRpcError(body.id ?? null, resolved.error, 400);
   if (resolved.demo) {
-    const demo = handleDemoRpc(body, req.headers.get("cookie"));
+    const admin = parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"));
+    const demo = handleDemoRpc(body, req.headers.get("cookie"), admin);
     const res = NextResponse.json({ id: demo.id, result: demo.result, error: demo.error });
     if (demo.setCookie) res.headers.append("Set-Cookie", demo.setCookie);
     return res;
@@ -60,6 +62,7 @@ async function handleTransmissionJson(req: NextRequest, body: JsonRpcRequest) {
       cookieHeader: req.headers.get("cookie"),
       live,
       password: req.headers.get("x-transmission-password") ?? "",
+      admin: parseAdminDemoHeader(req.headers.get("x-nova-admin-demo")),
     });
     const res = NextResponse.json({ id: demo.id, result: demo.result, error: demo.error });
     const cookies = demo.setCookie == null ? [] : Array.isArray(demo.setCookie) ? demo.setCookie : [demo.setCookie];

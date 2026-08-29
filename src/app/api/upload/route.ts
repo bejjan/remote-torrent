@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { clientKindFromRequest } from "@/lib/backend/request";
 import { handleDemoUpload } from "@/lib/deluge/demo";
 import { proxyDeluge, resolveDelugeTarget, uploadError } from "@/lib/deluge/proxy";
@@ -20,7 +21,11 @@ export async function POST(req: NextRequest) {
   const name = file?.name || "upload.torrent";
   const size = file instanceof File ? file.size : 0;
 
-  if (resolved.demo) return NextResponse.json(handleDemoUpload(name, size));
+  if (resolved.demo) {
+    return NextResponse.json(
+      handleDemoUpload(name, size, parseAdminDemoHeader(req.headers.get("x-nova-admin-demo")))
+    );
+  }
   if (!file) {
     return uploadError(
       "Failed to upload torrent: no file in the multipart body (expected field name \"file\").",
@@ -52,5 +57,12 @@ async function handleTransmissionUpload(req: NextRequest) {
     );
   }
   const bytes = Buffer.from(await file.arrayBuffer());
-  return NextResponse.json(handleTransmissionDemoUpload(name, size, bytes.toString("base64")));
+  return NextResponse.json(
+    handleTransmissionDemoUpload(
+      name,
+      size,
+      bytes.toString("base64"),
+      parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))
+    )
+  );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { findUploadedFile } from "@/lib/deluge/upload-multipart";
 import { handleTransmissionDemoUpload } from "@/lib/transmission/demo";
 import { resolveTransmissionTarget, transmissionUploadError } from "@/lib/transmission/proxy";
@@ -18,5 +19,12 @@ export async function POST(req: NextRequest) {
     );
   }
   const bytes = Buffer.from(await file.arrayBuffer());
-  return NextResponse.json(handleTransmissionDemoUpload(file.name || "upload.torrent", file.size, bytes.toString("base64")));
+  return NextResponse.json(
+    handleTransmissionDemoUpload(
+      file.name || "upload.torrent",
+      file.size,
+      bytes.toString("base64"),
+      parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))
+    )
+  );
 }

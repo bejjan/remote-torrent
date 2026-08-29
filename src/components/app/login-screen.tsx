@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Brand } from "@/components/app/brand";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -11,6 +11,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  ADMIN_DEMO_DEFAULT_COUNT,
+  ADMIN_DEMO_MAX_COUNT,
+  type StoredAdminDemo,
+  clampAdminDemoConfig,
+  defaultStoredAdminDemo,
+  getStoredAdminDemo,
+  setStoredAdminDemo,
+} from "@/lib/demo/admin-catalog";
 import {
   type ClientKind,
   getStoredClientKind,
@@ -61,6 +70,20 @@ function initialUsername(): string {
   return typeof window === "undefined" ? "" : getStoredTransmissionUsername();
 }
 
+function initialAdmin(): StoredAdminDemo {
+  return typeof window === "undefined" ? defaultStoredAdminDemo() : getStoredAdminDemo();
+}
+
+function yieldToPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
 export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [kind, setKind] = useState<ClientKind>(initialKind);
   const [delugeUrl, setDelugeUrl] = useState(initialDelugeUrl);
@@ -74,6 +97,13 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [admin, setAdmin] = useState<StoredAdminDemo>(initialAdmin);
+
+  function persistAdmin(next: StoredAdminDemo) {
+    const clamped = { ...clampAdminDemoConfig(next), open: Boolean(next.open) };
+    setAdmin(clamped);
+    setStoredAdminDemo(clamped);
+  }
 
   const url = kind === "transmission" ? txUrl : delugeUrl;
   const port = kind === "transmission" ? txPort : delugePort;
@@ -143,19 +173,27 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     }
     setStoredClientKind(kind);
     setStoredTlsInsecure(tlsInsecure);
+    persistAdmin(admin);
     if (kind === "transmission") {
-      setStoredTransmissionUrl(target);
+      if (!admin.enabled) setStoredTransmissionUrl(target);
       setStoredTransmissionUsername(username);
-    } else {
+    } else if (!admin.enabled) {
       setStoredWebUrl(target);
     }
     try {
+      if (admin.enabled) await yieldToPaint();
       const ok = await rpc<boolean>("auth.login", [password]);
       if (!ok) {
         setError(kind === "transmission" ? "Incorrect username or password." : "Incorrect password.");
         return;
       }
-      toast.success(target ? "Signed in" : "Signed in to demo mode");
+      toast.success(
+        admin.enabled
+          ? `Signed in to load-test (${admin.count.toLocaleString()} torrents)`
+          : target
+            ? "Signed in"
+            : "Signed in to demo mode"
+      );
       onLoggedIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -320,11 +358,141 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             ) : null}
             <Button type="submit" disabled={busy} className="w-full">
               {busy ? <Loader2 className="animate-spin" /> : null}
-              {busy ? "Signing in…" : "Sign in"}
+              {busy
+                ? admin.enabled
+                  ? `Generating ${admin.count.toLocaleString()} torrents…`
+                  : "Signing in…"
+                : "Sign in"}
             </Button>
+            <AdminDemoFoldout admin={admin} onChange={persistAdmin} />
           </form>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function AdminDemoFoldout({
+  admin,
+  onChange,
+}: {
+  admin: StoredAdminDemo;
+  onChange: (next: StoredAdminDemo) => void;
+}) {
+  function patch(partial: Partial<StoredAdminDemo>) {
+    onChange({ ...admin, ...partial });
+  }
+
+  return (
+    <details
+      className="rounded-md border border-transparent text-muted-foreground open:border-border/60 open:bg-muted/30"
+      open={admin.open}
+      onToggle={(e) => patch({ open: e.currentTarget.open })}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-1 px-1 py-1.5 text-xs marker:content-none [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          className={cn("size-3 shrink-0 transition-transform", admin.open && "rotate-90")}
+          aria-hidden
+        />
+        Admin: synthetic session
+      </summary>
+      <div className="flex flex-col gap-3 px-1 pb-2 pt-0.5">
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Load test with an in-memory Deluge or Transmission catalog. URL may stay blank. Password{" "}
+          <span className="font-mono text-foreground">deluge</span> or any value. No daemon.{" "}
+          {ADMIN_DEMO_MAX_COUNT.toLocaleString()} torrents will be slow.
+        </p>
+        <label className="flex items-start gap-2 text-sm leading-snug text-foreground">
+          <Checkbox
+            className="mt-0.5"
+            checked={admin.enabled}
+            onCheckedChange={(v) => patch({ enabled: v === true })}
+          />
+          <span>
+            Use dummy data
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Default {ADMIN_DEMO_DEFAULT_COUNT.toLocaleString()} torrents. Client selector above
+              still picks Deluge vs Transmission.
+            </span>
+          </span>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-1">
+            <Label htmlFor="admin-torrent-count" className="text-xs text-muted-foreground">
+              Torrent count
+            </Label>
+            <Input
+              id="admin-torrent-count"
+              type="number"
+              min={1}
+              max={ADMIN_DEMO_MAX_COUNT}
+              value={admin.count}
+              onChange={(e) => patch({ count: Number(e.target.value) })}
+              inputMode="numeric"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="admin-rng-seed" className="text-xs text-muted-foreground">
+              RNG seed
+            </Label>
+            <Input
+              id="admin-rng-seed"
+              type="number"
+              value={admin.seed}
+              onChange={(e) => patch({ seed: Number(e.target.value) })}
+              inputMode="numeric"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="grid gap-1">
+            <Label htmlFor="admin-seeding" className="text-xs text-muted-foreground">
+              Seeding %
+            </Label>
+            <Input
+              id="admin-seeding"
+              type="number"
+              min={0}
+              max={100}
+              value={admin.seedingPct}
+              onChange={(e) => patch({ seedingPct: Number(e.target.value) })}
+              inputMode="numeric"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="admin-downloading" className="text-xs text-muted-foreground">
+              Downloading %
+            </Label>
+            <Input
+              id="admin-downloading"
+              type="number"
+              min={0}
+              max={100}
+              value={admin.downloadingPct}
+              onChange={(e) => patch({ downloadingPct: Number(e.target.value) })}
+              inputMode="numeric"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="admin-paused" className="text-xs text-muted-foreground">
+              Paused %
+            </Label>
+            <Input
+              id="admin-paused"
+              type="number"
+              min={0}
+              max={100}
+              value={admin.pausedPct}
+              onChange={(e) => patch({ pausedPct: Number(e.target.value) })}
+              inputMode="numeric"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Leftover percent becomes checking, queued, and error. Same seed rebuilds the same catalog
+          after reload.
+        </p>
+      </div>
+    </details>
   );
 }
