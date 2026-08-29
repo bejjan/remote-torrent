@@ -63,7 +63,6 @@ function FileTreeNode({
   if (node.type === "file") {
     return (
       <TreeRow
-        leading={<span className="inline-block size-6 shrink-0" aria-hidden />}
         icon={<FileKindIcon name={name} />}
         name={name}
         size={node.size}
@@ -150,7 +149,7 @@ function TreeRow({
   progress,
   action,
 }: {
-  leading: ReactNode;
+  leading?: ReactNode;
   icon: ReactNode;
   name: string;
   nameClass?: string;

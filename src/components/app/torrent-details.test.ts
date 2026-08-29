@@ -64,6 +64,7 @@ assert.match(tree, /ChevronRight/);
 assert.match(tree, /defaultFolderExpanded\(depth, huge\)/);
 assert.match(tree, /isHugeFileTree\(node\)/);
 assert.match(tree, /aria-expanded=\{open\}/);
+assert.doesNotMatch(tree, /inline-block size-6 shrink-0/);
 assert.match(tree, /open \? "ml-3 min-w-0 overflow-hidden border-l pl-3" : "hidden"/);
 assert.match(tree, /min-w-0 truncate/);
 assert.match(tree, /@min-\[420px\]:w-36/);
