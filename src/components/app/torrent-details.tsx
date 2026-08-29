@@ -216,12 +216,14 @@ function DetailsHeader({
             {title}
           </ContextMenuTrigger>
           <ContextMenuContent className="min-w-48" side="bottom" align="end">
-            <ContextMenuRadioGroup
-              value={dock}
-              onValueChange={(value) => {
-                if (value === "bottom" || value === "right") onDockChange(value);
-              }}
-            >
+          <ContextMenuRadioGroup
+            value={dock}
+            onValueChange={(value) => {
+              if (value === "bottom" || value === "right") {
+                window.setTimeout(() => onDockChange(value), 0);
+              }
+            }}
+          >
               <ContextMenuRadioItem value="bottom">
                 <PanelBottom />
                 Display at bottom
@@ -269,8 +271,8 @@ function DetailsDockControl({
             value={dock}
             onValueChange={(value) => {
               if (value === "bottom" || value === "right") {
-                onDockChange(value);
                 setMenuOpen(false);
+                window.setTimeout(() => onDockChange(value), 0);
               }
             }}
           >
