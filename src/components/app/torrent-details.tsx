@@ -29,10 +29,11 @@ import {
   formatBytes,
   formatDate,
   formatDuration,
-  formatEta,
   formatProgress,
   formatRate,
   formatRatio,
+  formatTorrentEta,
+  formatTorrentRate,
   formatSwarmCount,
 } from "@/lib/deluge/format";
 import type { DetailsDock } from "@/lib/deluge/ui-layout";
@@ -301,7 +302,7 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
     ["Name", torrent.name],
     ["State", <StateBadge key="s" state={torrent.state} message={torrent.message} />],
     ["Size", `${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`],
-    ["ETA", formatEta(torrent.eta)],
+    ["ETA", formatTorrentEta(torrent.eta, torrent.progress)],
     ["Ratio", formatRatio(torrent.ratio)],
     ["Seeds", formatSwarmCount(torrent.num_seeds, torrent.total_seeds)],
     ["Peers", formatSwarmCount(torrent.num_peers, torrent.total_peers)],
@@ -336,8 +337,8 @@ function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
         <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @min-[360px]:grid-cols-2">
           <TransferStat label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
           <TransferStat label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
-          <TransferStat label="Download speed" value={formatRate(torrent.download_payload_rate)} />
-          <TransferStat label="Upload speed" value={formatRate(torrent.upload_payload_rate)} />
+          <TransferStat label="Download speed" value={formatTorrentRate(torrent.download_payload_rate)} />
+          <TransferStat label="Upload speed" value={formatTorrentRate(torrent.upload_payload_rate)} />
         </div>
       </div>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm @min-[360px]:grid-cols-2 @min-[640px]:grid-cols-3">

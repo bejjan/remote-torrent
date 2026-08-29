@@ -12,8 +12,10 @@ import {
   mergeKnownFilterNames,
   sidebarGroupRows,
   splitSpecialAll,
+  sidebarFilterTreeFromTorrents,
   stateAllCount,
   stateSidebarRows,
+  torrentMatchesSidebarFilter,
   visibleFilterTuples,
   type SidebarFilterRow,
 } from "./sidebar-filters";
@@ -545,6 +547,92 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.equal(html.includes("s2/favicons"), false, "empty and invalid hosts must not fetch favicons");
   assert.equal(html.includes("icons.duckduckgo.com"), false);
   assert.match(html, /lucide-globe/, "empty tracker hosts fall back to Globe");
+}
+
+{
+  const many: FilterTuple[] = [
+    ["All", 2000],
+    ...Array.from({ length: 200 }, (_, i) => [`tracker-${i}.example`, 200 - (i % 50)] as FilterTuple),
+  ];
+  const rows = sidebarGroupRows(many, {
+    showZero: false,
+    fallbackAllCount: 2000,
+    allValue: "",
+    emptyLabel: "(empty)",
+    namedAllLabel: "All (tracker)",
+    maxNamedRows: SIDEBAR_TRACKER_ROW_CAP,
+    keepValue: "tracker-199.example",
+  });
+  assert.ok(rows.length <= SIDEBAR_TRACKER_ROW_CAP + 1);
+  assert.ok(rows.some((row) => row.value === "tracker-199.example"));
+  assert.equal(rows[0].isAll, true);
+  const capped = capNamedSidebarRows(
+    [
+      { value: "", label: "All", count: 10, isAll: true },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        value: `t${i}`,
+        label: `t${i}`,
+        count: i,
+        isAll: false,
+      })),
+    ],
+    2,
+    "t0"
+  );
+  assert.equal(capped.filter((row) => !row.isAll).length, 2);
+  assert.ok(capped.some((row) => row.value === "t0"));
+}
+
+{
+  const checking = {
+    state: "Checking",
+    tracker_host: "bttracker.debian.org",
+    label: "linux",
+    download_payload_rate: 0,
+    upload_payload_rate: 0,
+  } as const;
+  const seeding = {
+    state: "Seeding",
+    tracker_host: "archive.ubuntu.com",
+    label: "linux",
+    download_payload_rate: 0,
+    upload_payload_rate: 1024,
+  } as const;
+  const all = { state: "All", tracker: "", label: "__all__" };
+  assert.equal(torrentMatchesSidebarFilter(checking as never, all), true);
+  assert.equal(
+    torrentMatchesSidebarFilter(checking as never, { ...all, state: "Checking" }),
+    true
+  );
+  assert.equal(
+    torrentMatchesSidebarFilter(seeding as never, { ...all, state: "Checking" }),
+    false
+  );
+
+  const tree = sidebarFilterTreeFromTorrents(
+    [checking, seeding] as never,
+    { state: "Checking", tracker: "", label: "__all__" }
+  );
+  assert.deepEqual(
+    Object.fromEntries(tree.tracker_host),
+    { All: 1, "bttracker.debian.org": 1 }
+  );
+  assert.equal(tree.state.find(([name]) => name === "Checking")?.[1], 1);
+  assert.equal(tree.state.find(([name]) => name === "Seeding")?.[1], 1);
+  assert.equal(tree.state.find(([name]) => name === "All")?.[1], 2);
+
+  const byTracker = sidebarFilterTreeFromTorrents(
+    [checking, seeding] as never,
+    { state: "All", tracker: "bttracker.debian.org", label: "__all__" }
+  );
+  assert.equal(byTracker.state.find(([name]) => name === "Checking")?.[1], 1);
+  assert.equal(byTracker.state.find(([name]) => name === "Seeding")?.[1], 0);
+  assert.equal(byTracker.state.find(([name]) => name === "All")?.[1], 1);
+  assert.deepEqual(Object.fromEntries(byTracker.tracker_host), {
+    All: 2,
+    "bttracker.debian.org": 1,
+    "archive.ubuntu.com": 1,
+  });
 }
 
 console.log("sidebar-filters tests passed");

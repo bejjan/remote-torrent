@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import {
+  formatTorrentEta,
+  formatTorrentRate,
   formatSwarmCount,
   isUnusableTrackerFavicon,
   trackerFaviconHost,
@@ -8,6 +10,13 @@ import {
   trackerFaviconSources,
   trackerFaviconUrl,
 } from "./format";
+
+assert.equal(formatTorrentRate(0), "—");
+assert.equal(formatTorrentRate(-1), "—");
+assert.equal(formatTorrentRate(1024), "1.0 KiB/s");
+assert.equal(formatTorrentEta(90, 100), "—");
+assert.equal(formatTorrentEta(90, 99.95), "—");
+assert.equal(formatTorrentEta(90, 50), "1m 30s");
 
 assert.equal(formatSwarmCount(0, -1), "0");
 assert.equal(formatSwarmCount(3, -1), "3");

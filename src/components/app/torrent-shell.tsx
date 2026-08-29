@@ -67,7 +67,11 @@ import {
   decideEscapeSelectionAction,
   hasOpenDismissibleOverlay,
 } from "@/lib/deluge/escape-selection";
-import { clampSidebarSelection } from "@/lib/deluge/sidebar-filters";
+import {
+  clampSidebarSelection,
+  filterTorrentMap,
+  sidebarFilterTreeFromTorrents,
+} from "@/lib/deluge/sidebar-filters";
 import {
   applyColumnVisibility,
   defaultTorrentColumnOrder,
@@ -85,7 +89,7 @@ import {
   filterAndSortTorrents,
   type TorrentSortKey,
 } from "@/lib/deluge/torrent-list";
-import type { FilterDict, SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
+import type { SessionStats, TorrentStatus, UiUpdate } from "@/lib/deluge/types";
 import { mergeUiUpdate } from "@/lib/deluge/ui-merge";
 import { pruneActiveId, pruneSelectedIds } from "@/lib/deluge/selection";
 import {
@@ -274,20 +278,10 @@ export function TorrentShell({
     setShowSessionSpeed(isWebSessionSpeedVisible(web));
   }, []);
 
-  const filterDict = useMemo<FilterDict>(() => {
-    const dict: FilterDict = {};
-    if (filters.state && filters.state !== "All") dict.state = [filters.state];
-    if (filters.tracker) dict.tracker_host = [filters.tracker];
-    if (filters.label && filters.label !== "__all__") {
-      dict.label = [filters.label === "__none__" ? "" : filters.label];
-    }
-    return dict;
-  }, [filters]);
-
   const poll = useCallback(async () => {
     const gen = ++pollGen.current;
     try {
-      const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], filterDict]);
+      const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], {}]);
       if (gen !== pollGen.current) return;
       setUi((prev) => mergeUiUpdate(prev, result));
       setError(null);
@@ -298,7 +292,7 @@ export function TorrentShell({
     } finally {
       if (gen === pollGen.current) setLoading(false);
     }
-  }, [filterDict]);
+  }, []);
 
   useEffect(() => {
     void poll();
@@ -351,9 +345,17 @@ export function TorrentShell({
     };
   }, [prefsOpen, applyWebUi, refreshLabels]);
 
+  const sidebarFilterTree = useMemo(
+    () => sidebarFilterTreeFromTorrents(Object.values(ui?.torrents ?? {}), filters),
+    [ui?.torrents, filters]
+  );
+  const visibleTorrents = useMemo(
+    () => filterTorrentMap(ui?.torrents, filters),
+    [ui?.torrents, filters]
+  );
+
   useEffect(() => {
-    const tree = ui?.filters;
-    if (!tree) return;
+    const tree = sidebarFilterTree;
     setFilters((prev) => {
       const next = clampSidebarSelection(
         prev,
@@ -368,7 +370,7 @@ export function TorrentShell({
       }
       return next;
     });
-  }, [ui?.filters, showZeroFilters, labels]);
+  }, [sidebarFilterTree, showZeroFilters, labels]);
 
   useEffect(() => {
     const map = ui?.torrents;
@@ -378,8 +380,8 @@ export function TorrentShell({
   }, [ui?.torrents]);
 
   const torrents = useMemo(
-    () => filterAndSortTorrents(ui?.torrents, search, sortKey, sortDir),
-    [ui?.torrents, search, sortKey, sortDir]
+    () => filterAndSortTorrents(visibleTorrents, search, sortKey, sortDir),
+    [visibleTorrents, search, sortKey, sortDir]
   );
 
   const selectedIds = useMemo(() => [...selected], [selected]);
@@ -758,7 +760,7 @@ export function TorrentShell({
           >
             <aside className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
               <FilterSidebar
-                filters={ui?.filters ?? null}
+                filters={sidebarFilterTree}
                 selected={filters}
                 onSelect={setFilters}
                 showZero={showZeroFilters}
@@ -839,7 +841,7 @@ export function TorrentShell({
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
           <FilterSidebar
-            filters={ui?.filters ?? null}
+            filters={sidebarFilterTree}
             selected={filters}
             onSelect={(next) => {
               setFilters(next);
