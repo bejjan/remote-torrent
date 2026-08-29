@@ -598,7 +598,11 @@ export function TorrentShell({
       className="h-full"
       dock={detailsDock}
       onDockChange={changeDetailsDock}
-      onClose={closeDesktopDetails}
+      onClose={() => {
+        setActiveId(null);
+        setSelected(new Set());
+        setDetailsOpen(false);
+      }}
     />
   );
 
@@ -764,11 +768,14 @@ export function TorrentShell({
         ) : null}
         <div
           ref={mainColRef}
-          className={cn("flex min-h-0 min-w-0 flex-1", dockRight ? "flex-row" : "flex-col")}
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1",
+            !mobile && detailsDock === "right" && primary ? "flex-row" : "flex-col"
+          )}
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{table}</div>
-          {desktopDetailsOpen ? (
-            dockRight ? (
+          {!mobile && primary ? (
+            detailsDock === "right" ? (
               <div
                 className="relative min-h-0 min-w-0 shrink-0 self-stretch border-l"
                 data-details-dock="right"
