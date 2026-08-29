@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
@@ -99,11 +100,22 @@ function ProgressBar({
 }
 
 export function TorrentDashboard() {
+  const searchParams = useSearchParams();
+  const shot = searchParams.get("shot");
   const [filter, setFilter] = useState<(typeof STATE_FILTERS)[number]>("All");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  useEffect(() => {
+    if (shot === "details") {
+      const firstId = Object.keys(DEMO_TORRENTS)[0];
+      if (firstId) setDetailId(firstId);
+    } else if (shot === "add") {
+      setAddOpen(true);
+    }
+  }, [shot]);
 
   const entries = useMemo(() => Object.entries(DEMO_TORRENTS), []);
 

@@ -1,6 +1,6 @@
 # Deluge Nova
 
-A modern web UI for [Deluge](https://deluge-torrent.org/). Manage the queue, watch speeds, inspect files, and add magnets from a dark, compact browser workspace.
+A modern web UI for [Deluge](https://deluge-torrent.org/). Manage the queue, watch speeds, inspect files, and add magnets from a light, compact browser workspace.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="Nova torrent dashboard with filters, progress, and live speeds" />
