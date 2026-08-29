@@ -279,7 +279,7 @@ function Muted({ children }: { children: React.ReactNode }) {
 }
 
 function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
-  const wrapRows = new Set(["Name", "Tracker", "Tracker status", "Download folder", "Message", "Comment", "Creator"]);
+  const wrapRows = new Set(["Tracker", "Tracker status", "Download folder", "Message", "Comment", "Creator"]);
   const rows: [string, React.ReactNode][] = [
     ["Name", torrent.name],
     ["State", <StateBadge key="s" state={torrent.state} message={torrent.message} />],

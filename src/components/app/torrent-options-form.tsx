@@ -53,7 +53,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
 
   return (
     <form
-      className="grid min-w-0 grid-cols-1 gap-2.5 @min-[400px]:grid-cols-2"
+      className="grid min-w-0 grid-cols-1 gap-2.5 @min-[440px]:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
@@ -152,7 +152,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
         </OptionRow>
       </OptionSection>
 
-      <div className="@min-[400px]:col-span-2">
+      <div className="@min-[440px]:col-span-2">
         <Button type="submit" size="sm">
           Apply
         </Button>

@@ -42,7 +42,7 @@ assert.match(details, /line-clamp-2 min-w-0 break-all font-mono/);
 assert.doesNotMatch(details, /sm:grid-cols-2 lg:grid-cols-3/);
 
 const options = readFileSync(join(dir, "torrent-options-form.tsx"), "utf8");
-assert.match(options, /@min-\[400px\]:grid-cols-2/);
+assert.match(options, /@min-\[440px\]:grid-cols-2/);
 assert.match(options, /min-w-0 w-full font-mono/);
 assert.match(options, /grid-cols-\[minmax\(0,1fr\)_auto\]/);
 assert.doesNotMatch(options, /md:grid-cols-2/);
