@@ -62,8 +62,7 @@ assert.match(login, /min-w-0 max-w-md/);
 assert.match(login, /px-3 py-8 sm:px-4/);
 assert.match(login, /aria-label="Client"/);
 assert.match(login, /role="radiogroup"/);
-assert.match(login, />Deluge</);
-assert.match(login, />Transmission</);
+assert.match(login, /"deluge" \? "Deluge" : "Transmission"/);
 assert.match(login, /Transmission RPC URL/);
 
 console.log("torrent-shell toolbar breakpoint tests passed");

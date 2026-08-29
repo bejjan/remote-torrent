@@ -349,7 +349,7 @@ export function mapUiUpdate(
       for (const key of keys) {
         if (key in status) picked[key] = status[key as keyof TorrentStatus];
       }
-      mapped[id] = picked as TorrentStatus;
+      mapped[id] = picked as unknown as TorrentStatus;
     } else {
       mapped[id] = status;
     }

@@ -178,7 +178,7 @@ export async function handleTransmissionCompat(
           error: null,
         };
       case "web.set_config":
-        if (demo) setTransmissionDemoWebConfig((params[0] as object) || {});
+        if (demo) setTransmissionDemoWebConfig((params[0] as Record<string, unknown>) || {});
         return { id, result: null, error: null };
       case "web.get_plugins": {
         const labels = demo
