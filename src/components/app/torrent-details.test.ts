@@ -13,6 +13,19 @@ assert.match(details, /key=\{torrentId\}/);
 assert.match(details, /<FileTree/);
 assert.doesNotMatch(details, /function FileTree/);
 
+assert.match(details, /Display at bottom/);
+assert.match(details, /Display on the right/);
+assert.match(details, /aria-label="Details layout"/);
+assert.match(details, /DetailsDockControl/);
+assert.match(details, /ContextMenu/);
+assert.match(details, /DropdownMenu/);
+assert.match(details, /onDockChange/);
+assert.match(details, /TabsTrigger value="status"/);
+assert.match(details, /TabsTrigger value="files"/);
+assert.match(details, /TabsTrigger value="peers"/);
+assert.match(details, /TabsTrigger value="options"/);
+assert.match(details, /TabsTrigger value="trackers"/);
+
 assert.match(tree, /from "@\/components\/app\/file-tree-icons"/);
 assert.match(tree, /FileKindIcon/);
 assert.match(tree, /FolderTreeIcon/);

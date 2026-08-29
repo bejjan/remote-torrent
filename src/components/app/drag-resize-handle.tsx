@@ -13,17 +13,21 @@ export function DragResizeHandle({
   onDelta,
   onDragEnd,
   variant = "column",
+  edge = "end",
   className,
 }: {
   ariaLabel: string;
   onDelta: (delta: number) => void;
   onDragEnd?: () => void;
   variant?: "column" | "sidebar" | "row";
+  /** Horizontal handles sit on the end (right) by default; `start` is the left edge. */
+  edge?: "start" | "end";
   className?: string;
 }) {
   const [active, setActive] = useState(false);
   const dragging = useRef(false);
   const vertical = variant === "row";
+  const startEdge = !vertical && edge === "start";
 
   const startDrag = useCallback(
     (start: number, target: HTMLElement, pointerId?: number) => {
@@ -87,7 +91,9 @@ export function DragResizeHandle({
         "touch-none absolute z-20",
         vertical
           ? "row-resize-handle inset-x-0 top-0 h-2 -translate-y-1/2 cursor-row-resize"
-          : "col-resize-handle inset-y-0 right-0 w-2 translate-x-1/2 cursor-col-resize",
+          : startEdge
+            ? "col-resize-handle inset-y-0 left-0 w-2 -translate-x-1/2 cursor-col-resize"
+            : "col-resize-handle inset-y-0 right-0 w-2 translate-x-1/2 cursor-col-resize",
         className
       )}
       onPointerDown={(event) => {

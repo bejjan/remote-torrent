@@ -91,18 +91,27 @@ import { pruneActiveId, pruneSelectedIds } from "@/lib/deluge/selection";
 import {
   SELECT_COLUMN_ID,
   SIDEBAR_DEFAULT_WIDTH,
+  DETAILS_DEFAULT_DOCK,
   DETAILS_DEFAULT_HEIGHT,
+  DETAILS_DEFAULT_WIDTH,
   DETAILS_MIN_HEIGHT,
+  DETAILS_MIN_WIDTH,
   clampColumnWidth,
   clampDetailsHeight,
+  clampDetailsWidth,
   clampSidebarWidth,
   columnWidthFor,
+  loadDetailsDock,
   loadDetailsHeight,
+  loadDetailsWidth,
   loadSidebarWidth,
   loadTorrentColumnWidths,
+  saveDetailsDock,
   saveDetailsHeight,
+  saveDetailsWidth,
   saveSidebarWidth,
   saveTorrentColumnWidths,
+  type DetailsDock,
 } from "@/lib/deluge/ui-layout";
 import {
   DEFAULT_DOCUMENT_TITLE,
@@ -155,6 +164,8 @@ export function TorrentShell({
   const [columnOrder, setColumnOrder] = useState<TorrentColumnId[]>(defaultTorrentColumnOrder);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [detailsHeight, setDetailsHeight] = useState(DETAILS_DEFAULT_HEIGHT);
+  const [detailsWidth, setDetailsWidth] = useState(DETAILS_DEFAULT_WIDTH);
+  const [detailsDock, setDetailsDock] = useState<DetailsDock>(DETAILS_DEFAULT_DOCK);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const splitRef = useRef<HTMLDivElement>(null);
   const mainColRef = useRef<HTMLDivElement>(null);
@@ -171,6 +182,8 @@ export function TorrentShell({
     setColumnOrder(loadTorrentColumnOrder());
     setSidebarWidth(loadSidebarWidth());
     setDetailsHeight(loadDetailsHeight());
+    setDetailsWidth(loadDetailsWidth());
+    setDetailsDock(loadDetailsDock());
     setColumnWidths(loadTorrentColumnWidths());
   }, []);
 
@@ -217,6 +230,22 @@ export function TorrentShell({
       saveDetailsHeight(next);
       return next;
     });
+  }, []);
+
+  const resizeDetailsWidth = useCallback((dx: number) => {
+    const containerWidth = mainColRef.current?.getBoundingClientRect().width;
+    const viewportWidth = typeof window !== "undefined" ? window.innerWidth : undefined;
+    setDetailsWidth((width) => {
+      // Left-edge handle: pointer left (negative dx) grows the right panel.
+      const next = clampDetailsWidth(width - dx, viewportWidth, containerWidth);
+      saveDetailsWidth(next);
+      return next;
+    });
+  }, []);
+
+  const changeDetailsDock = useCallback((dock: DetailsDock) => {
+    setDetailsDock(dock);
+    saveDetailsDock(dock);
   }, []);
 
   const setColumnVisible = useCallback((id: TorrentColumnId, visible: boolean) => {
@@ -562,6 +591,15 @@ export function TorrentShell({
     />
   );
 
+  const details = (
+    <TorrentDetails
+      torrentId={primary}
+      torrent={primaryTorrent ?? null}
+      className="h-full"
+      dock={detailsDock}
+      onDockChange={changeDetailsDock}
+    />
+  );
 
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-background">
@@ -723,22 +761,43 @@ export function TorrentShell({
             />
           </div>
         ) : null}
-        <div ref={mainColRef} className="flex min-w-0 flex-1 flex-col">
-          {table}
+        <div
+          ref={mainColRef}
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1",
+            !mobile && detailsDock === "right" ? "flex-row" : "flex-col"
+          )}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{table}</div>
           {!mobile ? (
-            <div
-              className="relative min-h-0 shrink-0 border-t"
-              style={{ height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }}
-            >
-              <DragResizeHandle
-                variant="row"
-                ariaLabel="Resize torrent details"
-                onDelta={resizeDetails}
-              />
-              <div className="h-full min-h-0 overflow-hidden">
-                <TorrentDetails torrentId={primary} torrent={primaryTorrent ?? null} className="h-full" />
+            detailsDock === "right" ? (
+              <div
+                className="relative min-h-0 min-w-0 shrink-0 self-stretch border-l"
+                data-details-dock="right"
+                style={{ width: detailsWidth, minWidth: DETAILS_MIN_WIDTH, maxWidth: "70vw" }}
+              >
+                <DragResizeHandle
+                  variant="sidebar"
+                  edge="start"
+                  ariaLabel="Resize torrent details"
+                  onDelta={resizeDetailsWidth}
+                />
+                <div className="h-full min-h-0 overflow-hidden">{details}</div>
               </div>
-            </div>
+            ) : (
+              <div
+                className="relative min-h-0 shrink-0 border-t"
+                data-details-dock="bottom"
+                style={{ height: detailsHeight, minHeight: DETAILS_MIN_HEIGHT, maxHeight: "70vh" }}
+              >
+                <DragResizeHandle
+                  variant="row"
+                  ariaLabel="Resize torrent details"
+                  onDelta={resizeDetails}
+                />
+                <div className="h-full min-h-0 overflow-hidden">{details}</div>
+              </div>
+            )
           ) : null}
         </div>
       </div>

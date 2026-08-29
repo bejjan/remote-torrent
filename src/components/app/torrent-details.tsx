@@ -1,12 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { FileTree } from "@/components/app/torrent-file-tree";
 import { OptionsForm } from "@/components/app/torrent-options-form";
 import { PeerCountry } from "@/components/app/peer-country";
 import { StateBadge } from "@/components/app/state-badge";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rpc } from "@/lib/deluge/client";
@@ -20,6 +35,7 @@ import {
   formatRatio,
   formatSwarmCount,
 } from "@/lib/deluge/format";
+import type { DetailsDock } from "@/lib/deluge/ui-layout";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
@@ -27,10 +43,14 @@ export function TorrentDetails({
   torrentId,
   torrent,
   className,
+  dock,
+  onDockChange,
 }: {
   torrentId: string | null;
   torrent: TorrentStatus | null;
   className?: string;
+  dock?: DetailsDock;
+  onDockChange?: (dock: DetailsDock) => void;
 }) {
   const [tab, setTab] = useState("status");
   const [files, setFiles] = useState<FileNode | null>(null);
@@ -78,51 +98,101 @@ export function TorrentDetails({
     };
   }, [loadDetails]);
 
-  if (!torrentId || !detail) {
-    return (
-      <div className={cn("flex h-full items-center justify-center text-sm text-muted-foreground", className)}>
-        Select a torrent to inspect status, files, peers, and options.
-      </div>
-    );
-  }
-
   return (
     <Tabs value={tab} onValueChange={setTab} className={cn("flex h-full min-h-0 flex-col gap-0", className)}>
-      <div className="border-b px-2 pt-1">
-        <TabsList variant="line" className="w-full justify-start">
-          <TabsTrigger value="status">Status</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="peers">Peers</TabsTrigger>
-          <TabsTrigger value="options">Options</TabsTrigger>
-          <TabsTrigger value="trackers">Trackers</TabsTrigger>
-        </TabsList>
+      <div className="flex min-w-0 items-stretch border-b">
+        <div className="min-w-0 flex-1 overflow-x-auto px-2 pt-1">
+          <TabsList variant="line" className="w-max justify-start">
+            <TabsTrigger value="status">Status</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="peers">Peers</TabsTrigger>
+            <TabsTrigger value="options">Options</TabsTrigger>
+            <TabsTrigger value="trackers">Trackers</TabsTrigger>
+          </TabsList>
+        </div>
+        {onDockChange ? (
+          <DetailsDockControl dock={dock ?? "bottom"} onDockChange={onDockChange} />
+        ) : null}
       </div>
-      <TabsContent value="status" className="min-h-0 overflow-auto p-3">
-        <StatusGrid torrent={detail} />
-      </TabsContent>
-      <TabsContent value="files" className="min-h-0 overflow-auto p-3">
-        {files ? (
-          <FileTree
-            key={torrentId}
-            node={files}
-            torrentId={torrentId}
-            name={detail.name}
-            onApplied={loadDetails}
-          />
-        ) : (
-          <Muted>No files</Muted>
-        )}
-      </TabsContent>
-      <TabsContent value="peers" className="min-h-0 overflow-auto p-3">
-        <PeerTable peers={peers} />
-      </TabsContent>
-      <TabsContent value="options" className="min-h-0 overflow-auto p-3">
-        <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
-      </TabsContent>
-      <TabsContent value="trackers" className="min-h-0 overflow-auto p-3">
-        <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
-      </TabsContent>
+      {torrentId && detail ? (
+        <>
+          <TabsContent value="status" className="min-h-0 overflow-auto p-3">
+            <StatusGrid torrent={detail} />
+          </TabsContent>
+          <TabsContent value="files" className="min-h-0 overflow-auto p-3">
+            {files ? (
+              <FileTree
+                key={torrentId}
+                node={files}
+                torrentId={torrentId}
+                name={detail.name}
+                onApplied={loadDetails}
+              />
+            ) : (
+              <Muted>No files</Muted>
+            )}
+          </TabsContent>
+          <TabsContent value="peers" className="min-h-0 overflow-auto p-3">
+            <PeerTable peers={peers} />
+          </TabsContent>
+          <TabsContent value="options" className="min-h-0 overflow-auto p-3">
+            <OptionsForm key={torrentId} torrentId={torrentId} torrent={detail} />
+          </TabsContent>
+          <TabsContent value="trackers" className="min-h-0 overflow-auto p-3">
+            <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
+          </TabsContent>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-3 text-sm text-muted-foreground">
+          Select a torrent to inspect status, files, peers, and options.
+        </div>
+      )}
     </Tabs>
+  );
+}
+
+function DetailsDockControl({
+  dock,
+  onDockChange,
+}: {
+  dock: DetailsDock;
+  onDockChange: (dock: DetailsDock) => void;
+}) {
+  const apply = (value: string) => {
+    if (value === "bottom" || value === "right") onDockChange(value);
+  };
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger className="flex shrink-0 items-center self-stretch pr-1 pl-0.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Details layout"
+                className="text-muted-foreground"
+              />
+            }
+          >
+            <MoreHorizontal />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-44">
+            <DropdownMenuRadioGroup value={dock} onValueChange={apply}>
+              <DropdownMenuRadioItem value="bottom">Display at bottom</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="right">Display on the right</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-44" side="bottom" align="end">
+        <ContextMenuRadioGroup value={dock} onValueChange={apply}>
+          <ContextMenuRadioItem value="bottom">Display at bottom</ContextMenuRadioItem>
+          <ContextMenuRadioItem value="right">Display on the right</ContextMenuRadioItem>
+        </ContextMenuRadioGroup>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

@@ -5,10 +5,16 @@ import { fileURLToPath } from "node:url";
 import {
   COLUMN_MAX_WIDTH,
   DETAILS_ABS_MAX,
+  DETAILS_ABS_MAX_WIDTH,
   DETAILS_DEFAULT_HEIGHT,
+  DETAILS_DEFAULT_WIDTH,
+  DETAILS_DOCK_STORAGE_KEY,
   DETAILS_HEIGHT_STORAGE_KEY,
   DETAILS_MAX_VH,
+  DETAILS_MAX_VW,
   DETAILS_MIN_HEIGHT,
+  DETAILS_MIN_WIDTH,
+  DETAILS_WIDTH_STORAGE_KEY,
   MAIN_MIN_WIDTH,
   SELECT_COLUMN_ID,
   SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
@@ -18,6 +24,7 @@ import {
   TABLE_MIN_HEIGHT,
   clampColumnWidth,
   clampDetailsHeight,
+  clampDetailsWidth,
   clampSidebarWidth,
   columnWidthFor,
   defaultColumnWidth,
@@ -25,7 +32,9 @@ import {
   emptyCollapsedGroups,
   parseStoredCollapsedGroups,
   parseStoredColumnWidths,
+  parseStoredDetailsDock,
   parseStoredDetailsHeight,
+  parseStoredDetailsWidth,
   parseStoredSidebarWidth,
   serializeCollapsedGroups,
   toggleCollapsedGroup,
@@ -102,6 +111,32 @@ assert.equal(parseStoredDetailsHeight("200"), 200);
 assert.equal(parseStoredDetailsHeight("12"), DETAILS_MIN_HEIGHT);
 assert.equal(parseStoredDetailsHeight("900", 1000), Math.round(1000 * DETAILS_MAX_VH));
 
+assert.equal(DETAILS_WIDTH_STORAGE_KEY, "deluge-nova:details-width");
+assert.equal(DETAILS_DOCK_STORAGE_KEY, "deluge-nova:details-dock");
+assert.equal(clampDetailsWidth(Number.NaN), DETAILS_DEFAULT_WIDTH);
+assert.equal(clampDetailsWidth(100), DETAILS_MIN_WIDTH);
+assert.equal(clampDetailsWidth(9000), DETAILS_ABS_MAX_WIDTH);
+assert.equal(clampDetailsWidth(400), 400);
+assert.equal(clampDetailsWidth(900, 1000), Math.round(1000 * DETAILS_MAX_VW));
+{
+  const container = DETAILS_MIN_WIDTH + MAIN_MIN_WIDTH + 40;
+  assert.equal(clampDetailsWidth(900, 2000, container), container - MAIN_MIN_WIDTH);
+}
+assert.equal(clampDetailsWidth(100, 1000, 400), DETAILS_MIN_WIDTH);
+
+assert.equal(parseStoredDetailsWidth(null), DETAILS_DEFAULT_WIDTH);
+assert.equal(parseStoredDetailsWidth(""), DETAILS_DEFAULT_WIDTH);
+assert.equal(parseStoredDetailsWidth("not-a-number"), DETAILS_DEFAULT_WIDTH);
+assert.equal(parseStoredDetailsWidth("320"), 320);
+assert.equal(parseStoredDetailsWidth("12"), DETAILS_MIN_WIDTH);
+assert.equal(parseStoredDetailsWidth("900", 1000), Math.round(1000 * DETAILS_MAX_VW));
+
+assert.equal(parseStoredDetailsDock(null), "bottom");
+assert.equal(parseStoredDetailsDock(""), "bottom");
+assert.equal(parseStoredDetailsDock("left"), "bottom");
+assert.equal(parseStoredDetailsDock("right"), "right");
+assert.equal(parseStoredDetailsDock("bottom"), "bottom");
+
 {
   const here = dirname(fileURLToPath(import.meta.url));
   const shell = readFileSync(join(here, "../../components/app/torrent-shell.tsx"), "utf8");
@@ -111,12 +146,24 @@ assert.equal(parseStoredDetailsHeight("900", 1000), Math.round(1000 * DETAILS_MA
   assert.match(shell, /saveDetailsHeight/);
   assert.match(shell, /resizeDetails/);
   assert.match(shell, /height - dy/);
+  assert.match(shell, /loadDetailsWidth/);
+  assert.match(shell, /saveDetailsWidth/);
+  assert.match(shell, /loadDetailsDock/);
+  assert.match(shell, /saveDetailsDock/);
+  assert.match(shell, /resizeDetailsWidth/);
+  assert.match(shell, /width - dx/);
+  assert.match(shell, /edge="start"/);
+  assert.match(shell, /data-details-dock="right"/);
+  assert.match(shell, /data-details-dock="bottom"/);
+  assert.match(shell, /onDockChange=\{changeDetailsDock\}/);
   assert.doesNotMatch(shell, /h-\[min\(16rem,36vh\)\]/);
 
   const handle = readFileSync(join(here, "../../components/app/drag-resize-handle.tsx"), "utf8");
   assert.match(handle, /variant === "row"/);
   assert.match(handle, /ev\.clientY/);
   assert.match(handle, /cursor-row-resize/);
+  assert.match(handle, /edge === "start"/);
+  assert.match(handle, /left-0 w-2 -translate-x-1\/2/);
   assert.match(handle, /aria-orientation=\{vertical \? "horizontal" : "vertical"\}/);
 }
 

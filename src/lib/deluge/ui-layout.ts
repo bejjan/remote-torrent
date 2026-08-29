@@ -2,6 +2,8 @@
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = "deluge-nova:sidebar-width";
 export const DETAILS_HEIGHT_STORAGE_KEY = "deluge-nova:details-height";
+export const DETAILS_WIDTH_STORAGE_KEY = "deluge-nova:details-width";
+export const DETAILS_DOCK_STORAGE_KEY = "deluge-nova:details-dock";
 export const TORRENT_COLUMN_WIDTHS_STORAGE_KEY = "deluge-nova:torrent-column-widths";
 /** Collapsed filter-sidebar group ids. Default is all expanded (empty set). */
 export const SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY = "deluge-nova:sidebar-collapsed-groups";
@@ -27,6 +29,21 @@ export const DETAILS_MAX_VH = 0.7;
 export const DETAILS_ABS_MAX = 4096;
 /** Leave at least this much room for the torrent table when resizing details. */
 export const TABLE_MIN_HEIGHT = 160;
+
+export type DetailsDock = "bottom" | "right";
+export const DETAILS_DEFAULT_DOCK: DetailsDock = "bottom";
+export const DETAILS_DEFAULT_WIDTH = 400;
+export const DETAILS_MIN_WIDTH = 280;
+/** Cap right-docked details at this fraction of the main (table + details) area. */
+export const DETAILS_MAX_RATIO = 0.7;
+
+export type DetailsDock = "bottom" | "right";
+export const DETAILS_DEFAULT_DOCK: DetailsDock = "bottom";
+export const DETAILS_DEFAULT_WIDTH = 360;
+export const DETAILS_MIN_WIDTH = 280;
+export const DETAILS_MAX_VW = 0.7;
+/** Fallback cap when viewport width is unknown (parse / SSR). */
+export const DETAILS_ABS_MAX_WIDTH = 4096;
 
 export const COLUMN_MAX_WIDTH = 720;
 export const COLUMN_MIN_WIDTH = 48;
@@ -120,6 +137,58 @@ export function parseStoredDetailsHeight(
   if (raw == null || raw === "") return DETAILS_DEFAULT_HEIGHT;
   const value = Number(raw);
   return clampDetailsHeight(value, viewportHeight, containerHeight);
+}
+
+export function clampDetailsWidth(width: number, containerWidth?: number): number {
+  if (!Number.isFinite(width)) return DETAILS_DEFAULT_WIDTH;
+  let max = DETAILS_ABS_MAX;
+  if (typeof containerWidth === "number" && Number.isFinite(containerWidth) && containerWidth > 0) {
+    max = Math.min(max, Math.max(DETAILS_MIN_WIDTH, containerWidth * DETAILS_MAX_RATIO));
+  }
+  return Math.round(Math.min(max, Math.max(DETAILS_MIN_WIDTH, width)));
+}
+
+export function parseStoredDetailsWidth(
+  raw: string | null | undefined,
+  containerWidth?: number
+): number {
+  if (raw == null || raw === "") return DETAILS_DEFAULT_WIDTH;
+  const value = Number(raw);
+  return clampDetailsWidth(value, containerWidth);
+}
+
+export function parseStoredDetailsDock(raw: string | null | undefined): DetailsDock {
+  return raw === "right" ? "right" : DETAILS_DEFAULT_DOCK;
+}
+
+export function clampDetailsWidth(
+  width: number,
+  viewportWidth?: number,
+  containerWidth?: number
+): number {
+  if (!Number.isFinite(width)) return DETAILS_DEFAULT_WIDTH;
+  let max = DETAILS_ABS_MAX_WIDTH;
+  if (typeof viewportWidth === "number" && Number.isFinite(viewportWidth) && viewportWidth > 0) {
+    max = Math.min(max, viewportWidth * DETAILS_MAX_VW);
+  }
+  if (typeof containerWidth === "number" && Number.isFinite(containerWidth) && containerWidth > 0) {
+    max = Math.min(max, Math.max(DETAILS_MIN_WIDTH, containerWidth - MAIN_MIN_WIDTH));
+  }
+  return Math.round(Math.min(max, Math.max(DETAILS_MIN_WIDTH, width)));
+}
+
+export function parseStoredDetailsWidth(
+  raw: string | null | undefined,
+  viewportWidth?: number,
+  containerWidth?: number
+): number {
+  if (raw == null || raw === "") return DETAILS_DEFAULT_WIDTH;
+  const value = Number(raw);
+  return clampDetailsWidth(value, viewportWidth, containerWidth);
+}
+
+export function parseStoredDetailsDock(raw: string | null | undefined): DetailsDock {
+  return raw === "right" ? "right" : DETAILS_DEFAULT_DOCK;
 }
 
 export function parseStoredColumnWidths(
@@ -222,6 +291,90 @@ export function saveDetailsHeight(height: number) {
       DETAILS_HEIGHT_STORAGE_KEY,
       String(clampDetailsHeight(height, window.innerHeight))
     );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function loadDetailsDock(): DetailsDock {
+  if (typeof window === "undefined") return DETAILS_DEFAULT_DOCK;
+  try {
+    return parseStoredDetailsDock(localStorage.getItem(DETAILS_DOCK_STORAGE_KEY));
+  } catch {
+    return DETAILS_DEFAULT_DOCK;
+  }
+}
+
+export function saveDetailsDock(dock: DetailsDock) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DETAILS_DOCK_STORAGE_KEY, parseStoredDetailsDock(dock));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function loadDetailsWidth(): number {
+  if (typeof window === "undefined") return DETAILS_DEFAULT_WIDTH;
+  try {
+    return parseStoredDetailsWidth(
+      localStorage.getItem(DETAILS_WIDTH_STORAGE_KEY),
+      window.innerWidth
+    );
+  } catch {
+    return DETAILS_DEFAULT_WIDTH;
+  }
+}
+
+export function saveDetailsWidth(width: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      DETAILS_WIDTH_STORAGE_KEY,
+      String(clampDetailsWidth(width, window.innerWidth))
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function loadDetailsWidth(): number {
+  if (typeof window === "undefined") return DETAILS_DEFAULT_WIDTH;
+  try {
+    return parseStoredDetailsWidth(
+      localStorage.getItem(DETAILS_WIDTH_STORAGE_KEY),
+      window.innerWidth
+    );
+  } catch {
+    return DETAILS_DEFAULT_WIDTH;
+  }
+}
+
+export function saveDetailsWidth(width: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      DETAILS_WIDTH_STORAGE_KEY,
+      String(clampDetailsWidth(width, window.innerWidth))
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function loadDetailsDock(): DetailsDock {
+  if (typeof window === "undefined") return DETAILS_DEFAULT_DOCK;
+  try {
+    return parseStoredDetailsDock(localStorage.getItem(DETAILS_DOCK_STORAGE_KEY));
+  } catch {
+    return DETAILS_DEFAULT_DOCK;
+  }
+}
+
+export function saveDetailsDock(dock: DetailsDock) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DETAILS_DOCK_STORAGE_KEY, parseStoredDetailsDock(dock));
   } catch {
     /* quota / private mode */
   }
