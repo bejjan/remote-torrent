@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Deluge Nova
 
-## Getting Started
+A modern web UI for [Deluge](https://deluge-torrent.org/). Manage the queue, watch speeds, inspect files, and add magnets from a light, compact browser workspace.
 
-First, run the development server:
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Nova torrent dashboard with filters, progress, and live speeds" />
+</p>
+
+Nova is built for people who already run a Deluge daemon and want a clearer way to drive it than the stock WebUI. One screen for the queue, a side panel for details, and a status bar for the session.
+
+## What it does
+
+- **See the whole queue** — name, size, progress, download/upload rates, ETA, ratio, and seeds, with color-coded states
+- **Filter fast** — jump by state (downloading, seeding, paused, checking, queued, error, active) or by label
+- **Search** — find torrents by name, label, or tracker
+- **Inspect a torrent** — transferred bytes, tracker, save path, files, and peers without leaving the list
+- **Add torrents** — paste a magnet or drop a `.torrent` file, and choose where it lands
+- **Watch the session** — combined rates, connections, DHT, free disk, and daemon status
+
+## Screenshots
+
+### Torrent details
+
+Click a row to open info, files, and peers beside the queue.
+
+<p align="center">
+  <img src="docs/screenshots/details.png" alt="Details panel for a Debian ISO showing progress, tracker, and save path" />
+</p>
+
+### Add torrent
+
+Magnets, torrent files, and a download location.
+
+<p align="center">
+  <img src="docs/screenshots/add-torrent.png" alt="Add torrent dialog with magnet field and file drop zone" />
+</p>
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Nova is meant to sit in front of Deluge Web and talk JSON-RPC to your daemon (`/json` and torrent upload). Keep `deluge-web` running if you want it attached to a real client.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## License
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[GPL-3.0](LICENSE)
