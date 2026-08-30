@@ -2,6 +2,15 @@ import { STATE_FILTERS } from "./keys";
 import type { FilterTuple, TorrentStatus } from "./types";
 
 export const FILTER_ALL = "All";
+export const FILTER_DOWNLOADING = "Downloading";
+
+/** Same update as clicking a State row in the sidebar. */
+export function selectSidebarState(
+  selected: SidebarFilterSelection,
+  state: string
+): SidebarFilterSelection {
+  return { ...selected, state };
+}
 
 /** Cap named tracker rows so a live 2k+ catalog cannot mount thousands of filter buttons. */
 export const SIDEBAR_TRACKER_ROW_CAP = 80;
@@ -225,14 +234,14 @@ export function clampSidebarSelection(
   showZero: boolean,
   knownLabels: string[] = []
 ): SidebarFilterSelection {
-  const visStates = stateSidebarRows(states, showZero);
+  const catalogStates = completeStateFilters(states);
   const visTrackers = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(trackers)).rest, showZero);
   const labelRest = splitSpecialAll(mergeKnownFilterNames(labels, knownLabels)).rest;
   const keep = new Set(knownLabels);
   const visLabels = visibleFilterTuples(labelRest, showZero, (name) => Boolean(name) && keep.has(name));
 
   const next: SidebarFilterSelection = { ...selected };
-  if (!visStates.some(([name]) => name === selected.state)) next.state = FILTER_ALL;
+  if (!catalogStates.some(([name]) => name === selected.state)) next.state = FILTER_ALL;
   if (selected.tracker !== "" && !visTrackers.some(([name]) => name === selected.tracker)) {
     next.tracker = "";
   }
