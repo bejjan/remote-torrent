@@ -13,8 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -23,8 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { PrefNavIcon } from "@/components/app/pref-nav-icon";
+import {
+  PrefActions,
+  PrefNum,
+  PrefNumPair,
+  PrefPage,
+  PrefPath,
+  PrefRow,
+  PrefSection,
+  PrefSwitch,
+} from "@/components/app/pref-ui";
 import { TransmissionPreferences } from "@/components/app/transmission-preferences";
 import { rpc, getStoredClientKind } from "@/lib/deluge/client";
 import {
@@ -246,7 +253,7 @@ export function PreferencesDialog({
             ) : null}
           </nav>
           <ScrollArea className="min-w-0 flex-1 overflow-x-hidden">
-            <div className="min-w-0 p-4">
+            <div className="min-w-0 px-5 py-5">
               {page === "downloads" && <DownloadsPage core={core} setCore={setCore} />}
               {page === "network" && <NetworkPage core={core} setCore={setCore} />}
               {page === "bandwidth" && <BandwidthPage core={core} setCore={setCore} />}
@@ -359,15 +366,6 @@ function NavBtn({
   );
 }
 
-function PrefPage({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="grid min-w-0 gap-6">
-      <h3 className="text-base font-medium">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
 function PrefFieldset({
   title,
   hint,
@@ -378,18 +376,10 @@ function PrefFieldset({
   children: React.ReactNode;
 }) {
   return (
-    <section className="grid min-w-0 gap-3">
-      <div className="grid gap-1">
-        <h4 className="text-sm font-medium">{title}</h4>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      </div>
+    <PrefSection title={title} description={hint}>
       {children}
-    </section>
+    </PrefSection>
   );
-}
-
-function NumPair({ children }: { children: React.ReactNode }) {
-  return <div className="grid min-w-0 gap-3 sm:grid-cols-2">{children}</div>;
 }
 
 function PathField({
@@ -397,22 +387,16 @@ function PathField({
   value,
   onChange,
   disabled,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  hint?: string;
 }) {
   return (
-    <div className="grid min-w-0 gap-1.5">
-      <Label className="text-muted-foreground">{label}</Label>
-      <Input
-        className="w-full min-w-0"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
+    <PrefPath label={label} description={hint} value={value} disabled={disabled} onChange={onChange} />
   );
 }
 
@@ -432,20 +416,14 @@ function NumField({
   disabled?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 gap-1.5">
-      <Label className="text-muted-foreground">{label}</Label>
-      <div className="flex min-w-0 items-center gap-2">
-        <Input
-          type="number"
-          className="max-w-28"
-          disabled={disabled}
-          value={Number.isFinite(value) ? String(value) : ""}
-          onChange={(e) => onChange(asNumber(e.target.value, value))}
-        />
-        {suffix ? <span className="text-xs text-muted-foreground">{suffix}</span> : null}
-      </div>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
+    <PrefNum
+      label={label}
+      description={hint}
+      value={value}
+      suffix={suffix}
+      disabled={disabled}
+      onChange={onChange}
+    />
   );
 }
 
@@ -460,15 +438,7 @@ function SwitchRow({
   onChange: (value: boolean) => void;
   hint?: string;
 }) {
-  return (
-    <div className="grid gap-1">
-      <label className="flex items-center gap-2 text-sm">
-        <Switch checked={checked === true} onCheckedChange={(v) => onChange(v === true)} />
-        {label}
-      </label>
-      {hint ? <p className="pl-10 text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
+  return <PrefSwitch label={label} description={hint} checked={checked} onChange={onChange} />;
 }
 
 function CoreSwitch({
@@ -500,16 +470,19 @@ function CorePath({
   k,
   label,
   disabled,
+  hint,
 }: {
   core: Record<string, unknown>;
   setCore: (c: Record<string, unknown>) => void;
   k: string;
   label: string;
   disabled?: boolean;
+  hint?: string;
 }) {
   return (
     <PathField
       label={label}
+      hint={hint}
       value={asString(core[k])}
       disabled={disabled}
       onChange={(v) => setCore({ ...core, [k]: v })}
@@ -553,10 +526,16 @@ type CoreProps = {
 
 function DownloadsPage({ core, setCore }: CoreProps) {
   return (
-    <PrefPage title="Downloads">
+    <PrefPage title="Downloads" description="Where files are saved and how new torrents start.">
       <PrefFieldset title="Folders">
         <CorePath core={core} setCore={setCore} k="download_location" label="Download to" />
-        <CoreSwitch core={core} setCore={setCore} k="move_completed" label="Move completed downloads" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="move_completed"
+          label="Move completed downloads"
+          hint="Move files to another folder when a torrent finishes."
+        />
         <CorePath
           core={core}
           setCore={setCore}
@@ -564,7 +543,13 @@ function DownloadsPage({ core, setCore }: CoreProps) {
           label="Move completed to"
           disabled={!asBool(core.move_completed)}
         />
-        <CoreSwitch core={core} setCore={setCore} k="copy_torrent_file" label="Copy of .torrent files" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="copy_torrent_file"
+          label="Copy .torrent files"
+          hint="Keep a copy of each added .torrent file."
+        />
         <CorePath
           core={core}
           setCore={setCore}
@@ -577,18 +562,38 @@ function DownloadsPage({ core, setCore }: CoreProps) {
           setCore={setCore}
           k="del_copy_torrent_file"
           label="Delete copy of torrent file"
+          hint="Remove the copied .torrent after the download completes."
         />
       </PrefFieldset>
       <PrefFieldset title="Options">
-        <CoreSwitch core={core} setCore={setCore} k="add_paused" label="Add torrents in paused state" />
-        <CoreSwitch core={core} setCore={setCore} k="sequential_download" label="Sequential download" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="add_paused"
+          label="Add torrents in paused state"
+          hint="Newly added torrents wait until you start them."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="sequential_download"
+          label="Sequential download"
+          hint="Download pieces in order, useful for playing media while downloading."
+        />
         <CoreSwitch
           core={core}
           setCore={setCore}
           k="prioritize_first_last_pieces"
           label="Prioritize first and last pieces"
+          hint="Fetch the start and end of files first so media can play sooner."
         />
-        <CoreSwitch core={core} setCore={setCore} k="pre_allocate_storage" label="Pre-allocate disk space" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="pre_allocate_storage"
+          label="Pre-allocate disk space"
+          hint="Reserve the full file size on disk before downloading."
+        />
         {hasConfigKey(core, "compact_allocation") ? (
           <CoreSwitch
             core={core}
@@ -609,82 +614,131 @@ function NetworkPage({ core, setCore }: CoreProps) {
   const randomListen = asBool(core.random_port);
   const randomOutgoing = asBool(core.random_outgoing_ports);
   return (
-    <PrefPage title="Network">
+    <PrefPage title="Network" description="Ports, encryption, and how peers are discovered.">
       <PrefFieldset title="Incoming">
-        <CorePath core={core} setCore={setCore} k="listen_interface" label="Listen interface" />
-        <CoreSwitch core={core} setCore={setCore} k="random_port" label="Use random port" />
-        <NumPair>
-          <NumField
-            label="From"
-            value={listen[0]}
-            disabled={randomListen}
-            onChange={(v) => setCore({ ...core, listen_ports: [v, listen[1]] })}
-          />
-          <NumField
-            label="To"
-            value={listen[1]}
-            disabled={randomListen}
-            onChange={(v) => setCore({ ...core, listen_ports: [listen[0], v] })}
-          />
-        </NumPair>
+        <CorePath
+          core={core}
+          setCore={setCore}
+          k="listen_interface"
+          label="Listen interface"
+          hint="Network interface or IP to accept incoming connections on. Leave empty for all."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="random_port"
+          label="Use random port"
+          hint="Pick a random incoming port each time the daemon starts."
+        />
+        <PrefNumPair
+          label="Port range"
+          from={listen[0]}
+          to={listen[1]}
+          disabled={randomListen}
+          onFrom={(v) => setCore({ ...core, listen_ports: [v, listen[1]] })}
+          onTo={(v) => setCore({ ...core, listen_ports: [listen[0], v] })}
+        />
       </PrefFieldset>
       <PrefFieldset title="Outgoing">
-        <CorePath core={core} setCore={setCore} k="outgoing_interface" label="Outgoing interface" />
-        <CoreSwitch core={core} setCore={setCore} k="random_outgoing_ports" label="Use random ports" />
-        <NumPair>
-          <NumField
-            label="From"
-            value={outgoing[0]}
-            disabled={randomOutgoing}
-            onChange={(v) => setCore({ ...core, outgoing_ports: [v, outgoing[1]] })}
-          />
-          <NumField
-            label="To"
-            value={outgoing[1]}
-            disabled={randomOutgoing}
-            onChange={(v) => setCore({ ...core, outgoing_ports: [outgoing[0], v] })}
-          />
-        </NumPair>
+        <CorePath
+          core={core}
+          setCore={setCore}
+          k="outgoing_interface"
+          label="Outgoing interface"
+          hint="Network interface used for outgoing connections. Leave empty for the default."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="random_outgoing_ports"
+          label="Use random ports"
+          hint="Let the daemon choose outgoing ports automatically."
+        />
+        <PrefNumPair
+          label="Port range"
+          from={outgoing[0]}
+          to={outgoing[1]}
+          disabled={randomOutgoing}
+          onFrom={(v) => setCore({ ...core, outgoing_ports: [v, outgoing[1]] })}
+          onTo={(v) => setCore({ ...core, outgoing_ports: [outgoing[0], v] })}
+        />
       </PrefFieldset>
       <PrefFieldset title="Encryption">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label className="text-muted-foreground">Incoming</Label>
-            <IntSelect
-              value={canonicalizeEncPolicy(asNumber(core.enc_in_policy, 1))}
-              onChange={(v) => setCore({ ...core, enc_in_policy: v })}
-              options={ENC_POLICY_OPTIONS}
-              items={ENC_POLICY_SELECT_ITEMS}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-muted-foreground">Outgoing</Label>
-            <IntSelect
-              value={canonicalizeEncPolicy(asNumber(core.enc_out_policy, 1))}
-              onChange={(v) => setCore({ ...core, enc_out_policy: v })}
-              options={ENC_POLICY_OPTIONS}
-              items={ENC_POLICY_SELECT_ITEMS}
-            />
-          </div>
-        </div>
-        <div className="grid gap-1.5">
-          <Label className="text-muted-foreground">Level</Label>
+        <PrefRow
+          label="Incoming"
+          description="How incoming peer connections should be encrypted."
+        >
+          <IntSelect
+            value={canonicalizeEncPolicy(asNumber(core.enc_in_policy, 1))}
+            onChange={(v) => setCore({ ...core, enc_in_policy: v })}
+            options={ENC_POLICY_OPTIONS}
+            items={ENC_POLICY_SELECT_ITEMS}
+          />
+        </PrefRow>
+        <PrefRow
+          label="Outgoing"
+          description="How outgoing peer connections should be encrypted."
+        >
+          <IntSelect
+            value={canonicalizeEncPolicy(asNumber(core.enc_out_policy, 1))}
+            onChange={(v) => setCore({ ...core, enc_out_policy: v })}
+            options={ENC_POLICY_OPTIONS}
+            items={ENC_POLICY_SELECT_ITEMS}
+          />
+        </PrefRow>
+        <PrefRow label="Level" description="How much of the stream is encrypted.">
           <IntSelect
             value={canonicalizeEncLevel(asNumber(core.enc_level, 2))}
             onChange={(v) => setCore({ ...core, enc_level: v })}
             options={ENC_LEVEL_OPTIONS}
             items={ENC_LEVEL_SELECT_ITEMS}
           />
-        </div>
+        </PrefRow>
       </PrefFieldset>
-      <PrefFieldset title="Network extras">
-        <CoreSwitch core={core} setCore={setCore} k="dht" label="DHT" />
-        <CoreSwitch core={core} setCore={setCore} k="lsd" label="Local peer discovery (LSD)" />
-        <CoreSwitch core={core} setCore={setCore} k="utpex" label="Peer exchange (PEX)" />
-        <CoreSwitch core={core} setCore={setCore} k="upnp" label="UPnP" />
-        <CoreSwitch core={core} setCore={setCore} k="natpmp" label="NAT-PMP" />
+      <PrefFieldset title="Discovery">
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="dht"
+          label="DHT"
+          hint="Find peers without a tracker."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="lsd"
+          label="Local peer discovery"
+          hint="Find peers on your local network (LSD)."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="utpex"
+          label="Peer exchange"
+          hint="Learn about peers from others in the swarm (PEX)."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="upnp"
+          label="UPnP"
+          hint="Automatically forward ports on compatible routers."
+        />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="natpmp"
+          label="NAT-PMP"
+          hint="Forward ports using NAT-PMP or PCP."
+        />
         {hasConfigKey(core, "utp") ? (
-          <CoreSwitch core={core} setCore={setCore} k="utp" label="µTP" />
+          <CoreSwitch
+            core={core}
+            setCore={setCore}
+            k="utp"
+            label="µTP"
+            hint="Use the Micro Transport Protocol to reduce impact on other traffic."
+          />
         ) : null}
         {hasConfigKey(core, "enable_outgoing_utp") ? (
           <CoreSwitch core={core} setCore={setCore} k="enable_outgoing_utp" label="Outgoing µTP" />
@@ -697,10 +751,10 @@ function NetworkPage({ core, setCore }: CoreProps) {
         <PrefFieldset title="Type of service">
           <PathField
             label="Peer TOS byte"
+            hint="Hexadecimal, for example 0x00."
             value={asString(core.peer_tos)}
             onChange={(v) => setCore({ ...core, peer_tos: v })}
           />
-          <p className="text-xs text-muted-foreground">Hexadecimal, for example 0x00.</p>
         </PrefFieldset>
       ) : null}
     </PrefPage>
@@ -714,49 +768,45 @@ function BandwidthPage({ core, setCore }: CoreProps) {
     hasConfigKey(core, "max_connections_per_torrent") ||
     hasConfigKey(core, "max_upload_slots_per_torrent");
   return (
-    <PrefPage title="Bandwidth">
-      <PrefFieldset title="Global" hint="−1 is unlimited.">
-        <NumPair>
+    <PrefPage title="Bandwidth" description="Speed and connection limits. Use −1 for unlimited.">
+      <PrefFieldset title="Global limits" hint="Applies to the whole session. −1 is unlimited.">
+        <CoreNum
+          core={core}
+          setCore={setCore}
+          k="max_download_speed"
+          label="Maximum download"
+          suffix="KiB/s"
+        />
+        <CoreNum
+          core={core}
+          setCore={setCore}
+          k="max_upload_speed"
+          label="Maximum upload"
+          suffix="KiB/s"
+        />
+        <CoreNum core={core} setCore={setCore} k="max_connections_global" label="Maximum connections" />
+        <CoreNum core={core} setCore={setCore} k="max_upload_slots_global" label="Maximum upload slots" />
+        <CoreNum
+          core={core}
+          setCore={setCore}
+          k="max_half_open_connections"
+          label="Half-open connections"
+          hint="Connections that have started but not finished the handshake."
+        />
+        {hasConfigKey(core, "max_connections_per_second") ? (
           <CoreNum
             core={core}
             setCore={setCore}
-            k="max_download_speed"
-            label="Maximum download"
-            suffix="KiB/s"
+            k="max_connections_per_second"
+            label="Connection attempts per second"
           />
-          <CoreNum
-            core={core}
-            setCore={setCore}
-            k="max_upload_speed"
-            label="Maximum upload"
-            suffix="KiB/s"
-          />
-        </NumPair>
-        <NumPair>
-          <CoreNum core={core} setCore={setCore} k="max_connections_global" label="Maximum connections" />
-          <CoreNum core={core} setCore={setCore} k="max_upload_slots_global" label="Maximum upload slots" />
-        </NumPair>
-        <NumPair>
-          <CoreNum
-            core={core}
-            setCore={setCore}
-            k="max_half_open_connections"
-            label="Half-open connections"
-          />
-          {hasConfigKey(core, "max_connections_per_second") ? (
-            <CoreNum
-              core={core}
-              setCore={setCore}
-              k="max_connections_per_second"
-              label="Connection attempts per second"
-            />
-          ) : null}
-        </NumPair>
+        ) : null}
         <CoreSwitch
           core={core}
           setCore={setCore}
           k="ignore_limits_on_local_network"
           label="Ignore limits on local network"
+          hint="Do not apply speed limits to peers on the same LAN."
         />
         <CoreSwitch
           core={core}
@@ -768,44 +818,40 @@ function BandwidthPage({ core, setCore }: CoreProps) {
       </PrefFieldset>
       {perTorrent ? (
         <PrefFieldset title="Per torrent" hint="Defaults for new torrents. −1 is unlimited.">
-          <NumPair>
-            {hasConfigKey(core, "max_download_speed_per_torrent") ? (
-              <CoreNum
-                core={core}
-                setCore={setCore}
-                k="max_download_speed_per_torrent"
-                label="Maximum download"
-                suffix="KiB/s"
-              />
-            ) : null}
-            {hasConfigKey(core, "max_upload_speed_per_torrent") ? (
-              <CoreNum
-                core={core}
-                setCore={setCore}
-                k="max_upload_speed_per_torrent"
-                label="Maximum upload"
-                suffix="KiB/s"
-              />
-            ) : null}
-          </NumPair>
-          <NumPair>
-            {hasConfigKey(core, "max_connections_per_torrent") ? (
-              <CoreNum
-                core={core}
-                setCore={setCore}
-                k="max_connections_per_torrent"
-                label="Maximum connections"
-              />
-            ) : null}
-            {hasConfigKey(core, "max_upload_slots_per_torrent") ? (
-              <CoreNum
-                core={core}
-                setCore={setCore}
-                k="max_upload_slots_per_torrent"
-                label="Maximum upload slots"
-              />
-            ) : null}
-          </NumPair>
+          {hasConfigKey(core, "max_download_speed_per_torrent") ? (
+            <CoreNum
+              core={core}
+              setCore={setCore}
+              k="max_download_speed_per_torrent"
+              label="Maximum download"
+              suffix="KiB/s"
+            />
+          ) : null}
+          {hasConfigKey(core, "max_upload_speed_per_torrent") ? (
+            <CoreNum
+              core={core}
+              setCore={setCore}
+              k="max_upload_speed_per_torrent"
+              label="Maximum upload"
+              suffix="KiB/s"
+            />
+          ) : null}
+          {hasConfigKey(core, "max_connections_per_torrent") ? (
+            <CoreNum
+              core={core}
+              setCore={setCore}
+              k="max_connections_per_torrent"
+              label="Maximum connections"
+            />
+          ) : null}
+          {hasConfigKey(core, "max_upload_slots_per_torrent") ? (
+            <CoreNum
+              core={core}
+              setCore={setCore}
+              k="max_upload_slots_per_torrent"
+              label="Maximum upload slots"
+            />
+          ) : null}
         </PrefFieldset>
       ) : null}
     </PrefPage>
@@ -815,15 +861,19 @@ function BandwidthPage({ core, setCore }: CoreProps) {
 function QueuePage({ core, setCore }: CoreProps) {
   const stopAtRatio = asBool(core.stop_seed_at_ratio);
   return (
-    <PrefPage title="Queue">
+    <PrefPage title="Queue" description="How many torrents stay active and when seeding stops.">
       <PrefFieldset title="New torrents">
-        <CoreSwitch core={core} setCore={setCore} k="queue_new_to_top" label="Queue to top" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="queue_new_to_top"
+          label="Queue to top"
+          hint="Place newly added torrents at the front of the queue."
+        />
       </PrefFieldset>
-      <PrefFieldset title="Active torrents" hint="−1 is unlimited.">
-        <NumPair>
-          <CoreNum core={core} setCore={setCore} k="max_active_limit" label="Total active" />
-          <CoreNum core={core} setCore={setCore} k="max_active_downloading" label="Downloading" />
-        </NumPair>
+      <PrefFieldset title="Active torrents" hint="How many torrents may run at once. −1 is unlimited.">
+        <CoreNum core={core} setCore={setCore} k="max_active_limit" label="Total active" />
+        <CoreNum core={core} setCore={setCore} k="max_active_downloading" label="Downloading" />
         <CoreNum core={core} setCore={setCore} k="max_active_seeding" label="Seeding" />
         <CoreSwitch
           core={core}
@@ -838,22 +888,27 @@ function QueuePage({ core, setCore }: CoreProps) {
             setCore={setCore}
             k="auto_manage_prefer_seeds"
             label="Prefer seeding torrents"
+            hint="Keep seeders active ahead of downloaders when rotating the queue."
           />
         ) : null}
       </PrefFieldset>
-      <PrefFieldset title="Seeding rotation" hint="−1 is unlimited.">
-        <NumPair>
-          {hasConfigKey(core, "share_ratio_limit") ? (
-            <CoreNum core={core} setCore={setCore} k="share_ratio_limit" label="Share ratio" />
-          ) : null}
-          {hasConfigKey(core, "seed_time_ratio_limit") ? (
-            <CoreNum core={core} setCore={setCore} k="seed_time_ratio_limit" label="Time ratio" />
-          ) : null}
-        </NumPair>
+      <PrefFieldset title="Seeding rotation" hint="Share and time limits used to rotate seeders. −1 is unlimited.">
+        {hasConfigKey(core, "share_ratio_limit") ? (
+          <CoreNum core={core} setCore={setCore} k="share_ratio_limit" label="Share ratio" />
+        ) : null}
+        {hasConfigKey(core, "seed_time_ratio_limit") ? (
+          <CoreNum core={core} setCore={setCore} k="seed_time_ratio_limit" label="Time ratio" />
+        ) : null}
         <CoreNum core={core} setCore={setCore} k="seed_time_limit" label="Seed time" suffix="minutes" />
       </PrefFieldset>
       <PrefFieldset title="Share ratio reached">
-        <CoreSwitch core={core} setCore={setCore} k="stop_seed_at_ratio" label="Stop seeding at share ratio" />
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="stop_seed_at_ratio"
+          label="Stop seeding at share ratio"
+          hint="Pause seeding when the torrent reaches the ratio below."
+        />
         <CoreNum
           core={core}
           setCore={setCore}
@@ -866,6 +921,7 @@ function QueuePage({ core, setCore }: CoreProps) {
           setCore={setCore}
           k="remove_seed_at_ratio"
           label="Remove torrent at share ratio"
+          hint="Remove the torrent from the list when the share ratio is reached."
         />
       </PrefFieldset>
     </PrefPage>
@@ -878,16 +934,15 @@ function ProxyPage({ core, setCore }: CoreProps) {
     setCore({ ...core, proxy: next });
   }
   return (
-    <PrefPage title="Proxy">
+    <PrefPage title="Proxy" description="Route daemon traffic through a SOCKS or HTTP proxy.">
       <PrefFieldset title="Server">
-        <div className="grid gap-1.5">
-          <Label className="text-muted-foreground">Type</Label>
+        <PrefRow label="Type">
           <ProxyTypeSelect
             value={asNumber(proxy.type, 0)}
             onChange={(type) => setProxy({ ...proxy, type })}
             className="w-56"
           />
-        </div>
+        </PrefRow>
         <PathField
           label="Host"
           value={asString(proxy.hostname)}
@@ -903,20 +958,18 @@ function ProxyPage({ core, setCore }: CoreProps) {
           value={asString(proxy.username)}
           onChange={(username) => setProxy({ ...proxy, username })}
         />
-        <div className="grid min-w-0 gap-1.5">
-          <Label className="text-muted-foreground">Password</Label>
-          <Input
-            type="password"
-            className="w-full min-w-0 max-w-xs"
-            value={asString(proxy.password)}
-            onChange={(e) => setProxy({ ...proxy, password: e.target.value })}
-          />
-        </div>
+        <PrefPath
+          label="Password"
+          type="password"
+          value={asString(proxy.password)}
+          onChange={(password) => setProxy({ ...proxy, password })}
+        />
       </PrefFieldset>
       <PrefFieldset title="Use proxy for">
         {hasConfigKey(proxy, "proxy_hostnames") ? (
           <SwitchRow
             label="Hostname lookup"
+            hint="Resolve DNS through the proxy."
             checked={asBool(proxy.proxy_hostnames)}
             onChange={(v) => setProxy({ ...proxy, proxy_hostnames: v })}
           />
@@ -950,6 +1003,7 @@ function ProxyPage({ core, setCore }: CoreProps) {
         {hasConfigKey(proxy, "force_proxy") ? (
           <SwitchRow
             label="Force use of proxy"
+            hint="Block connections that cannot go through the proxy."
             checked={asBool(proxy.force_proxy)}
             onChange={(v) => setProxy({ ...proxy, force_proxy: v })}
           />
@@ -957,6 +1011,7 @@ function ProxyPage({ core, setCore }: CoreProps) {
         {hasConfigKey(proxy, "anonymous_mode") ? (
           <SwitchRow
             label="Hide client identity"
+            hint="Avoid sending identifying client information."
             checked={asBool(proxy.anonymous_mode)}
             onChange={(v) => setProxy({ ...proxy, anonymous_mode: v })}
           />
@@ -968,19 +1023,17 @@ function ProxyPage({ core, setCore }: CoreProps) {
 
 function CachePage({ core, setCore }: CoreProps) {
   return (
-    <PrefPage title="Cache">
+    <PrefPage title="Cache" description="Disk cache used by the libtorrent session.">
       <PrefFieldset title="Settings">
-        <NumPair>
-          <CoreNum
-            core={core}
-            setCore={setCore}
-            k="cache_size"
-            label="Cache size"
-            suffix="blocks"
-            hint="Each block is 16 KiB."
-          />
-          <CoreNum core={core} setCore={setCore} k="cache_expiry" label="Cache expiry" suffix="seconds" />
-        </NumPair>
+        <CoreNum
+          core={core}
+          setCore={setCore}
+          k="cache_size"
+          label="Cache size"
+          suffix="blocks"
+          hint="Each block is 16 KiB."
+        />
+        <CoreNum core={core} setCore={setCore} k="cache_expiry" label="Cache expiry" suffix="seconds" />
       </PrefFieldset>
     </PrefPage>
   );
@@ -988,19 +1041,26 @@ function CachePage({ core, setCore }: CoreProps) {
 
 function DaemonPage({ core, setCore }: CoreProps) {
   return (
-    <PrefPage title="Daemon">
-      <PrefFieldset title="Port">
+    <PrefPage title="Daemon" description="How the Deluge daemon listens and who may connect.">
+      <PrefFieldset title="Listening">
         <CoreNum core={core} setCore={setCore} k="daemon_port" label="Daemon port" />
       </PrefFieldset>
-      <PrefFieldset title="Connections">
-        <CoreSwitch core={core} setCore={setCore} k="allow_remote" label="Allow remote connections" />
+      <PrefFieldset title="Access">
+        <CoreSwitch
+          core={core}
+          setCore={setCore}
+          k="allow_remote"
+          label="Allow remote connections"
+          hint="Let other machines connect to this daemon."
+        />
       </PrefFieldset>
       <PrefFieldset title="Updates">
         <CoreSwitch
           core={core}
           setCore={setCore}
           k="new_release_check"
-          label="Periodically check for new releases"
+          label="Check for new releases"
+          hint="Periodically look for a newer Deluge version."
         />
       </PrefFieldset>
     </PrefPage>
@@ -1009,19 +1069,31 @@ function DaemonPage({ core, setCore }: CoreProps) {
 
 function OtherPage({ core, setCore }: CoreProps) {
   return (
-    <PrefPage title="Other">
+    <PrefPage title="Other" description="Less common daemon options.">
       {hasConfigKey(core, "geoip_db_location") ? (
         <PrefFieldset title="GeoIP database">
-          <CorePath core={core} setCore={setCore} k="geoip_db_location" label="Path" />
+          <CorePath
+            core={core}
+            setCore={setCore}
+            k="geoip_db_location"
+            label="Database path"
+            hint="Used to show peer countries in the inspector."
+          />
         </PrefFieldset>
       ) : null}
       {hasConfigKey(core, "announce_ip") ? (
         <PrefFieldset title="Announce IP">
-          <CorePath core={core} setCore={setCore} k="announce_ip" label="IP address" />
+          <CorePath
+            core={core}
+            setCore={setCore}
+            k="announce_ip"
+            label="IP address"
+            hint="Override the IP address announced to trackers."
+          />
         </PrefFieldset>
       ) : null}
       {hasConfigKey(core, "send_info") ? (
-        <PrefFieldset title="System information">
+        <PrefFieldset title="Privacy">
           <CoreSwitch
             core={core}
             setCore={setCore}
@@ -1039,6 +1111,7 @@ function OtherPage({ core, setCore }: CoreProps) {
               setCore={setCore}
               k="autoadd_enable"
               label="Watch a folder for .torrent files"
+              hint="Older built-in watch folder. Prefer the AutoAdd plugin when available."
             />
           ) : null}
           {hasConfigKey(core, "autoadd_location") ? (
@@ -1046,19 +1119,22 @@ function OtherPage({ core, setCore }: CoreProps) {
               core={core}
               setCore={setCore}
               k="autoadd_location"
-              label="Autoadd location"
+              label="Watch folder"
               disabled={hasConfigKey(core, "autoadd_enable") && !asBool(core.autoadd_enable)}
             />
           ) : null}
         </PrefFieldset>
       ) : null}
       {hasConfigKey(core, "announce_to_all_tiers") ? (
-        <CoreSwitch
-          core={core}
-          setCore={setCore}
-          k="announce_to_all_tiers"
-          label="Announce to all tracker tiers"
-        />
+        <PrefFieldset title="Trackers">
+          <CoreSwitch
+            core={core}
+            setCore={setCore}
+            k="announce_to_all_tiers"
+            label="Announce to all tracker tiers"
+            hint="Contact every tracker tier instead of stopping at the first working one."
+          />
+        </PrefFieldset>
       ) : null}
     </PrefPage>
   );
@@ -1077,10 +1153,11 @@ function InterfacePage({
 }) {
   const languageOptions = webLanguageOptions(languages);
   return (
-    <PrefPage title="Interface">
-      <PrefFieldset title="Display">
+    <PrefPage title="Interface" description="How torro looks and how it talks to the daemon.">
+      <PrefFieldset title="Appearance">
         <SwitchRow
           label="Show sidebar"
+          hint="Show the filter sidebar on the left."
           checked={isWebSidebarVisible(web)}
           onChange={(v) => {
             const patch = { show_sidebar: v, sidebar: v };
@@ -1093,12 +1170,14 @@ function InterfacePage({
           }}
         />
         <SwitchRow
-          label="Show filters with zero torrents"
+          label="Show empty filters"
+          hint="Keep filter rows visible when they match zero torrents."
           checked={asBool(web.sidebar_show_zero)}
           onChange={(v) => setWeb({ ...web, sidebar_show_zero: v })}
         />
         <SwitchRow
-          label="Show session speed in title and status bar"
+          label="Show session speed"
+          hint="Show download and upload speed in the title and status bar."
           checked={isWebSessionSpeedVisible(web)}
           onChange={(v) => {
             const patch = { show_session_speed: v };
@@ -1114,31 +1193,37 @@ function InterfacePage({
         />
         {hasConfigKey(web, "sidebar_multiple_filters") ? (
           <SwitchRow
-            label="Allow multiple filters at once"
+            label="Allow multiple filters"
+            hint="Combine more than one filter at a time."
             checked={asBool(web.sidebar_multiple_filters)}
             onChange={(v) => setWeb({ ...web, sidebar_multiple_filters: v })}
           />
         ) : null}
-        {hasConfigKey(web, "auto_reconnect") ? (
+      </PrefFieldset>
+      {hasConfigKey(web, "auto_reconnect") ? (
+        <PrefFieldset title="Connection">
           <SwitchRow
-            label="Auto-reconnect to daemon"
+            label="Auto-reconnect"
+            hint="Reconnect automatically if the daemon drops."
             checked={asBool(web.auto_reconnect ?? true)}
             onChange={(v) => setWeb({ ...web, auto_reconnect: v })}
           />
-        ) : null}
-      </PrefFieldset>
+        </PrefFieldset>
+      ) : null}
       {languages ? (
         <PrefFieldset title="Language">
-          <StringSelect
-            value={selectValueForLanguage(asString(web.language))}
-            onChange={(value) => setWeb({ ...web, language: languageFromSelectValue(value) })}
-            options={languageOptions}
-            items={webLanguageSelectItems(languages)}
-          />
+          <PrefRow label="Language" description="Language used by the Deluge web UI.">
+            <StringSelect
+              value={selectValueForLanguage(asString(web.language))}
+              onChange={(value) => setWeb({ ...web, language: languageFromSelectValue(value) })}
+              options={languageOptions}
+              items={webLanguageSelectItems(languages)}
+            />
+          </PrefRow>
         </PrefFieldset>
       ) : null}
       {hasConfigKey(web, "https") || hasConfigKey(web, "port") || hasConfigKey(web, "base") ? (
-        <PrefFieldset title="Server">
+        <PrefFieldset title="Web server">
           {hasConfigKey(web, "port") ? (
             <NumField
               label="Port"
@@ -1149,6 +1234,7 @@ function InterfacePage({
           {hasConfigKey(web, "base") ? (
             <PathField
               label="Base path"
+              hint="URL prefix if the UI is served under a subpath."
               value={asString(web.base)}
               onChange={(base) => setWeb({ ...web, base })}
             />
@@ -1156,6 +1242,7 @@ function InterfacePage({
           {hasConfigKey(web, "https") ? (
             <SwitchRow
               label="HTTPS"
+              hint="Serve the web UI over TLS."
               checked={asBool(web.https)}
               onChange={(v) => setWeb({ ...web, https: v })}
             />
@@ -1177,31 +1264,25 @@ function PluginsPage({
 }) {
   const set = new Set(enabled.map((name) => name.toLowerCase()));
   return (
-    <PrefPage title="Plugins">
-      <p className="text-sm text-muted-foreground">
-        Enable plugins to show their preference pages in the sidebar.
-      </p>
-      <div className="grid gap-2">
-        {available.map((name) => (
-          <label
-            key={name}
-            className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-          >
-            {name}
-            <Switch checked={set.has(name.toLowerCase())} onCheckedChange={(v) => onChange(name, v === true)} />
-          </label>
-        ))}
-      </div>
+    <PrefPage
+      title="Plugins"
+      description="Enable plugins to show their preference pages in the sidebar."
+    >
+      <PrefFieldset title="Installed">
+        {available.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No plugins reported by the daemon.</p>
+        ) : (
+          available.map((name) => (
+            <PrefSwitch
+              key={name}
+              label={name}
+              checked={set.has(name.toLowerCase())}
+              onChange={(on) => onChange(name, on)}
+            />
+          ))
+        )}
+      </PrefFieldset>
     </PrefPage>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1.5 sm:grid-cols-[16rem_1fr] sm:items-center">
-      <Label className="text-muted-foreground">{label}</Label>
-      {children}
-    </div>
   );
 }
 
@@ -1222,82 +1303,77 @@ function SchedulerPage() {
   const colors = ["bg-emerald-500/70", "bg-amber-500/80", "bg-red-500/70"];
 
   return (
-    <div className="grid gap-4">
-      <h3 className="text-base font-medium">Scheduler</h3>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Low download (KiB/s)">
-          <Input
-            type="number"
-            className="max-w-28"
-            value={cfg.low_down}
-            onChange={(e) => setCfg({ ...cfg, low_down: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Low upload (KiB/s)">
-          <Input
-            type="number"
-            className="max-w-28"
-            value={cfg.low_up}
-            onChange={(e) => setCfg({ ...cfg, low_up: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Low active torrents">
-          <Input
-            type="number"
-            className="max-w-28"
-            value={cfg.low_active}
-            onChange={(e) => setCfg({ ...cfg, low_active: Number(e.target.value) })}
-          />
-        </Field>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Click a cell to cycle Normal → Slow → Pause. Green is normal speed.
-      </p>
-      <div className="overflow-auto">
-        <table className="text-[10px]">
-          <thead>
-            <tr>
-              <th />
-              {Array.from({ length: 24 }, (_, h) => (
-                <th key={h} className="w-5 font-normal text-muted-foreground">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((d, di) => (
-              <tr key={d}>
-                <td className="pr-2 text-muted-foreground">{d}</td>
-                {cfg.button_state[di]?.map((v, hi) => (
-                  <td key={hi}>
-                    <button
-                      type="button"
-                      className={cn("size-4 rounded-sm", colors[v] || colors[0])}
-                      onClick={() => {
-                        const next = cfg.button_state.map((row) => [...row]);
-                        next[di][hi] = ((next[di][hi] ?? 0) + 1) % 3;
-                        setCfg({ ...cfg, button_state: next });
-                      }}
-                    />
-                  </td>
+    <PrefPage title="Scheduler" description="Limit bandwidth on a weekly schedule.">
+      <PrefFieldset title="Slow period" hint="Used during hours marked Slow.">
+        <PrefNum
+          label="Download"
+          suffix="KiB/s"
+          value={cfg.low_down}
+          onChange={(low_down) => setCfg({ ...cfg, low_down })}
+        />
+        <PrefNum
+          label="Upload"
+          suffix="KiB/s"
+          value={cfg.low_up}
+          onChange={(low_up) => setCfg({ ...cfg, low_up })}
+        />
+        <PrefNum
+          label="Active torrents"
+          value={cfg.low_active}
+          onChange={(low_active) => setCfg({ ...cfg, low_active })}
+        />
+      </PrefFieldset>
+      <PrefFieldset
+        title="Weekly schedule"
+        hint="Click a cell to cycle Normal → Slow → Pause. Green is normal speed."
+      >
+        <div className="overflow-auto px-3 py-3">
+          <table className="text-[10px]">
+            <thead>
+              <tr>
+                <th />
+                {Array.from({ length: 24 }, (_, h) => (
+                  <th key={h} className="w-5 font-normal text-muted-foreground">
+                    {h}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Button
-        className="w-fit"
-        onClick={() =>
-          void rpc("scheduler.set_config", [cfg])
-            .then(() => toast.success("Scheduler saved"))
-            .catch((e: Error) => toast.error(e.message))
-        }
-      >
-        Save scheduler
-      </Button>
-    </div>
+            </thead>
+            <tbody>
+              {days.map((d, di) => (
+                <tr key={d}>
+                  <td className="pr-2 text-muted-foreground">{d}</td>
+                  {cfg.button_state[di]?.map((v, hi) => (
+                    <td key={hi}>
+                      <button
+                        type="button"
+                        className={cn("size-4 rounded-sm", colors[v] || colors[0])}
+                        onClick={() => {
+                          const next = cfg.button_state.map((row) => [...row]);
+                          next[di][hi] = ((next[di][hi] ?? 0) + 1) % 3;
+                          setCfg({ ...cfg, button_state: next });
+                        }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PrefFieldset>
+      <PrefActions>
+        <Button
+          onClick={() =>
+            void rpc("scheduler.set_config", [cfg])
+              .then(() => toast.success("Scheduler saved"))
+              .catch((e: Error) => toast.error(e.message))
+          }
+        >
+          Save scheduler
+        </Button>
+      </PrefActions>
+    </PrefPage>
   );
 }
 
@@ -1307,27 +1383,31 @@ function ExtractorPage() {
     void rpc<typeof cfg>("extractor.get_config").then(setCfg);
   }, []);
   return (
-    <PrefPage title="Extractor">
-      <PathField
-        label="Extract to"
-        value={cfg.extract_path}
-        onChange={(extract_path) => setCfg({ ...cfg, extract_path })}
-      />
-      <SwitchRow
-        label="Create folder named after the torrent"
-        checked={cfg.use_name_folder === true}
-        onChange={(use_name_folder) => setCfg({ ...cfg, use_name_folder })}
-      />
-      <Button
-        className="w-fit"
-        onClick={() =>
-          void rpc("extractor.set_config", [cfg])
-            .then(() => toast.success("Extractor saved"))
-            .catch((e: Error) => toast.error(e.message))
-        }
-      >
-        Save extractor
-      </Button>
+    <PrefPage title="Extractor" description="Unpack archives after a torrent finishes.">
+      <PrefFieldset title="Extraction">
+        <PathField
+          label="Extract to"
+          value={cfg.extract_path}
+          onChange={(extract_path) => setCfg({ ...cfg, extract_path })}
+        />
+        <SwitchRow
+          label="Create a folder for each torrent"
+          hint="Extract into a folder named after the torrent."
+          checked={cfg.use_name_folder === true}
+          onChange={(use_name_folder) => setCfg({ ...cfg, use_name_folder })}
+        />
+      </PrefFieldset>
+      <PrefActions>
+        <Button
+          onClick={() =>
+            void rpc("extractor.set_config", [cfg])
+              .then(() => toast.success("Extractor saved"))
+              .catch((e: Error) => toast.error(e.message))
+          }
+        >
+          Save extractor
+        </Button>
+      </PrefActions>
     </PrefPage>
   );
 }
@@ -1346,48 +1426,52 @@ function ExecutePage() {
   }, []);
 
   return (
-    <PrefPage title="Execute">
-      <p className="text-sm text-muted-foreground">Run a command when a torrent event fires.</p>
-      <ul className="grid gap-2">
-        {commands.map((c) => (
-          <li key={c.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-            <span>
-              <span className="font-medium">{c.event}</span>
-              <span className="ml-2 font-mono text-xs text-muted-foreground">{c.command}</span>
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => void rpc("execute.remove_command", [c.id]).then(() => void load())}
-            >
-              Remove
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-        <Select
-          value={event}
-          items={{ complete: "complete", added: "added", removed: "removed" }}
-          onValueChange={(v) => {
-            if (v) setEvent(v);
-          }}
-        >
-          <SelectTrigger className="sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="complete">complete</SelectItem>
-            <SelectItem value="added">added</SelectItem>
-            <SelectItem value="removed">removed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          className="min-w-0"
+    <PrefPage title="Execute" description="Run a command when a torrent event fires.">
+      <PrefFieldset title="Commands">
+        {commands.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No commands yet.</p>
+        ) : (
+          commands.map((c) => (
+            <PrefRow key={c.id} label={c.event} description={c.command}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void rpc("execute.remove_command", [c.id]).then(() => void load())}
+              >
+                Remove
+              </Button>
+            </PrefRow>
+          ))
+        )}
+      </PrefFieldset>
+      <PrefFieldset title="Add command">
+        <PrefRow label="Event">
+          <Select
+            value={event}
+            items={{ complete: "complete", added: "added", removed: "removed" }}
+            onValueChange={(v) => {
+              if (v) setEvent(v);
+            }}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="complete">complete</SelectItem>
+              <SelectItem value="added">added</SelectItem>
+              <SelectItem value="removed">removed</SelectItem>
+            </SelectContent>
+          </Select>
+        </PrefRow>
+        <PrefPath
+          label="Command"
           placeholder="/path/to/script.sh"
+          mono
           value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          onChange={setCommand}
         />
+      </PrefFieldset>
+      <PrefActions>
         <Button
           onClick={() =>
             void rpc("execute.add_command", [event, event, command]).then(() => {
@@ -1398,7 +1482,7 @@ function ExecutePage() {
         >
           Add
         </Button>
-      </div>
+      </PrefActions>
     </PrefPage>
   );
 }
@@ -1409,47 +1493,51 @@ function NotificationsPage() {
     void rpc<Record<string, unknown>>("notifications.get_config").then(setCfg);
   }, []);
   return (
-    <PrefPage title="Notifications">
-      <SwitchRow
-        label="Enable email notifications"
-        checked={asBool(cfg.smtp_enabled)}
-        onChange={(smtp_enabled) => setCfg({ ...cfg, smtp_enabled })}
-      />
-      <PathField
-        label="SMTP host"
-        value={asString(cfg.smtp_host)}
-        onChange={(smtp_host) => setCfg({ ...cfg, smtp_host })}
-      />
-      <NumField
-        label="SMTP port"
-        value={asNumber(cfg.smtp_port, 587)}
-        onChange={(smtp_port) => setCfg({ ...cfg, smtp_port })}
-      />
-      <PathField
-        label="Username"
-        value={asString(cfg.smtp_user)}
-        onChange={(smtp_user) => setCfg({ ...cfg, smtp_user })}
-      />
-      <PathField
-        label="From"
-        value={asString(cfg.smtp_from)}
-        onChange={(smtp_from) => setCfg({ ...cfg, smtp_from })}
-      />
-      <PathField
-        label="Recipients"
-        value={asString(cfg.smtp_recipients)}
-        onChange={(smtp_recipients) => setCfg({ ...cfg, smtp_recipients })}
-      />
-      <Button
-        className="w-fit"
-        onClick={() =>
-          void rpc("notifications.set_config", [cfg])
-            .then(() => toast.success("Notifications saved"))
-            .catch((e: Error) => toast.error(e.message))
-        }
-      >
-        Save notifications
-      </Button>
+    <PrefPage title="Notifications" description="Send email when torrent events occur.">
+      <PrefFieldset title="Email">
+        <SwitchRow
+          label="Enable email notifications"
+          checked={asBool(cfg.smtp_enabled)}
+          onChange={(smtp_enabled) => setCfg({ ...cfg, smtp_enabled })}
+        />
+        <PathField
+          label="SMTP host"
+          value={asString(cfg.smtp_host)}
+          onChange={(smtp_host) => setCfg({ ...cfg, smtp_host })}
+        />
+        <NumField
+          label="SMTP port"
+          value={asNumber(cfg.smtp_port, 587)}
+          onChange={(smtp_port) => setCfg({ ...cfg, smtp_port })}
+        />
+        <PathField
+          label="Username"
+          value={asString(cfg.smtp_user)}
+          onChange={(smtp_user) => setCfg({ ...cfg, smtp_user })}
+        />
+        <PathField
+          label="From"
+          value={asString(cfg.smtp_from)}
+          onChange={(smtp_from) => setCfg({ ...cfg, smtp_from })}
+        />
+        <PathField
+          label="Recipients"
+          hint="Comma-separated email addresses."
+          value={asString(cfg.smtp_recipients)}
+          onChange={(smtp_recipients) => setCfg({ ...cfg, smtp_recipients })}
+        />
+      </PrefFieldset>
+      <PrefActions>
+        <Button
+          onClick={() =>
+            void rpc("notifications.set_config", [cfg])
+              .then(() => toast.success("Notifications saved"))
+              .catch((e: Error) => toast.error(e.message))
+          }
+        >
+          Save notifications
+        </Button>
+      </PrefActions>
     </PrefPage>
   );
 }
@@ -1460,19 +1548,23 @@ function BlocklistPage() {
     void rpc<Record<string, unknown>>("blocklist.get_status").then(setCfg);
   }, []);
   return (
-    <PrefPage title="Blocklist">
-      <PathField label="List URL" value={asString(cfg.url)} onChange={(url) => setCfg({ ...cfg, url })} />
-      <NumField
-        label="Check after"
-        suffix="days"
-        value={asNumber(cfg.check_after_days, 4)}
-        onChange={(check_after_days) => setCfg({ ...cfg, check_after_days })}
-      />
-      <p className="text-sm text-muted-foreground">
-        Last update: {asString(cfg.last_update, "—")} · {asString(cfg.size, "0")} IPs · blocked{" "}
-        {asString(cfg.num_blocked, "0")} · {asString(cfg.state)}
-      </p>
-      <div className="flex gap-2">
+    <PrefPage title="Blocklist" description="Block peers from published IP lists.">
+      <PrefFieldset title="List">
+        <PathField label="List URL" value={asString(cfg.url)} onChange={(url) => setCfg({ ...cfg, url })} />
+        <NumField
+          label="Check after"
+          suffix="days"
+          hint="How often to refresh the list."
+          value={asNumber(cfg.check_after_days, 4)}
+          onChange={(check_after_days) => setCfg({ ...cfg, check_after_days })}
+        />
+      </PrefFieldset>
+      <PrefFieldset title="Status">
+        <PrefRow label="Last update" description={`${asString(cfg.size, "0")} IPs · blocked ${asString(cfg.num_blocked, "0")} · ${asString(cfg.state)}`}>
+          <span className="text-sm text-muted-foreground">{asString(cfg.last_update, "—")}</span>
+        </PrefRow>
+      </PrefFieldset>
+      <PrefActions>
         <Button
           variant="outline"
           onClick={() =>
@@ -1491,7 +1583,7 @@ function BlocklistPage() {
         >
           Save
         </Button>
-      </div>
+      </PrefActions>
     </PrefPage>
   );
 }
@@ -1507,38 +1599,43 @@ function AutoAddPage() {
     void load();
   }, []);
 
+  const watchdirs = Object.values(dirs);
   return (
-    <PrefPage title="AutoAdd">
-      <p className="text-sm text-muted-foreground">Watch folders for new .torrent files.</p>
-      {Object.values(dirs).map((d) => (
-        <div key={d.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-          <div>
-            <div className="font-medium">{d.path}</div>
-            <div className="text-xs text-muted-foreground">
-              {d.enabled ? "Enabled" : "Disabled"}
-              {d.label ? ` · label ${d.label}` : ""}
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                void rpc(d.enabled ? "autoadd.disable_watchdir" : "autoadd.enable_watchdir", [d.id]).then(
-                  load
-                )
-              }
+    <PrefPage title="AutoAdd" description="Watch folders for new .torrent files.">
+      <PrefFieldset title="Watch folders">
+        {watchdirs.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No watch folders yet.</p>
+        ) : (
+          watchdirs.map((d) => (
+            <PrefRow
+              key={d.id}
+              label={d.path}
+              description={d.enabled ? (d.label ? `Enabled · label ${d.label}` : "Enabled") : "Disabled"}
             >
-              {d.enabled ? "Disable" : "Enable"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => void rpc("autoadd.remove", [d.id]).then(load)}>
-              Remove
-            </Button>
-          </div>
-        </div>
-      ))}
-      <div className="flex min-w-0 gap-2">
-        <Input className="min-w-0" value={path} onChange={(e) => setPath(e.target.value)} />
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void rpc(d.enabled ? "autoadd.disable_watchdir" : "autoadd.enable_watchdir", [d.id]).then(
+                      load
+                    )
+                  }
+                >
+                  {d.enabled ? "Disable" : "Enable"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void rpc("autoadd.remove", [d.id]).then(load)}>
+                  Remove
+                </Button>
+              </div>
+            </PrefRow>
+          ))
+        )}
+      </PrefFieldset>
+      <PrefFieldset title="Add folder">
+        <PrefPath label="Folder" mono value={path} onChange={setPath} />
+      </PrefFieldset>
+      <PrefActions>
         <Button
           onClick={() =>
             void rpc("autoadd.add", [{ path, enabled: true }]).then(() => {
@@ -1549,7 +1646,7 @@ function AutoAddPage() {
         >
           Add watchdir
         </Button>
-      </div>
+      </PrefActions>
     </PrefPage>
   );
 }
