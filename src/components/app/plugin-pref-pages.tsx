@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PrefActions, PrefPage, PrefRow, PrefSection, PrefSwitch } from "@/components/app/pref-ui";
 import { rpc } from "@/lib/deluge/client";
 import { LABEL_RPC } from "@/lib/deluge/label-plugin";
 import { loadLtConfig, saveLtConfig } from "@/lib/deluge/ltconfig";
@@ -14,15 +14,6 @@ import {
   PLUGIN_STUB_NOTE,
   relatedCoreConfigEntries,
 } from "@/lib/deluge/plugin-pages";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1.5 sm:grid-cols-[16rem_1fr] sm:items-center">
-      <Label className="text-muted-foreground">{label}</Label>
-      {children}
-    </div>
-  );
-}
 
 export function SettingValueInput({
   value,
@@ -38,16 +29,24 @@ export function SettingValueInput({
     return (
       <Input
         type="number"
+        className="max-w-28"
         value={Number.isFinite(value) ? String(value) : "0"}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     );
   }
   if (typeof value === "string") {
-    return <Input value={value} onChange={(e) => onChange(e.target.value)} />;
+    return (
+      <Input
+        className="w-[min(100%,20rem)] min-w-0 sm:w-72"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
   }
   return (
     <Input
+      className="w-[min(100%,20rem)] min-w-0 sm:w-72"
       value={JSON.stringify(value)}
       onChange={(e) => {
         try {
@@ -73,25 +72,27 @@ export function PluginStubPage({
 }) {
   const related = relatedCoreConfigEntries(name, core, extraCoreKeys);
   return (
-    <div className="grid gap-3">
-      <div>
-        <h3 className="text-base font-medium">{name}</h3>
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">Enabled</p>
-      </div>
-      <p className="text-sm text-muted-foreground">{PLUGIN_STUB_NOTE}</p>
-      {related.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No related keys in core.get_config.</p>
-      ) : (
-        related.map(([key, value]) => (
-          <Field key={key} label={key}>
-            <SettingValueInput
-              value={value}
-              onChange={(next) => setCore({ ...core, [key]: next })}
-            />
-          </Field>
-        ))
-      )}
-    </div>
+    <PrefPage title={name} description={`${PLUGIN_STUB_NOTE} Related core settings are shown below.`}>
+      <PrefSection title="Status">
+        <PrefRow label="Plugin" description="This plugin is enabled on the daemon.">
+          <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Enabled</span>
+        </PrefRow>
+      </PrefSection>
+      <PrefSection title="Related settings">
+        {related.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No related keys in core.get_config.</p>
+        ) : (
+          related.map(([key, value]) => (
+            <PrefRow key={key} label={key}>
+              <SettingValueInput
+                value={value}
+                onChange={(next) => setCore({ ...core, [key]: next })}
+              />
+            </PrefRow>
+          ))
+        )}
+      </PrefSection>
+    </PrefPage>
   );
 }
 
@@ -103,26 +104,27 @@ export function LabelPrefPage() {
       .catch(() => setLabels([]));
   }, []);
   return (
-    <div className="grid gap-3">
-      <div>
-        <h3 className="text-base font-medium">Label</h3>
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">Enabled</p>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Labels are managed in the filter sidebar. Per-label options stay there.
-      </p>
-      {labels.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No labels defined.</p>
-      ) : (
-        <ul className="grid gap-1 text-sm">
-          {labels.map((label) => (
-            <li key={label} className="rounded-md border px-3 py-1.5 font-mono text-xs">
-              {label}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <PrefPage
+      title="Label"
+      description="Labels are managed in the filter sidebar. Per-label options stay there."
+    >
+      <PrefSection title="Status">
+        <PrefRow label="Plugin" description="This plugin is enabled on the daemon.">
+          <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Enabled</span>
+        </PrefRow>
+      </PrefSection>
+      <PrefSection title="Labels">
+        {labels.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No labels defined.</p>
+        ) : (
+          labels.map((label) => (
+            <PrefRow key={label} label={label}>
+              <span className="font-mono text-xs text-muted-foreground">{label}</span>
+            </PrefRow>
+          ))
+        )}
+      </PrefSection>
+    </PrefPage>
   );
 }
 
@@ -188,47 +190,51 @@ export function LtConfigPage({
   }
 
   return (
-    <div className="grid gap-3">
-      <div>
-        <h3 className="text-base font-medium">{pluginName}</h3>
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">Enabled</p>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Libtorrent session settings. Changing these can affect swarm behavior.
-      </p>
-      <label className="flex items-center gap-2 text-sm">
-        <Switch checked={applyOnStart === true} onCheckedChange={(v) => setApplyOnStart(v === true)} />
-        Apply on start
-      </label>
-      <Field label="Filter settings">
-        <Input
-          value={filter}
-          placeholder="connections_limit"
-          onChange={(e) => setFilter(e.target.value)}
+    <PrefPage
+      title={pluginName}
+      description="Libtorrent session settings. Changing these can affect swarm behavior."
+    >
+      <PrefSection title="Apply">
+        <PrefSwitch
+          label="Apply on start"
+          description="Write these settings when the daemon starts."
+          checked={applyOnStart === true}
+          onChange={setApplyOnStart}
         />
-      </Field>
-      {keys.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No matching settings.</p>
-      ) : (
-        keys.map((key) => (
-          <Field key={key} label={key}>
-            <SettingValueInput
-              value={settings[key]}
-              onChange={(next) => setSettings({ ...settings, [key]: next })}
-            />
-          </Field>
-        ))
-      )}
-      <Button
-        className="w-fit"
-        onClick={() =>
-          void saveLtConfig((method, params) => rpc(method, params ?? []), setMethods, settings, applyOnStart)
-            .then(() => toast.success(`${pluginName} saved`))
-            .catch((err: unknown) => toast.error(err instanceof Error ? err.message : "Save failed"))
-        }
-      >
-        Save {pluginName}
-      </Button>
-    </div>
+        <PrefRow label="Filter settings" description="Show only keys that match this text.">
+          <Input
+            className="w-[min(100%,20rem)] min-w-0 sm:w-72"
+            value={filter}
+            placeholder="connections_limit"
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        </PrefRow>
+      </PrefSection>
+      <PrefSection title="Settings">
+        {keys.length === 0 ? (
+          <p className="px-3.5 py-3 text-sm text-muted-foreground">No matching settings.</p>
+        ) : (
+          keys.map((key) => (
+            <PrefRow key={key} label={key}>
+              <SettingValueInput
+                value={settings[key]}
+                onChange={(next) => setSettings({ ...settings, [key]: next })}
+              />
+            </PrefRow>
+          ))
+        )}
+      </PrefSection>
+      <PrefActions>
+        <Button
+          onClick={() =>
+            void saveLtConfig((method, params) => rpc(method, params ?? []), setMethods, settings, applyOnStart)
+              .then(() => toast.success(`${pluginName} saved`))
+              .catch((err: unknown) => toast.error(err instanceof Error ? err.message : "Save failed"))
+          }
+        >
+          Save {pluginName}
+        </Button>
+      </PrefActions>
+    </PrefPage>
   );
 }

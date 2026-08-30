@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import { PrefNavIcon } from "@/components/app/pref-nav-icon";
+import { PrefNum, PrefPage, PrefPath, PrefSection, PrefSwitch } from "@/components/app/pref-ui";
 import { rpc } from "@/lib/deluge/client";
 import { asBool, asNumber, asString, cloneConfig, dirtyConfig, isEmptyConfig } from "@/lib/deluge/pref-config";
 import { isWebSessionSpeedVisible, isWebSidebarVisible } from "@/lib/deluge/web-config";
@@ -102,227 +100,262 @@ export function TransmissionPreferences({
           ))}
         </nav>
         <ScrollArea className="min-w-0 flex-1 overflow-x-hidden">
-          <div className="grid min-w-0 gap-6 p-4">
+          <div className="min-w-0 px-5 py-5">
             {page === "downloads" ? (
-              <>
-                <h3 className="text-base font-medium">Downloads</h3>
-                <Field label="Download directory">
-                  <Input
-                    className="w-full min-w-0 font-mono text-sm"
+              <PrefPage title="Downloads" description="Where files are saved and how new torrents start.">
+                <PrefSection title="Folders">
+                  <PrefPath
+                    label="Download directory"
+                    mono
                     value={asString(core["download-dir"] ?? core.download_location)}
-                    onChange={(e) => {
-                      setCore({ ...core, "download-dir": e.target.value, download_location: e.target.value });
+                    onChange={(value) => {
+                      setCore({ ...core, "download-dir": value, download_location: value });
                     }}
                   />
-                </Field>
-                <SwitchRow
-                  label="Incomplete directory"
-                  checked={asBool(core["incomplete-dir-enabled"])}
-                  onChange={(v) => setOn("incomplete-dir-enabled", v)}
-                />
-                <Field label="Incomplete path">
-                  <Input
-                    className="w-full min-w-0 font-mono text-sm"
+                  <PrefSwitch
+                    label="Incomplete directory"
+                    description="Keep unfinished files in a separate folder."
+                    checked={asBool(core["incomplete-dir-enabled"])}
+                    onChange={(v) => setOn("incomplete-dir-enabled", v)}
+                  />
+                  <PrefPath
+                    label="Incomplete path"
+                    mono
                     disabled={!asBool(core["incomplete-dir-enabled"])}
                     value={asString(core["incomplete-dir"])}
-                    onChange={(e) => setStr("incomplete-dir", e.target.value)}
+                    onChange={(value) => setStr("incomplete-dir", value)}
                   />
-                </Field>
-                <SwitchRow
-                  label="Start added torrents"
-                  checked={core["start-added-torrents"] !== false}
-                  onChange={(v) => setOn("start-added-torrents", v)}
-                />
-                <SwitchRow
-                  label="Rename partial files"
-                  checked={asBool(core["rename-partial-files"])}
-                  onChange={(v) => setOn("rename-partial-files", v)}
-                />
-              </>
+                </PrefSection>
+                <PrefSection title="Options">
+                  <PrefSwitch
+                    label="Start added torrents"
+                    description="Begin downloading as soon as a torrent is added."
+                    checked={core["start-added-torrents"] !== false}
+                    onChange={(v) => setOn("start-added-torrents", v)}
+                  />
+                  <PrefSwitch
+                    label="Rename partial files"
+                    description="Append .part to files that are still downloading."
+                    checked={asBool(core["rename-partial-files"])}
+                    onChange={(v) => setOn("rename-partial-files", v)}
+                  />
+                </PrefSection>
+              </PrefPage>
             ) : null}
             {page === "speed" ? (
-              <>
-                <h3 className="text-base font-medium">Speed</h3>
-                <SwitchRow
-                  label="Limit download"
-                  checked={asBool(core["speed-limit-down-enabled"])}
-                  onChange={(v) => setOn("speed-limit-down-enabled", v)}
-                />
-                <Num
-                  label="Download limit"
-                  suffix="KiB/s"
-                  disabled={!asBool(core["speed-limit-down-enabled"])}
-                  value={asNumber(core["speed-limit-down"], 0)}
-                  onChange={(v) => setNum("speed-limit-down", v)}
-                />
-                <SwitchRow
-                  label="Limit upload"
-                  checked={asBool(core["speed-limit-up-enabled"])}
-                  onChange={(v) => setOn("speed-limit-up-enabled", v)}
-                />
-                <Num
-                  label="Upload limit"
-                  suffix="KiB/s"
-                  disabled={!asBool(core["speed-limit-up-enabled"])}
-                  value={asNumber(core["speed-limit-up"], 0)}
-                  onChange={(v) => setNum("speed-limit-up", v)}
-                />
-                <SwitchRow
-                  label="Alternative speed limits"
-                  checked={asBool(core["alt-speed-enabled"])}
-                  onChange={(v) => setOn("alt-speed-enabled", v)}
-                />
-                <Num
-                  label="Alt download"
-                  suffix="KiB/s"
-                  value={asNumber(core["alt-speed-down"], 0)}
-                  onChange={(v) => setNum("alt-speed-down", v)}
-                />
-                <Num
-                  label="Alt upload"
-                  suffix="KiB/s"
-                  value={asNumber(core["alt-speed-up"], 0)}
-                  onChange={(v) => setNum("alt-speed-up", v)}
-                />
-              </>
+              <PrefPage title="Speed" description="Normal and alternative transfer limits.">
+                <PrefSection title="Limits">
+                  <PrefSwitch
+                    label="Limit download"
+                    checked={asBool(core["speed-limit-down-enabled"])}
+                    onChange={(v) => setOn("speed-limit-down-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Download limit"
+                    suffix="KiB/s"
+                    disabled={!asBool(core["speed-limit-down-enabled"])}
+                    value={asNumber(core["speed-limit-down"], 0)}
+                    onChange={(v) => setNum("speed-limit-down", v)}
+                  />
+                  <PrefSwitch
+                    label="Limit upload"
+                    checked={asBool(core["speed-limit-up-enabled"])}
+                    onChange={(v) => setOn("speed-limit-up-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Upload limit"
+                    suffix="KiB/s"
+                    disabled={!asBool(core["speed-limit-up-enabled"])}
+                    value={asNumber(core["speed-limit-up"], 0)}
+                    onChange={(v) => setNum("speed-limit-up", v)}
+                  />
+                </PrefSection>
+                <PrefSection
+                  title="Alternative speeds"
+                  description="A second set of limits you can switch to, for example during the day."
+                >
+                  <PrefSwitch
+                    label="Use alternative speeds"
+                    checked={asBool(core["alt-speed-enabled"])}
+                    onChange={(v) => setOn("alt-speed-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Alt download"
+                    suffix="KiB/s"
+                    value={asNumber(core["alt-speed-down"], 0)}
+                    onChange={(v) => setNum("alt-speed-down", v)}
+                  />
+                  <PrefNum
+                    label="Alt upload"
+                    suffix="KiB/s"
+                    value={asNumber(core["alt-speed-up"], 0)}
+                    onChange={(v) => setNum("alt-speed-up", v)}
+                  />
+                </PrefSection>
+              </PrefPage>
             ) : null}
             {page === "queue" ? (
-              <>
-                <h3 className="text-base font-medium">Queue</h3>
-                <SwitchRow
-                  label="Download queue"
-                  checked={asBool(core["download-queue-enabled"])}
-                  onChange={(v) => setOn("download-queue-enabled", v)}
-                />
-                <Num
-                  label="Max active downloads"
-                  value={asNumber(core["download-queue-size"], 5)}
-                  onChange={(v) => setNum("download-queue-size", v)}
-                />
-                <SwitchRow
-                  label="Seed queue"
-                  checked={asBool(core["seed-queue-enabled"])}
-                  onChange={(v) => setOn("seed-queue-enabled", v)}
-                />
-                <Num
-                  label="Max active seeds"
-                  value={asNumber(core["seed-queue-size"], 5)}
-                  onChange={(v) => setNum("seed-queue-size", v)}
-                />
-                <SwitchRow
-                  label="Seed ratio limit"
-                  checked={asBool(core["ratio-limit-enabled"])}
-                  onChange={(v) => setOn("ratio-limit-enabled", v)}
-                />
-                <Num
-                  label="Ratio"
-                  value={asNumber(core["ratio-limit"], 2)}
-                  onChange={(v) => setNum("ratio-limit", v)}
-                />
-                <SwitchRow
-                  label="Idle seeding limit"
-                  checked={asBool(core["idle-seeding-limit-enabled"])}
-                  onChange={(v) => setOn("idle-seeding-limit-enabled", v)}
-                />
-                <Num
-                  label="Idle minutes"
-                  suffix="min"
-                  value={asNumber(core["idle-seeding-limit"], 30)}
-                  onChange={(v) => setNum("idle-seeding-limit", v)}
-                />
-              </>
+              <PrefPage title="Queue" description="How many torrents stay active and when seeding stops.">
+                <PrefSection title="Downloads">
+                  <PrefSwitch
+                    label="Download queue"
+                    description="Limit how many torrents may download at once."
+                    checked={asBool(core["download-queue-enabled"])}
+                    onChange={(v) => setOn("download-queue-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Max active downloads"
+                    disabled={!asBool(core["download-queue-enabled"])}
+                    value={asNumber(core["download-queue-size"], 5)}
+                    onChange={(v) => setNum("download-queue-size", v)}
+                  />
+                </PrefSection>
+                <PrefSection title="Seeding">
+                  <PrefSwitch
+                    label="Seed queue"
+                    description="Limit how many torrents may seed at once."
+                    checked={asBool(core["seed-queue-enabled"])}
+                    onChange={(v) => setOn("seed-queue-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Max active seeds"
+                    disabled={!asBool(core["seed-queue-enabled"])}
+                    value={asNumber(core["seed-queue-size"], 5)}
+                    onChange={(v) => setNum("seed-queue-size", v)}
+                  />
+                  <PrefSwitch
+                    label="Seed ratio limit"
+                    description="Stop seeding when a torrent reaches this share ratio."
+                    checked={asBool(core["ratio-limit-enabled"])}
+                    onChange={(v) => setOn("ratio-limit-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Ratio"
+                    disabled={!asBool(core["ratio-limit-enabled"])}
+                    value={asNumber(core["ratio-limit"], 2)}
+                    onChange={(v) => setNum("ratio-limit", v)}
+                  />
+                  <PrefSwitch
+                    label="Idle seeding limit"
+                    description="Stop seeding after a period with no upload activity."
+                    checked={asBool(core["idle-seeding-limit-enabled"])}
+                    onChange={(v) => setOn("idle-seeding-limit-enabled", v)}
+                  />
+                  <PrefNum
+                    label="Idle minutes"
+                    suffix="min"
+                    disabled={!asBool(core["idle-seeding-limit-enabled"])}
+                    value={asNumber(core["idle-seeding-limit"], 30)}
+                    onChange={(v) => setNum("idle-seeding-limit", v)}
+                  />
+                </PrefSection>
+              </PrefPage>
             ) : null}
             {page === "network" ? (
-              <>
-                <h3 className="text-base font-medium">Network</h3>
-                <Num
-                  label="Peer port"
-                  value={asNumber(core["peer-port"], 51413)}
-                  onChange={(v) => setNum("peer-port", v)}
-                />
-                <SwitchRow
-                  label="Randomize port on start"
-                  checked={asBool(core["peer-port-random-on-start"])}
-                  onChange={(v) => setOn("peer-port-random-on-start", v)}
-                />
-                <SwitchRow
-                  label="Port forwarding (UPnP / NAT-PMP)"
-                  checked={asBool(core["port-forwarding-enabled"])}
-                  onChange={(v) => setOn("port-forwarding-enabled", v)}
-                />
-                <Num
-                  label="Peer limit (global)"
-                  value={asNumber(core["peer-limit-global"], 200)}
-                  onChange={(v) => setNum("peer-limit-global", v)}
-                />
-                <Num
-                  label="Peer limit (per torrent)"
-                  value={asNumber(core["peer-limit-per-torrent"], 60)}
-                  onChange={(v) => setNum("peer-limit-per-torrent", v)}
-                />
-                <SwitchRow
-                  label="DHT"
-                  checked={core["dht-enabled"] !== false}
-                  onChange={(v) => setOn("dht-enabled", v)}
-                />
-                <SwitchRow
-                  label="PEX"
-                  checked={core["pex-enabled"] !== false}
-                  onChange={(v) => setOn("pex-enabled", v)}
-                />
-                <SwitchRow
-                  label="Local peer discovery"
-                  checked={core["lpd-enabled"] !== false}
-                  onChange={(v) => setOn("lpd-enabled", v)}
-                />
-                <SwitchRow
-                  label="µTP"
-                  checked={core["utp-enabled"] !== false}
-                  onChange={(v) => setOn("utp-enabled", v)}
-                />
-                <Field label="Encryption">
-                  <Input
-                    className="max-w-40"
-                    value={asString(core.encryption) || "preferred"}
-                    onChange={(e) => setStr("encryption", e.target.value)}
+              <PrefPage title="Network" description="Ports, peer limits, and how peers are discovered.">
+                <PrefSection title="Port">
+                  <PrefNum
+                    label="Peer port"
+                    value={asNumber(core["peer-port"], 51413)}
+                    onChange={(v) => setNum("peer-port", v)}
                   />
-                  <p className="text-xs text-muted-foreground">required, preferred, or tolerated</p>
-                </Field>
-              </>
+                  <PrefSwitch
+                    label="Randomize port on start"
+                    description="Pick a random incoming port each time Transmission starts."
+                    checked={asBool(core["peer-port-random-on-start"])}
+                    onChange={(v) => setOn("peer-port-random-on-start", v)}
+                  />
+                  <PrefSwitch
+                    label="Port forwarding"
+                    description="Automatically forward the peer port with UPnP or NAT-PMP."
+                    checked={asBool(core["port-forwarding-enabled"])}
+                    onChange={(v) => setOn("port-forwarding-enabled", v)}
+                  />
+                </PrefSection>
+                <PrefSection title="Peers">
+                  <PrefNum
+                    label="Peer limit"
+                    description="Maximum peers across the whole session."
+                    value={asNumber(core["peer-limit-global"], 200)}
+                    onChange={(v) => setNum("peer-limit-global", v)}
+                  />
+                  <PrefNum
+                    label="Peers per torrent"
+                    value={asNumber(core["peer-limit-per-torrent"], 60)}
+                    onChange={(v) => setNum("peer-limit-per-torrent", v)}
+                  />
+                </PrefSection>
+                <PrefSection title="Discovery">
+                  <PrefSwitch
+                    label="DHT"
+                    description="Find peers without a tracker."
+                    checked={core["dht-enabled"] !== false}
+                    onChange={(v) => setOn("dht-enabled", v)}
+                  />
+                  <PrefSwitch
+                    label="PEX"
+                    description="Learn about peers from others in the swarm."
+                    checked={core["pex-enabled"] !== false}
+                    onChange={(v) => setOn("pex-enabled", v)}
+                  />
+                  <PrefSwitch
+                    label="Local peer discovery"
+                    description="Find peers on your local network."
+                    checked={core["lpd-enabled"] !== false}
+                    onChange={(v) => setOn("lpd-enabled", v)}
+                  />
+                  <PrefSwitch
+                    label="µTP"
+                    description="Use the Micro Transport Protocol to reduce impact on other traffic."
+                    checked={core["utp-enabled"] !== false}
+                    onChange={(v) => setOn("utp-enabled", v)}
+                  />
+                  <PrefPath
+                    label="Encryption"
+                    description="required, preferred, or tolerated"
+                    value={asString(core.encryption) || "preferred"}
+                    onChange={(value) => setStr("encryption", value)}
+                  />
+                </PrefSection>
+              </PrefPage>
             ) : null}
             {page === "interface" ? (
-              <>
-                <h3 className="text-base font-medium">Interface</h3>
-                <SwitchRow
-                  label="Show filter sidebar"
-                  checked={isWebSidebarVisible(web)}
-                  onChange={(v) => {
-                    const next = { ...web, show_sidebar: v };
-                    setWeb(next);
-                    onWebConfigChange?.(next);
-                    void rpc("web.set_config", [{ show_sidebar: v }]);
-                  }}
-                />
-                <SwitchRow
-                  label="Show session speed"
-                  checked={isWebSessionSpeedVisible(web)}
-                  onChange={(v) => {
-                    const next = { ...web, show_session_speed: v };
-                    setWeb(next);
-                    onWebConfigChange?.(next);
-                    void rpc("web.set_config", [{ show_session_speed: v }]);
-                  }}
-                />
-                <SwitchRow
-                  label="Show empty filter rows"
-                  checked={asBool(web.sidebar_show_zero)}
-                  onChange={(v) => {
-                    const next = { ...web, sidebar_show_zero: v };
-                    setWeb(next);
-                    onWebConfigChange?.(next);
-                  }}
-                />
-              </>
+              <PrefPage title="Interface" description="How torro looks while connected to Transmission.">
+                <PrefSection title="Appearance">
+                  <PrefSwitch
+                    label="Show sidebar"
+                    description="Show the filter sidebar on the left."
+                    checked={isWebSidebarVisible(web)}
+                    onChange={(v) => {
+                      const next = { ...web, show_sidebar: v };
+                      setWeb(next);
+                      onWebConfigChange?.(next);
+                      void rpc("web.set_config", [{ show_sidebar: v }]);
+                    }}
+                  />
+                  <PrefSwitch
+                    label="Show session speed"
+                    description="Show download and upload speed in the title and status bar."
+                    checked={isWebSessionSpeedVisible(web)}
+                    onChange={(v) => {
+                      const next = { ...web, show_session_speed: v };
+                      setWeb(next);
+                      onWebConfigChange?.(next);
+                      void rpc("web.set_config", [{ show_session_speed: v }]);
+                    }}
+                  />
+                  <PrefSwitch
+                    label="Show empty filters"
+                    description="Keep filter rows visible when they match zero torrents."
+                    checked={asBool(web.sidebar_show_zero)}
+                    onChange={(v) => {
+                      const next = { ...web, sidebar_show_zero: v };
+                      setWeb(next);
+                      onWebConfigChange?.(next);
+                    }}
+                  />
+                </PrefSection>
+              </PrefPage>
             ) : null}
           </div>
         </ScrollArea>
@@ -334,61 +367,5 @@ export function TransmissionPreferences({
         <Button onClick={() => void save()}>Save</Button>
       </div>
     </>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid min-w-0 gap-1.5">
-      <Label className="text-muted-foreground">{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function Num({
-  label,
-  value,
-  onChange,
-  suffix,
-  disabled,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  suffix?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="grid min-w-0 gap-1.5">
-      <Label className="text-muted-foreground">{label}</Label>
-      <div className="flex min-w-0 items-center gap-2">
-        <Input
-          type="number"
-          className="max-w-28"
-          disabled={disabled}
-          value={Number.isFinite(value) ? String(value) : ""}
-          onChange={(e) => onChange(asNumber(e.target.value, value))}
-        />
-        {suffix ? <span className="text-xs text-muted-foreground">{suffix}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function SwitchRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <Switch checked={checked === true} onCheckedChange={(v) => onChange(v === true)} />
-      {label}
-    </label>
   );
 }
