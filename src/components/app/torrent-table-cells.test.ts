@@ -2,10 +2,57 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { torrentRowClassName, torrentRowHighlightClassName } from "./torrent-table.tsx";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const table = readFileSync(join(dir, "torrent-table.tsx"), "utf8");
 const badge = readFileSync(join(dir, "state-badge.tsx"), "utf8");
+
+const unstriped = torrentRowClassName({ striped: false, selected: false });
+const striped = torrentRowClassName({ striped: true, selected: false });
+const selected = torrentRowHighlightClassName({ striped: true, selected: true });
+const selectedMid = torrentRowHighlightClassName({
+  striped: false,
+  selected: true,
+  selectedAbove: true,
+  selectedBelow: true,
+});
+const selectedTop = torrentRowHighlightClassName({
+  striped: false,
+  selected: true,
+  selectedBelow: true,
+});
+const selectedBottom = torrentRowHighlightClassName({
+  striped: false,
+  selected: true,
+  selectedAbove: true,
+});
+const stripedHighlight = torrentRowHighlightClassName({ striped: true, selected: false });
+const unstripedHighlight = torrentRowHighlightClassName({ striped: false, selected: false });
+
+assert.match(unstriped, /relative isolate/);
+assert.match(striped, /\[transform:translateZ\(0\)\]/);
+assert.doesNotMatch(unstriped, /rounded-/);
+assert.doesNotMatch(striped, /rounded-/);
+assert.doesNotMatch(unstriped, /\[&>td:first-child\]:rounded/);
+assert.doesNotMatch(striped, /\[&>td\]:bg-muted/);
+assert.doesNotMatch(striped, /\[&>td\]:bg-primary/);
+assert.doesNotMatch(unstriped, /border-l-|border-r-/);
+assert.doesNotMatch(stripedHighlight, /border-l-|border-r-/);
+
+assert.match(stripedHighlight, /(?:^|\s)rounded-md(?:\s|$)/);
+assert.match(unstripedHighlight, /(?:^|\s)rounded-md(?:\s|$)/);
+assert.match(selected, /(?:^|\s)rounded-md(?:\s|$)/);
+assert.match(selected, /bg-primary\/10/);
+assert.match(stripedHighlight, /bg-muted\/50/);
+assert.match(unstripedHighlight, /group-hover:bg-muted\/70/);
+assert.doesNotMatch(unstripedHighlight, /(?:^|\s)bg-muted\/50(?:\s|$)/);
+assert.match(selectedMid, /rounded-none/);
+assert.doesNotMatch(selectedMid, /rounded-(?:md|t-md|b-md)\b/);
+assert.match(selectedTop, /rounded-t-md/);
+assert.match(selectedBottom, /rounded-b-md/);
+assert.doesNotMatch(stripedHighlight, /rounded-(?:l|r|tl|tr|bl|br)-md/);
+assert.doesNotMatch(stripedHighlight, /rounded-sm|rounded-full|rounded-\[/);
 
 assert.match(table, /table-fixed/);
 assert.match(table, /TORRENT_ROW_HEIGHT = 36/);
@@ -24,13 +71,24 @@ assert.doesNotMatch(table, /width: "100%"/);
 assert.doesNotMatch(table, /minWidth: tableMinWidth/);
 assert.match(table, /virtualRow\.index % 2 === 1/);
 assert.match(table, /torrentRowClassName/);
-assert.match(table, /\[&>td\]:bg-muted\/50/);
-assert.match(table, /\[&>td\]:bg-primary\/10/);
-assert.match(table, /rounded-tl-md/);
-assert.match(table, /rounded-bl-md/);
-assert.match(table, /\[&>td:first-child\]:border-l-\[0\.375rem\]/);
-assert.match(table, /\[&>td:last-child\]:border-r-\[0\.375rem\]/);
-assert.match(table, /bg-clip-padding/);
+assert.match(table, /torrentRowHighlightClassName/);
+assert.match(table, /data-row-highlight/);
+assert.match(table, /absolute inset-y-0 left-1\.5 right-1\.5/);
+assert.match(table, /bg-muted\/50/);
+assert.match(table, /bg-primary\/10 group-hover:bg-primary\/15/);
+assert.doesNotMatch(table, /\[&>td\]:bg-muted\/50/);
+assert.doesNotMatch(table, /\[&>td\]:bg-primary\/10/);
+assert.doesNotMatch(table, /\[&>td:first-child\]:rounded/);
+assert.doesNotMatch(table, /\[&>td:last-child\]:rounded/);
+assert.doesNotMatch(table, /rounded-\[10px_4px\]|rounded-sm|rounded-\[4px\]/);
+assert.doesNotMatch(table, /hover:\[&>td:first-child\]:rounded/);
+assert.doesNotMatch(table, /border-l-\[0\.375rem\]|border-r-\[0\.375rem\]/);
+assert.doesNotMatch(table, /\[&>td:first-child\]:border-l/);
+assert.doesNotMatch(table, /\[&>td:last-child\]:border-r/);
+assert.doesNotMatch(table, /\[&>td:nth-last-child/);
+assert.doesNotMatch(table, /bg-clip-padding/);
+assert.match(table, /overflow-hidden py-1\.5 pr-2 pl-3\.5 whitespace-nowrap/);
+assert.match(table, /last && "pr-3\.5"/);
 assert.match(table, /relative py-2 pr-2 pl-3\.5/);
 assert.match(table, /last \? "pr-3\.5 pl-2" : "px-2"/);
 assert.match(table, /ChevronUp/);
