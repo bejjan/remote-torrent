@@ -19,6 +19,8 @@ import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
+import { SessionMonitor } from "@/components/app/session-monitor";
+import { SessionSpeedFavicon } from "@/components/app/session-speed-favicon";
 import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
 import {
@@ -119,6 +121,11 @@ import {
   type DetailsDock,
 } from "@/lib/deluge/ui-layout";
 import {
+  isSessionMonitorChipVisible,
+  nextRateSamples,
+  type SessionRateSample,
+} from "@/lib/deluge/session-monitor";
+import {
   DEFAULT_DOCUMENT_TITLE,
   holdLastSessionRates,
   isWebSessionSpeedVisible,
@@ -182,6 +189,8 @@ export function TorrentShell({
   const activeIdRef = useRef(activeId);
   const wantSearchFocusRef = useRef(false);
   const pollGen = useRef(0);
+  const lastRatesRef = useRef({ download: 0, upload: 0 });
+  const [rateSamples, setRateSamples] = useState<SessionRateSample[]>([]);
   const [searchFieldTitle, setSearchFieldTitle] = useState<string | undefined>(undefined);
   const [searchPlaceholder, setSearchPlaceholder] = useState(DEFAULT_TORRENT_SEARCH_PLACEHOLDER);
   const [addTorrentLabel, setAddTorrentLabel] = useState(DEFAULT_ADD_TORRENT_LABEL);
@@ -293,6 +302,9 @@ export function TorrentShell({
       const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], {}]);
       if (gen !== pollGen.current) return;
       setUi((prev) => mergeUiUpdate(prev, result));
+      const held = holdLastSessionRates(lastRatesRef.current, result.stats);
+      lastRatesRef.current = held;
+      setRateSamples((prev) => nextRateSamples(prev, held, result.connected));
       setError(null);
       if (!result.connected) setError("Daemon disconnected");
     } catch (err) {
@@ -399,7 +411,6 @@ export function TorrentShell({
   const primary = activeId && ui?.torrents?.[activeId] ? activeId : selectedIds[0] ?? null;
   const primaryTorrent = primary ? (ui?.torrents?.[primary] as TorrentStatus | undefined) : null;
   const stats = ui?.stats as SessionStats | null;
-  const lastRatesRef = useRef({ download: 0, upload: 0 });
   const rates = holdLastSessionRates(lastRatesRef.current, stats);
   lastRatesRef.current = rates;
   const downloadRate = rates.download;
@@ -615,78 +626,93 @@ export function TorrentShell({
         ) : null}
         <div
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1 sm:contents sm:gap-2",
+            "flex min-w-0 flex-1 items-center gap-1",
+            "sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-2",
             searchExpanded && "max-sm:hidden"
           )}
         >
-          {mobile ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Filters"
-            >
-              <PanelLeft />
-            </Button>
-          ) : null}
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-              <Menu />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-52">
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
-                <Info /> About Nova
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>
-                <Settings /> Preferences…
-              </DropdownMenuItem>
-              {caps.connectionManager ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
-                    <Server /> Connection Manager…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-                    <Server /> Open hosts page
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              <DropdownMenuSeparator />
-              <ThemeMenuSub />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
-                <LogOut /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Brand
-            className="min-w-0 shrink"
-            markClassName="size-6"
-            wordmarkClassName="hidden sm:inline"
-          />
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+            {mobile ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Filters"
+              >
+                <PanelLeft />
+              </Button>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
+                <Menu />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-52">
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
+                  <Info /> About torro
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>
+                  <Settings /> Preferences…
+                </DropdownMenuItem>
+                {caps.connectionManager ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
+                      <Server /> Connection Manager…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
+                      <Server /> Open hosts page
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                <DropdownMenuSeparator />
+                <ThemeMenuSub />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
+                  <LogOut /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Brand
+              className="min-w-0 shrink"
+              markClassName="size-6"
+              wordmarkClassName="hidden sm:inline"
+            />
+          </div>
           <SearchField
             value={search}
             onChange={setSearch}
             title={searchFieldTitle}
             placeholder={searchPlaceholder}
-            className="relative ml-auto min-w-0 max-w-xs flex-1 max-sm:hidden"
+            className="relative w-[min(20rem,30vw)] xl:w-[min(24rem,36vw)] max-sm:hidden"
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="relative ml-auto shrink-0 sm:hidden"
-            aria-label="Search torrents"
-            aria-expanded={false}
-            onClick={() => setSearchExpanded(true)}
-          >
-            <Search />
-            {search ? (
-              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-1 sm:ml-0 sm:gap-2">
+            {isSessionMonitorChipVisible(ui?.connected) ? (
+              <SessionMonitor
+                downloadRate={downloadRate}
+                uploadRate={uploadRate}
+                samples={rateSamples}
+                stats={stats}
+                torrents={ui?.torrents}
+                showDht={caps.dhtNodes}
+              />
             ) : null}
-          </Button>
-          <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="relative shrink-0 sm:hidden"
+              aria-label="Search torrents"
+              aria-expanded={false}
+              onClick={() => setSearchExpanded(true)}
+            >
+              <Search />
+              {search ? (
+                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
+              ) : null}
+            </Button>
+            <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
+          </div>
         </div>
       </header>
 
@@ -896,10 +922,14 @@ function SearchField({
 
 function AddTorrentButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <Button className="h-8 min-w-0 shrink" onClick={onClick} title={label}>
+    <Button
+      className="h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
       <Plus />
-      <span className="max-[20rem]:hidden">{label}</span>
-      <span className="hidden max-[20rem]:inline">Add</span>
+      <span className="hidden xl:inline">{label}</span>
     </Button>
   );
 }
