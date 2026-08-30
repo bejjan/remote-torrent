@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "GPL-3.0-or-later",
-  "description": "Modern web UI for Deluge and Transmission",
+  "description": "Modern web UI for Deluge, Transmission, and qBittorrent",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 --port 43123",
     "build": "next build",

@@ -37,6 +37,7 @@ assert.match(source, /PluginStubPage/);
 assert.match(source, /show_session_speed/);
 assert.match(source, /show_sidebar/);
 assert.match(source, /TransmissionPreferences/);
+assert.match(source, /QBittorrentPreferences/);
 assert.doesNotMatch(source, /lorem ipsum/i);
 
 console.log("preferences-dialog tests passed");

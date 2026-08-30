@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DelugeError, getStoredClientKind, rpc, uploadTorrent } from "@/lib/deluge/client";
+import { clientCapabilities, DelugeError, getStoredClientKind, rpc, uploadTorrent } from "@/lib/deluge/client";
 import { formatBytes } from "@/lib/deluge/format";
 import {
   commonPriority,
@@ -135,7 +135,7 @@ export function AddTorrentDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chooseFileRef = useRef<HTMLButtonElement>(null);
   const loadGen = useRef(0);
-  const transmission = getStoredClientKind() === "transmission";
+  const caps = clientCapabilities(getStoredClientKind());
 
   useEffect(() => {
     if (!open) {
@@ -593,7 +593,7 @@ export function AddTorrentDialog({
             </button>
             {advancedOpen ? (
               <div className="grid gap-x-3 gap-y-2 border-t border-border px-2.5 py-2 sm:grid-cols-2 sm:items-center">
-                {transmission ? null : (
+                {caps.kind === "deluge" ? (
                   <>
                     <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
                       <Switch size="sm" checked={moveCompleted} onCheckedChange={setMoveCompleted} />
@@ -609,23 +609,27 @@ export function AddTorrentDialog({
                       className="h-7"
                     />
                   </>
-                )}
+                ) : null}
                 <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
                   <Switch size="sm" checked={addPaused} onCheckedChange={setAddPaused} />
                   Add in paused state
                 </label>
-                {transmission ? null : (
+                {caps.sequentialDownload || caps.prioritizeFirstLast ? (
                   <>
-                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
-                      <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
-                      Sequential download
-                    </label>
-                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
-                      <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
-                      Prioritize first and last pieces
-                    </label>
+                    {caps.sequentialDownload ? (
+                      <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                        <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
+                        Sequential download
+                      </label>
+                    ) : null}
+                    {caps.prioritizeFirstLast ? (
+                      <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
+                        <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
+                        Prioritize first and last pieces
+                      </label>
+                    ) : null}
                   </>
-                )}
+                ) : null}
                 <div className="grid grid-cols-[auto_1fr] items-center gap-2">
                   <Label htmlFor="add-max-down" className="text-sm font-normal leading-snug">
                     Max download

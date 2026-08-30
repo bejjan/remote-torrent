@@ -21,12 +21,17 @@ export function tlsInsecureEnabled(req: NextRequest): boolean {
   const headers = [
     req.headers.get("x-deluge-tls-insecure"),
     req.headers.get("x-transmission-tls-insecure"),
+    req.headers.get("x-qbittorrent-tls-insecure"),
     req.headers.get("x-torrent-tls-insecure"),
   ];
   if (headers.some((value) => value?.trim().toLowerCase() === "1" || value?.trim().toLowerCase() === "true")) {
     return true;
   }
-  const env = [process.env.DELUGE_TLS_INSECURE, process.env.TRANSMISSION_TLS_INSECURE];
+  const env = [
+    process.env.DELUGE_TLS_INSECURE,
+    process.env.TRANSMISSION_TLS_INSECURE,
+    process.env.QBITTORRENT_TLS_INSECURE,
+  ];
   return env.some((value) => value?.trim().toLowerCase() === "1" || value?.trim().toLowerCase() === "true");
 }
 

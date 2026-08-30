@@ -32,6 +32,7 @@ import {
   PrefSection,
   PrefSwitch,
 } from "@/components/app/pref-ui";
+import { QBittorrentPreferences } from "@/components/app/qbittorrent-preferences";
 import { TransmissionPreferences } from "@/components/app/transmission-preferences";
 import { rpc, getStoredClientKind } from "@/lib/deluge/client";
 import {
@@ -161,7 +162,7 @@ export function PreferencesDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (getStoredClientKind() === "transmission") return;
+    if (getStoredClientKind() !== "deluge") return;
     void (async () => {
       try {
         const [c, w, plugins, langs] = await Promise.all([
@@ -212,6 +213,23 @@ export function PreferencesDialog({
             <DialogTitle>Preferences</DialogTitle>
           </DialogHeader>
           <TransmissionPreferences
+            open={open}
+            onOpenChange={onOpenChange}
+            onWebConfigChange={onWebConfigChange}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (typeof window !== "undefined" && getStoredClientKind() === "qbittorrent") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[min(40rem,90vh)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b p-4">
+            <DialogTitle>Preferences</DialogTitle>
+          </DialogHeader>
+          <QBittorrentPreferences
             open={open}
             onOpenChange={onOpenChange}
             onWebConfigChange={onWebConfigChange}

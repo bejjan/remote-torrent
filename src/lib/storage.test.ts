@@ -12,6 +12,7 @@ assert.equal(NOTIFY_TORRENT_IDS_STORAGE_KEY, "nova:notify-torrent-ids");
 assert.equal(legacyStorageKey("sidebar-width"), "deluge-nova:sidebar-width");
 assert.equal(legacyStorageKey("notify-on-complete"), "deluge-nova:notify-on-complete");
 assert.equal(parseClientKind("transmission"), "transmission");
+assert.equal(parseClientKind("qbittorrent"), "qbittorrent");
 assert.equal(parseClientKind("deluge"), "deluge");
 assert.equal(parseClientKind(null), "deluge");
 assert.equal(parseClientKind("nope"), "deluge");

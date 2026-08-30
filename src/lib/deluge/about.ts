@@ -1,13 +1,15 @@
 import packageJson from "../../../package.json";
 
 export const ABOUT_APP_NAME = "torro";
-export const ABOUT_TAGLINE = "modern Web UI for Deluge and Transmission";
+export const ABOUT_TAGLINE = "modern Web UI for Deluge, Transmission, and qBittorrent";
 export const ABOUT_LICENSE = "GPL-3.0";
 export const ABOUT_LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html";
 export const ABOUT_PROJECT_LABEL = "Deluge project";
 export const ABOUT_PROJECT_URL = "https://www.deluge-torrent.org/";
 export const ABOUT_TRANSMISSION_LABEL = "Transmission project";
 export const ABOUT_TRANSMISSION_URL = "https://transmissionbt.com/";
+export const ABOUT_QBITTORRENT_LABEL = "qBittorrent project";
+export const ABOUT_QBITTORRENT_URL = "https://www.qbittorrent.org/";
 export const ABOUT_DAEMON_UNAVAILABLE =
   "Daemon version is unavailable while not connected.";
 

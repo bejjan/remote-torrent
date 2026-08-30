@@ -261,7 +261,7 @@ function torrentName(index: number, rng: () => number): string {
 
 /**
  * Build N torrent specs in memory. Cheap enough for 10k; callers map through
- * the existing Deluge / Transmission adapters.
+ * the existing Deluge / Transmission / qBittorrent adapters.
  */
 export function generateSyntheticTorrentSpecs(config: AdminDemoConfig): SyntheticTorrentSpec[] {
   const clamped = clampAdminDemoConfig({ ...config, enabled: true });
