@@ -2,8 +2,11 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  AppWindow,
   ArrowDown,
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
   ChevronsDown,
   ChevronsUp,
   FolderInput,
@@ -72,13 +75,44 @@ import {
 } from "@/lib/deluge/torrent-empty-state";
 import type { TorrentSortKey } from "@/lib/deluge/torrent-list";
 import type { TorrentStatus } from "@/lib/deluge/types";
-import { applyVisibleSelection, visibleSelectionState } from "@/lib/deluge/selection";
+import {
+  applyVisibleSelection,
+  idsBetween,
+  moveListSelection,
+  resolveRangeAnchor,
+  visibleSelectionState,
+} from "@/lib/deluge/selection";
 import { SELECT_COLUMN_ID } from "@/lib/deluge/ui-layout";
 import { cn } from "@/lib/utils";
 
 /** Fixed row height keeps scrolling smooth and avoids measuring 1000+ rows. */
 export const TORRENT_ROW_HEIGHT = 36;
 const ROW_OVERSCAN = 10;
+
+/** Finder-style zebra + inset rounded selection. Header stays full-bleed; body cells clip into a side gutter. */
+export function torrentRowClassName({
+  striped,
+  selected,
+  selectedAbove = false,
+  selectedBelow = false,
+}: {
+  striped: boolean;
+  selected: boolean;
+  selectedAbove?: boolean;
+  selectedBelow?: boolean;
+}): string {
+  return cn(
+    "cursor-pointer",
+    "[&>td:first-child]:border-l-[0.375rem] [&>td:first-child]:border-solid [&>td:first-child]:border-transparent [&>td:first-child]:bg-clip-padding",
+    "[&>td:last-child]:border-r-[0.375rem] [&>td:last-child]:border-solid [&>td:last-child]:border-transparent [&>td:last-child]:bg-clip-padding",
+    !selected && striped && "[&>td]:bg-muted/50",
+    !selected && "hover:[&>td]:bg-muted/70",
+    !selected && "hover:[&>td:first-child]:rounded-l-md hover:[&>td:last-child]:rounded-r-md",
+    selected && "[&>td]:bg-primary/10 hover:[&>td]:bg-primary/15",
+    selected && !selectedAbove && "[&>td:first-child]:rounded-tl-md [&>td:last-child]:rounded-tr-md",
+    selected && !selectedBelow && "[&>td:first-child]:rounded-bl-md [&>td:last-child]:rounded-br-md"
+  );
+}
 
 export type TorrentRowEntry = [id: string, torrent: TorrentStatus];
 
@@ -156,6 +190,7 @@ export const TorrentTable = memo(function TorrentTable({
   onMove,
 }: TorrentTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rangeAnchorIdRef = useRef<string | null>(null);
   const ids = useMemo(() => torrents.map(([id]) => id), [torrents]);
   const headerSelect = visibleSelectionState(ids, selected);
   const colCount = shownColumns.length + 1;
@@ -171,19 +206,20 @@ export const TorrentTable = memo(function TorrentTable({
           else next.add(id);
           return next;
         });
+        rangeAnchorIdRef.current = id;
         onActiveIdChange(id);
         return;
       }
-      if (e.shiftKey && activeId) {
-        const a = ids.indexOf(activeId);
-        const b = ids.indexOf(id);
-        if (a >= 0 && b >= 0) {
-          const [lo, hi] = a < b ? [a, b] : [b, a];
-          onSelectedChange(new Set(ids.slice(lo, hi + 1)));
+      if (e.shiftKey) {
+        const anchorId = resolveRangeAnchor(ids, rangeAnchorIdRef.current, activeId);
+        if (anchorId) {
+          rangeAnchorIdRef.current = anchorId;
+          onSelectedChange(new Set(idsBetween(ids, anchorId, id)));
           onActiveIdChange(id);
           return;
         }
       }
+      rangeAnchorIdRef.current = id;
       onSelectedChange(new Set([id]));
       onActiveIdChange(id);
       if (mobile) onOpenDetails(id);
@@ -191,6 +227,7 @@ export const TorrentTable = memo(function TorrentTable({
     selectForContext(id) {
       const actionIds = contextActionIds(selected, id);
       if (!selected.has(id)) onSelectedChange(new Set(actionIds));
+      rangeAnchorIdRef.current = id;
       onActiveIdChange(id);
       return actionIds;
     },
@@ -201,9 +238,11 @@ export const TorrentTable = memo(function TorrentTable({
         else next.delete(id);
         return next;
       });
+      rangeAnchorIdRef.current = id;
       onActiveIdChange(id);
     },
     openDetails(id) {
+      rangeAnchorIdRef.current = id;
       onActiveIdChange(id);
       onOpenDetails(id);
     },
@@ -371,18 +410,18 @@ export const TorrentTable = memo(function TorrentTable({
       const current = activeId ? ids.indexOf(activeId) : -1;
 
       const moveTo = (index: number, shift: boolean) => {
-        const nextIndex = Math.max(0, Math.min(lastIndex, index));
-        const id = ids[nextIndex];
-        if (!id) return;
-        if (shift && current >= 0) {
-          const anchor = current;
-          const [lo, hi] = anchor < nextIndex ? [anchor, nextIndex] : [nextIndex, anchor];
-          onSelectedChange(new Set(ids.slice(lo, hi + 1)));
-        } else if (!shift) {
-          onSelectedChange(new Set([id]));
-        }
-        onActiveIdChange(id);
-        scrollRowIntoView(nextIndex);
+        const moved = moveListSelection({
+          ids,
+          activeId,
+          anchorId: rangeAnchorIdRef.current,
+          nextIndex: index,
+          shift,
+        });
+        if (!moved) return;
+        rangeAnchorIdRef.current = moved.anchorId;
+        onSelectedChange(new Set(moved.selected));
+        onActiveIdChange(moved.activeId);
+        scrollRowIntoView(ids.indexOf(moved.activeId));
       };
 
       if (e.key === "ArrowDown") {
@@ -463,8 +502,8 @@ export const TorrentTable = memo(function TorrentTable({
       onKeyDown={onKeyDown}
     >
       <table
-        className="table-fixed text-sm"
-        style={{ width: tableMinWidth, minWidth: tableMinWidth }}
+        className="table-fixed border-separate border-spacing-0 text-sm"
+        style={{ width: "100%", minWidth: tableMinWidth }}
       >
         <colgroup>
           <col style={{ width: widthFor(SELECT_COLUMN_ID) }} />
@@ -472,10 +511,10 @@ export const TorrentTable = memo(function TorrentTable({
             <col key={column.id} style={{ width: widthFor(column.id) }} />
           ))}
         </colgroup>
-        <thead className={cn("sticky top-0 z-10 border-b bg-background", dragId && "touch-none")}>
+        <thead className={cn("sticky top-0 z-10 bg-background [&_th]:border-b", dragId && "touch-none")}>
           <ContextMenu>
             <ContextMenuTrigger render={<tr className="text-left text-xs" />}>
-              <th className="relative px-2 py-2">
+              <th className="relative py-2 pr-2 pl-3.5">
                 <Checkbox
                   checked={headerSelect.checked}
                   indeterminate={headerSelect.indeterminate}
@@ -505,6 +544,7 @@ export const TorrentTable = memo(function TorrentTable({
                     headerRef={(node) => setHeaderCell(column.id, node)}
                     onReorderPointerDown={(event) => startReorder(column.id, event)}
                     onResize={(dx) => onResizeColumn(column.id, dx)}
+                    last={index === shownColumns.length - 1}
                   >
                     {column.label}
                   </Th>
@@ -539,12 +579,17 @@ export const TorrentTable = memo(function TorrentTable({
             const entry = torrents[virtualRow.index];
             if (!entry) return null;
             const [id, torrent] = entry;
+            const prevId = torrents[virtualRow.index - 1]?.[0];
+            const nextId = torrents[virtualRow.index + 1]?.[0];
             return (
               <TorrentRow
                 key={id}
                 torrentId={id}
                 torrent={torrent}
+                striped={virtualRow.index % 2 === 1}
                 selected={selected.has(id)}
+                selectedAbove={!!prevId && selected.has(prevId)}
+                selectedBelow={!!nextId && selected.has(nextId)}
                 shownColumns={shownColumns}
                 query={search}
                 sortKey={sortKey}
@@ -568,7 +613,10 @@ export const TorrentTable = memo(function TorrentTable({
 const TorrentRow = memo(function TorrentRow({
   torrentId,
   torrent,
+  striped,
   selected,
+  selectedAbove,
+  selectedBelow,
   shownColumns,
   query,
   sortKey,
@@ -578,7 +626,10 @@ const TorrentRow = memo(function TorrentRow({
 }: {
   torrentId: string;
   torrent: TorrentStatus;
+  striped: boolean;
   selected: boolean;
+  selectedAbove: boolean;
+  selectedBelow: boolean;
   shownColumns: TorrentColumn[];
   query: string;
   sortKey: TorrentSortKey;
@@ -592,10 +643,12 @@ const TorrentRow = memo(function TorrentRow({
       <ContextMenuTrigger
         render={
           <tr
-            className={cn(
-              "cursor-pointer border-b hover:bg-muted/50",
-              selected && "bg-primary/10 hover:bg-primary/15"
-            )}
+            className={torrentRowClassName({
+              striped,
+              selected,
+              selectedAbove,
+              selectedBelow,
+            })}
             style={{ height }}
             onClick={(e) => handlersRef.current.clickRow(id, e)}
             onContextMenu={() => {
@@ -624,6 +677,15 @@ const TorrentRow = memo(function TorrentRow({
         ))}
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
+        <ContextMenuItem
+          onClick={() => {
+            handlersRef.current.selectForContext(id);
+            handlersRef.current.openDetails(id);
+          }}
+        >
+          <AppWindow /> Open inspector...
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => {
             handlersRef.current.act("core.pause_torrent", handlersRef.current.selectForContext(id));
@@ -717,6 +779,7 @@ function Th({
   headerRef,
   onReorderPointerDown,
   onResize,
+  last = false,
 }: {
   children: React.ReactNode;
   columnId: TorrentColumnId;
@@ -728,6 +791,7 @@ function Th({
   headerRef: (node: HTMLTableCellElement | null) => void;
   onReorderPointerDown: (event: ReactPointerEvent<HTMLTableCellElement> | MouseEvent<HTMLTableCellElement>) => void;
   onResize: (dx: number) => void;
+  last?: boolean;
 }) {
   return (
     <th
@@ -736,7 +800,8 @@ function Th({
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
       aria-grabbed={dragging || undefined}
       className={cn(
-        "relative overflow-visible px-2 py-2 select-none",
+        "relative overflow-visible py-2 select-none",
+        last ? "pr-3.5 pl-2" : "px-2",
         dragging ? "cursor-grabbing" : "cursor-grab",
         active ? "bg-muted/40 text-foreground" : "text-muted-foreground"
       )}
@@ -772,7 +837,11 @@ function Th({
       >
         {children}
         {active ? (
-          <span className="text-[10px] text-foreground">{dir === "asc" ? "▲" : "▼"}</span>
+          dir === "asc" ? (
+            <ChevronUp className="size-3 shrink-0 text-foreground" aria-hidden />
+          ) : (
+            <ChevronDown className="size-3 shrink-0 text-foreground" aria-hidden />
+          )
         ) : null}
       </button>
       <DragResizeHandle ariaLabel="Resize column" onDelta={onResize} />
@@ -810,8 +879,8 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       case "progress":
         return (
           <td className="px-2 py-1.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="flex min-w-0 w-full flex-1 items-center gap-2">
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
                 <div
                   className={cn("h-full rounded-full", stateBarClass(t.state))}
                   style={{ width: `${Math.min(100, t.progress)}%` }}
@@ -903,9 +972,9 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
     className: cn(
       typed.props.className,
       // table-layout:fixed still lets min-content wrap; max-w-0 + nowrap/ellipsis clips to the col width.
-      "max-w-0 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap",
+      "max-w-0 min-w-0 overflow-hidden align-middle text-ellipsis whitespace-nowrap",
       sorted && "bg-muted/25"
     ),
-    children: <div className="min-w-0 truncate">{typed.props.children}</div>,
+    children: <div className="flex h-full min-w-0 items-center truncate">{typed.props.children}</div>,
   });
 });
