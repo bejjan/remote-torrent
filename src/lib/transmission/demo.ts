@@ -219,7 +219,7 @@ function makeTorrent(opts: {
     pieceCount: Math.max(1, Math.round(opts.size / (256 * 1024))),
     pieceSize: 262144,
     comment: "Demo torrent",
-    creator: "Nova",
+    creator: "torro",
     isPrivate: false,
     recheckProgress: opts.status === TR_STATUS.CHECK ? opts.progress : 1,
     secondsDownloading: 5400,

@@ -38,7 +38,7 @@ export function NovaApp() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-muted-foreground">
         <Loader2 className="size-6 animate-spin text-primary" />
-        <p className="text-sm">Starting Nova…</p>
+        <p className="text-sm">Starting torro…</p>
       </div>
     );
   }

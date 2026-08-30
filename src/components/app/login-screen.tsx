@@ -214,7 +214,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
           <div className="min-w-0">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription className="mt-1 text-pretty">
-              Connect Nova to Deluge Web or Transmission RPC — or leave the URL blank for the demo.
+              Connect torro to Deluge Web or Transmission RPC — or leave the URL blank for the demo.
             </CardDescription>
           </div>
         </CardHeader>
