@@ -36,7 +36,18 @@ const downloading: TransmissionTorrent = {
 assert.equal(mapTransmissionState(downloading), "Downloading");
 assert.equal(torrentKey(downloading), "abc");
 assert.equal(mapTransmissionTorrent(downloading).progress, 50);
+assert.equal(mapTransmissionTorrent(downloading).is_finished, false);
 assert.equal(mapTransmissionTorrent(downloading).label, "linux");
+assert.equal(
+  mapTransmissionTorrent({
+    ...downloading,
+    status: TR_STATUS.SEED,
+    percentDone: 1,
+    leftUntilDone: 0,
+    sizeWhenDone: 100,
+  }).is_finished,
+  true
+);
 assert.equal(
   mapTransmissionTorrent({
     ...downloading,

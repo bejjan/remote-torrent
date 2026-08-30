@@ -205,6 +205,7 @@ function makeTorrent(opts: {
     total_wanted: opts.size,
     state: opts.state,
     progress: opts.progress,
+    is_finished: opts.progress >= 100,
     num_seeds: opts.state === "Seeding" ? 0 : 4 + queueAge,
     total_seeds: 42 + queueAge * 3,
     num_peers: 8 + queueAge,
@@ -845,6 +846,7 @@ function tickDownloads(state: DemoState) {
       if (t.progress >= 100) {
         t.state = "Seeding";
         t.progress = 100;
+        t.is_finished = true;
         t.download_payload_rate = 0;
         t.completed_time = nowSec();
         t.message = "";
@@ -866,6 +868,7 @@ function tickDownloads(state: DemoState) {
       if (t.progress >= 100) {
         t.state = "Seeding";
         t.progress = 100;
+        t.is_finished = true;
         t.queue = -1;
       }
     }
@@ -1335,6 +1338,7 @@ export function handleDemoRpc(
       }
       case "web.add_torrents": {
         const items = (params[0] as { path?: string; options?: AddTorrentOptions }[]) || [];
+        const added: string[] = [];
         for (const item of items) {
           const path = item.path || "";
           const uploaded = state.uploads[path];
@@ -1345,9 +1349,9 @@ export function handleDemoRpc(
           const files = uploaded?.filesTree
             ? mapInfoTreeToStatusFiles(uploaded.filesTree, prios)
             : undefined;
-          addTorrentFromName(state, name, item.options, uploaded?.size, files);
+          added.push(addTorrentFromName(state, name, item.options, uploaded?.size, files));
         }
-        return { id, result: true, error: null };
+        return { id, result: added.length === 1 ? added[0] : added, error: null };
       }
       case "web.download_torrent_from_url": {
         const url = String(params[0] ?? "");

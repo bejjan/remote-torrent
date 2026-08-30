@@ -48,7 +48,8 @@ const added = handleDemoRpc(
   cookie
 );
 assert.equal(added.error, null);
-assert.equal(added.result, true);
+assert.equal(typeof added.result, "string");
+assert.match(String(added.result), /^[0-9a-f]{40}$/);
 
 const magnet = handleDemoRpc(
   {

@@ -4,6 +4,7 @@ export const GRID_KEYS = [
   "total_wanted",
   "state",
   "progress",
+  "is_finished",
   "num_seeds",
   "total_seeds",
   "num_peers",

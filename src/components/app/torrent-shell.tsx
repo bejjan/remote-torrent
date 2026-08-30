@@ -47,6 +47,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { clientCapabilities, getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
+import { processDownloadFinishedNotifications } from "@/lib/notify-complete";
 import {
   LABEL_RPC,
   isLabelPluginEnabled,
@@ -386,6 +387,7 @@ export function TorrentShell({
     if (!map) return;
     setSelected((prev) => pruneSelectedIds(prev, map));
     setActiveId((id) => pruneActiveId(id, map));
+    processDownloadFinishedNotifications(map);
   }, [ui?.torrents]);
 
   const torrents = useMemo(

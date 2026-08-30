@@ -113,6 +113,7 @@ export function mapTransmissionTorrent(torrent: TransmissionTorrent): TorrentSta
     total_wanted: size,
     state,
     progress: checking && recheck > 0 && recheck <= 1 ? recheck * 100 : progress,
+    is_finished: !checking && (progress >= 100 || (size > 0 && remaining === 0)),
     num_seeds: seeds,
     total_seeds: typeof swarmSeeds === "number" && swarmSeeds >= 0 ? swarmSeeds : -1,
     num_peers: Math.max(0, peers - seeds),
