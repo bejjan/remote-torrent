@@ -7,6 +7,30 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+/** Stay inside the visible viewport on phones (`svh`, not `vh`). */
+export const VIEWPORT_DIALOG_MAX_H =
+  "max-h-[calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]"
+
+const LARGE_DIALOG_FRAME = cn(
+  "flex w-full min-w-0 max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl",
+  VIEWPORT_DIALOG_MAX_H
+)
+
+export const ADD_DIALOG_CLASS = cn(
+  "flex w-full min-w-0 max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl",
+  VIEWPORT_DIALOG_MAX_H
+)
+
+export const LARGE_DIALOG_CLASS = cn(
+  LARGE_DIALOG_FRAME,
+  "h-[min(40rem,calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))]"
+)
+
+export const INSPECTOR_DIALOG_CLASS = cn(
+  LARGE_DIALOG_FRAME,
+  "h-[min(44rem,calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))]"
+)
+
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
@@ -53,7 +77,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-h-[calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}

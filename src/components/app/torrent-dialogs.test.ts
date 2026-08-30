@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(dir, "torrent-dialogs.tsx"), "utf8");
+const dialogUi = readFileSync(join(dir, "../ui/dialog.tsx"), "utf8");
 
 const addDialog = source.slice(
   source.indexOf("export function AddTorrentDialog"),
@@ -19,13 +20,16 @@ const tree = source.slice(
   source.indexOf("export function RemoveTorrentDialog")
 );
 
-assert.match(addDialog, /max-w-\[calc\(100%-2rem\)\]/);
-assert.match(addDialog, /sm:max-w-xl/);
+assert.match(addDialog, /ADD_DIALOG_CLASS/);
 assert.match(addDialog, /min-w-0/);
 assert.match(addDialog, /overflow-x-hidden/);
 assert.match(addDialog, /grid-cols-1/);
+assert.doesNotMatch(addDialog, /90vh/);
 assert.doesNotMatch(addDialog, /sm:max-w-2xl/);
 assert.doesNotMatch(addDialog, /sm:max-w-3xl/);
+assert.match(dialogUi, /export const ADD_DIALOG_CLASS/);
+assert.match(dialogUi, /sm:max-w-xl/);
+assert.match(dialogUi, /100svh/);
 
 assert.match(addDialog, /id="add-torrent-file-name"/);
 assert.match(addDialog, /id="add-torrent-choose-file"/);
@@ -34,6 +38,8 @@ assert.match(addDialog, /initialFocus=\{chooseFileRef\}/);
 assert.match(addDialog, /ref=\{chooseFileRef\}/);
 assert.match(addDialog, /if \(!open\) \{[\s\S]*?setTab\("file"\)/);
 assert.match(addDialog, /min-w-0 flex-1 truncate overflow-hidden/);
+assert.match(addDialog, /flex-col gap-x-3 gap-y-1.5 sm:flex-row sm:items-center/);
+assert.match(addDialog, /w-full shrink-0 sm:w-auto/);
 assert.match(addDialog, /Choose torrent file/);
 assert.match(addDialog, /Advanced settings/);
 assert.match(addDialog, /Notify when this download finishes/);
@@ -91,7 +97,8 @@ assert.equal(
 
 assert.match(preview, /min-w-0 truncate overflow-hidden font-medium/);
 assert.match(preview, /truncate overflow-hidden break-all font-mono/);
-assert.match(preview, /min-h-56 max-h-56 min-w-0 overflow-auto/);
+assert.match(preview, /min-h-40 max-h-56 min-w-0 overflow-auto/);
+assert.match(preview, /sm:min-h-56/);
 assert.match(preview, /File list will appear here/);
 assert.match(preview, /showFileGutter=\{fileCount > 1\}/);
 

@@ -36,7 +36,7 @@ export function IntSelect({
         onChange(Number(v));
       }}
     >
-      <SelectTrigger className={className ?? "w-40"}>
+      <SelectTrigger className={className ?? "w-full min-w-0 max-w-40"}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -75,7 +75,7 @@ export function StringSelect({
         onChange(String(v));
       }}
     >
-      <SelectTrigger className={className ?? "w-56"}>
+      <SelectTrigger className={className ?? "w-full min-w-0 max-w-56"}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

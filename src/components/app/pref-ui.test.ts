@@ -10,11 +10,15 @@ const transmission = readFileSync(join(dir, "transmission-preferences.tsx"), "ut
 const qbittorrent = readFileSync(join(dir, "qbittorrent-preferences.tsx"), "utf8");
 const plugins = readFileSync(join(dir, "plugin-pref-pages.tsx"), "utf8");
 
-assert.match(source, /justify-between/);
+assert.match(source, /@min-\[32rem\]:justify-between/);
 assert.match(source, /checked=\{checked === true\}/);
 assert.match(source, /max-w-28/);
 assert.match(source, /divide-y/);
 assert.match(source, /description/);
+assert.match(source, /PREF_DIALOG_NAV_CLASS/);
+assert.match(source, /PREF_DIALOG_SPLIT_CLASS/);
+assert.match(source, /sm:w-48/);
+assert.match(source, /@container/);
 assert.match(dialog, /from "@\/components\/app\/pref-ui"/);
 assert.match(transmission, /from "@\/components\/app\/pref-ui"/);
 assert.match(qbittorrent, /from "@\/components\/app\/pref-ui"/);

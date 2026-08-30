@@ -5,11 +5,20 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PrefNavIcon } from "@/components/app/pref-nav-icon";
-import { PrefNum, PrefPage, PrefPath, PrefSection, PrefSwitch } from "@/components/app/pref-ui";
+import {
+  PREF_DIALOG_NAV_CLASS,
+  PREF_DIALOG_PAGE_CLASS,
+  PREF_DIALOG_SPLIT_CLASS,
+  PrefNum,
+  PrefPage,
+  PrefPath,
+  PrefSection,
+  PrefSwitch,
+  prefNavButtonClass,
+} from "@/components/app/pref-ui";
 import { rpc } from "@/lib/deluge/client";
 import { asBool, asNumber, asString, cloneConfig, dirtyConfig, isEmptyConfig } from "@/lib/deluge/pref-config";
 import { isWebSessionSpeedVisible, isWebSidebarVisible } from "@/lib/deluge/web-config";
-import { cn } from "@/lib/utils";
 
 const NAV = [
   { id: "downloads", label: "Downloads" },
@@ -82,17 +91,14 @@ export function TransmissionPreferences({
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <nav className="w-48 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
+      <div className={PREF_DIALOG_SPLIT_CLASS}>
+        <nav className={PREF_DIALOG_NAV_CLASS}>
           {NAV.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setPage(item.id)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-                page === item.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-              )}
+              className={prefNavButtonClass(page === item.id)}
             >
               <PrefNavIcon pageId={item.id} />
               <span className="min-w-0 truncate">{item.label}</span>
@@ -100,7 +106,7 @@ export function TransmissionPreferences({
           ))}
         </nav>
         <ScrollArea className="min-w-0 flex-1 overflow-x-hidden">
-          <div className="min-w-0 px-5 py-5">
+          <div className={PREF_DIALOG_PAGE_CLASS}>
             {page === "downloads" ? (
               <PrefPage title="Downloads" description="Where files are saved and how new torrents start.">
                 <PrefSection title="Folders">
@@ -360,7 +366,7 @@ export function TransmissionPreferences({
           </div>
         </ScrollArea>
       </div>
-      <div className="flex justify-end gap-2 border-t p-4">
+      <div className="flex shrink-0 justify-end gap-2 border-t p-3 sm:p-4">
         <Button variant="outline" onClick={() => onOpenChange(false)}>
           Close
         </Button>

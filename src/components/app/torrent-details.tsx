@@ -369,8 +369,8 @@ function DetailsDockControl({
 
 function InspectorTabs({ actions }: { actions?: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 border-b bg-background pl-1.5 pr-3">
-      <div className="min-w-0 flex-1 overflow-x-auto">
+    <div className="flex min-w-0 flex-col border-b bg-background @min-[36rem]:flex-row @min-[36rem]:items-center @min-[36rem]:gap-2 @min-[36rem]:pl-1.5 @min-[36rem]:pr-3">
+      <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain px-1.5 @min-[36rem]:px-0">
         <TabsList className="h-8 w-max items-center justify-start gap-0.5 rounded-none bg-transparent p-0">
           <TabsTrigger value="status" className={QUICK_INSPECT_TAB_CLASS}>
             Status
@@ -389,7 +389,11 @@ function InspectorTabs({ actions }: { actions?: ReactNode }) {
           </TabsTrigger>
         </TabsList>
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-px">{actions}</div> : null}
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-px overflow-x-auto overscroll-x-contain border-t px-2 py-1 @min-[36rem]:border-t-0 @min-[36rem]:px-0 @min-[36rem]:py-0">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }
