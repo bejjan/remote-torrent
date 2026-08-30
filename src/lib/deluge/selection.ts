@@ -62,3 +62,61 @@ export function pruneActiveId(
 export function isCurrentGeneration(current: number, token: number): boolean {
   return current === token;
 }
+
+/** Inclusive contiguous ids from one row to another (order-independent). */
+export function idsBetween(ids: readonly string[], fromId: string, toId: string): string[] {
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 && to < 0) return [];
+  if (from < 0) return to >= 0 ? [toId] : [];
+  if (to < 0) return [fromId];
+  const [lo, hi] = from < to ? [from, to] : [to, from];
+  return ids.slice(lo, hi + 1);
+}
+
+/** Prefer a still-visible stored Shift-range anchor; otherwise the fallback (usually the active row). */
+export function resolveRangeAnchor(
+  ids: readonly string[],
+  anchorId: string | null | undefined,
+  fallbackId: string | null | undefined
+): string | null {
+  if (anchorId && ids.includes(anchorId)) return anchorId;
+  if (fallbackId && ids.includes(fallbackId)) return fallbackId;
+  return null;
+}
+
+export type ListSelectionMove = {
+  ids: readonly string[];
+  activeId: string | null;
+  /** Stable start of the current Shift range. */
+  anchorId: string | null;
+  nextIndex: number;
+  shift: boolean;
+};
+
+export type ListSelectionMoveResult = {
+  selected: string[];
+  activeId: string;
+  anchorId: string;
+};
+
+/**
+ * Finder-style list navigation: a plain move replaces the selection;
+ * Shift selects the contiguous range from a stable anchor to the new head.
+ */
+export function moveListSelection(input: ListSelectionMove): ListSelectionMoveResult | null {
+  const lastIndex = input.ids.length - 1;
+  if (lastIndex < 0) return null;
+  const nextIndex = Math.max(0, Math.min(lastIndex, input.nextIndex));
+  const headId = input.ids[nextIndex];
+  if (!headId) return null;
+  if (!input.shift) {
+    return { selected: [headId], activeId: headId, anchorId: headId };
+  }
+  const anchorId = resolveRangeAnchor(input.ids, input.anchorId, input.activeId) ?? headId;
+  return {
+    selected: idsBetween(input.ids, anchorId, headId),
+    activeId: headId,
+    anchorId,
+  };
+}

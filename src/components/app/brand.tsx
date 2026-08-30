@@ -26,7 +26,7 @@ export function Brand({
           wordmarkClassName
         )}
       >
-        <span className="text-primary">torro</span>
+        torro
       </span>
     </div>
   );

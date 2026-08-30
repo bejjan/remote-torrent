@@ -477,6 +477,7 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /onError=\{advanceSource\}/);
   assert.match(src, /trackerFaviconSources\(host\)/);
   assert.match(src, /function LetterAvatar/);
+  assert.match(src, /bg-primary\/10 font-medium text-sidebar-foreground/);
   assert.match(src, /rounded-full bg-muted/);
   assert.match(src, /<Globe className="size-3\.5 text-muted-foreground" \/>/);
   assert.match(

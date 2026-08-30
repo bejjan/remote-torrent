@@ -104,6 +104,20 @@ assert.ok(
 assert.doesNotMatch(header, /More actions/);
 assert.doesNotMatch(header, /ThemeToggle/);
 
+assert.match(table, /Open inspector\.\.\./);
+assert.match(table, /<AppWindow \/> Open inspector\.\.\./);
+assert.ok(
+  table.indexOf("Open inspector...") < table.indexOf("<Pause /> Pause"),
+  "Open inspector sits at the top of the torrent context menu"
+);
+assert.match(table, /handlersRef.current.openDetails\(id\)/);
+assert.match(table, /onDoubleClick=\{\(\) => handlersRef.current.openDetails\(id\)\}/);
+assert.match(table, /Open inspector\.\.\./);
+assert.match(table, /<AppWindow \/> Open inspector\.\.\./);
+assert.ok(
+  table.indexOf("Open inspector...") < table.indexOf("<Pause /> Pause"),
+  "Open inspector sits at the top of the torrent context menu"
+);
 assert.match(table, /<Pause \/> Pause/);
 assert.match(table, /<Play \/> Resume/);
 assert.match(table, /<Trash2 \/> Remove/);
@@ -161,8 +175,9 @@ assert.match(brand, /wordmarkClassName/);
 assert.match(brand, /min-w-0 truncate font-heading/);
 assert.match(brand, /shrink-0/);
 assert.match(brand, /\/logo\.svg/);
-assert.match(brand, />torro</);
+assert.match(brand, />\s*torro\s*</);
 assert.doesNotMatch(brand, /bg-primary text-primary-foreground/);
+assert.doesNotMatch(brand, /text-primary/);
 
 assert.match(login, /Connect torro/);
 assert.match(login, /minmax\(0,1fr\)/);

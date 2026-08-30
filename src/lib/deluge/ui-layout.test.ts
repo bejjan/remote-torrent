@@ -156,12 +156,19 @@ assert.equal(parseStoredDetailsWidth("900", 1000), Math.round(1000 * DETAILS_MAX
   assert.match(shell, /width - dx/);
   assert.match(shell, /edge=\{detailsDock === "right" \? "start" : "end"\}/);
   assert.match(shell, /variant=\{detailsDock === "right" \? "sidebar" : "row"\}/);
-  assert.match(shell, /bg-transparent/);
-  assert.match(shell, /bg-sidebar-border/);
+  assert.doesNotMatch(shell, /before:hidden/);
+  assert.doesNotMatch(shell, /hover:bg-sidebar-border/);
   assert.match(shell, /data-details-dock=\{detailsDock\}/);
   assert.match(shell, /detailsDock === "right"/);
   assert.match(shell, /onDockChange=\{changeDetailsDock\}/);
   assert.match(shell, /!mobile && primary/);
+  assert.match(shell, /variant="panel"/);
+  assert.match(shell, /<Dialog open=\{detailsOpen\}/);
+  assert.match(shell, /variant="dialog"/);
+  assert.match(shell, /onAct=\{act\}/);
+  assert.match(shell, /onRemove=\{openRemove\}/);
+  assert.match(shell, /onMove=\{openMove\}/);
+  assert.doesNotMatch(shell, /Sheet open=\{detailsOpen\}/);
   assert.doesNotMatch(shell, /h-\[min\(16rem,36vh\)\]/);
 
   const handle = readFileSync(join(here, "../../components/app/drag-resize-handle.tsx"), "utf8");

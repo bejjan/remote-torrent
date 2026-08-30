@@ -431,7 +431,7 @@ function FilterButton({
       className={cn(
         "flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm transition-colors",
         active
-          ? "bg-black/8 font-medium text-sidebar-foreground dark:bg-sidebar-primary/25"
+          ? "bg-primary/10 font-medium text-sidebar-foreground"
           : "hover:bg-sidebar-accent/60"
       )}
     >
