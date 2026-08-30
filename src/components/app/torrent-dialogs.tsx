@@ -47,6 +47,20 @@ import {
   type TorrentInfoNode,
 } from "@/lib/deluge/files-tree";
 import type { AddTorrentOptions } from "@/lib/deluge/types";
+import {
+  beginNotifyAdd,
+  cancelNotifyAdd,
+  currentNotifyPermission,
+  extractAddedTorrentIds,
+  loadNotifyOnComplete,
+  notifyPermissionHint,
+  registerNotifyTorrentIds,
+  rememberRemovedTorrentIds,
+  requestNotifyPermissionFromGesture,
+  saveNotifyOnComplete,
+  torrentIdsFromAddForm,
+  type NotifyPermission,
+} from "@/lib/notify-complete";
 import { cn } from "@/lib/utils";
 
 const ADD_CONFIG_KEYS = [
@@ -116,6 +130,8 @@ export function AddTorrentDialog({
   const [error, setError] = useState<string | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [notifyOnComplete, setNotifyOnComplete] = useState(false);
+  const [notifyPermission, setNotifyPermission] = useState<NotifyPermission>("default");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chooseFileRef = useRef<HTMLButtonElement>(null);
   const loadGen = useRef(0);
@@ -141,6 +157,8 @@ export function AddTorrentDialog({
     setBusy(false);
     setLoadingInfo(false);
     setDownloadLocation(defaultPath);
+    setNotifyOnComplete(loadNotifyOnComplete());
+    setNotifyPermission(currentNotifyPermission());
     let cancelled = false;
     void (async () => {
       try {
@@ -306,35 +324,72 @@ export function AddTorrentDialog({
     };
   }
 
+  async function enableNotifyFromGesture() {
+    saveNotifyOnComplete(true);
+    const permission = await requestNotifyPermissionFromGesture();
+    setNotifyPermission(permission);
+    return permission;
+  }
+
+  async function onNotifyChange(checked: boolean) {
+    setNotifyOnComplete(checked);
+    saveNotifyOnComplete(checked);
+    if (checked) await enableNotifyFromGesture();
+  }
+
   async function submit() {
     setBusy(true);
     setError(null);
     const options = optionsFromForm();
+    const addedIds: string[] = [];
     try {
       if (tab === "file") {
         if (!file) throw new DelugeError("Choose a .torrent file");
         if (!preview) throw new DelugeError("Wait for the torrent contents to load, or pick the file again");
-        await rpc("web.add_torrents", [[{ path: preview.path, options }]]);
+      } else if (tab === "magnet") {
+        if (!magnet.trim()) throw new DelugeError("Paste a magnet URI");
+      } else if (!url.trim() && !preview) {
+        throw new DelugeError("Paste an HTTP(S) URL to a .torrent file");
+      }
+      if (notifyOnComplete) {
+        saveNotifyOnComplete(true);
+        await enableNotifyFromGesture();
+        beginNotifyAdd();
+      } else {
+        saveNotifyOnComplete(false);
+      }
+      if (tab === "file") {
+        const result = await rpc("web.add_torrents", [[{ path: preview!.path, options }]]);
+        addedIds.push(...extractAddedTorrentIds(result), ...torrentIdsFromAddForm({ infoHash: preview!.infoHash }));
       } else if (tab === "magnet") {
         const lines = magnet
           .split(/\n+/)
           .map((s) => s.trim())
           .filter(Boolean);
-        if (!lines.length) throw new DelugeError("Paste a magnet URI");
         for (const line of lines) {
           if (!isMagnetUri(line)) {
             throw new DelugeError("Invalid magnet URI");
           }
-          await rpc("core.add_torrent_magnet", [line, options]);
+          const result = await rpc("core.add_torrent_magnet", [line, options]);
+          addedIds.push(...extractAddedTorrentIds(result));
         }
+        addedIds.push(...torrentIdsFromAddForm({ magnetText: magnet, infoHash: preview?.infoHash }));
       } else {
         const ready = preview ?? (await loadUrlInfo(url));
-        await rpc("web.add_torrents", [[{ path: ready.path, options }]]);
+        const result = await rpc("web.add_torrents", [[{ path: ready.path, options }]]);
+        addedIds.push(...extractAddedTorrentIds(result), ...torrentIdsFromAddForm({ infoHash: ready.infoHash }));
+      }
+      if (notifyOnComplete) {
+        registerNotifyTorrentIds(addedIds, { seedIncomplete: true });
       }
       toast.success("Torrent added");
       onAdded?.();
       onOpenChange(false);
     } catch (err) {
+      if (notifyOnComplete) {
+        if (addedIds.length) registerNotifyTorrentIds(addedIds, { seedIncomplete: true });
+        else cancelNotifyAdd();
+      }
       const message = errMessage(err, "Failed to add torrent");
       setError(message);
       toast.error(message);
@@ -347,6 +402,7 @@ export function AddTorrentDialog({
     !busy &&
     !loadingInfo &&
     (tab === "file" ? Boolean(preview) : tab === "magnet" ? magnet.trim().length > 0 : url.trim().length > 0);
+  const notifyHint = notifyPermissionHint(notifyPermission, notifyOnComplete);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -493,6 +549,26 @@ export function AddTorrentDialog({
           }
         />
         <div className="grid min-w-0 gap-2">
+          <div className="grid gap-1">
+            <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+              <Switch
+                size="sm"
+                checked={notifyOnComplete}
+                onCheckedChange={(checked) => void onNotifyChange(checked)}
+                aria-describedby="add-notify-hint"
+              />
+              Notify when this download finishes
+            </label>
+            {notifyHint ? (
+              <p id="add-notify-hint" className="text-[11px] leading-snug text-muted-foreground">
+                {notifyHint}
+              </p>
+            ) : (
+              <span id="add-notify-hint" className="sr-only">
+                Send a browser notification when this torrent finishes downloading.
+              </span>
+            )}
+          </div>
           <div className="grid gap-1">
             <Label htmlFor="add-download-location">Download location</Label>
             <Input
@@ -764,6 +840,7 @@ export function RemoveTorrentDialog({
         await rpc("core.remove_torrents", [ids, removeData]);
       }
       toast.success(ids.length > 1 ? "Torrents removed" : "Torrent removed");
+      rememberRemovedTorrentIds(ids);
       onRemoved();
       onOpenChange(false);
     } catch (err) {

@@ -36,6 +36,14 @@ assert.match(addDialog, /if \(!open\) \{[\s\S]*?setTab\("file"\)/);
 assert.match(addDialog, /min-w-0 flex-1 truncate overflow-hidden/);
 assert.match(addDialog, /Choose torrent file/);
 assert.match(addDialog, /Advanced settings/);
+assert.match(addDialog, /Notify when this download finishes/);
+assert.match(addDialog, /add-notify-hint/);
+assert.match(addDialog, /loadNotifyOnComplete/);
+assert.match(addDialog, /requestNotifyPermissionFromGesture/);
+assert.match(addDialog, /beginNotifyAdd/);
+assert.match(addDialog, /registerNotifyTorrentIds/);
+assert.match(addDialog, /notifyPermissionHint/);
+assert.match(source, /rememberRemovedTorrentIds/);
 
 const fileInput = addDialog.slice(addDialog.indexOf("<input"), addDialog.indexOf('id="add-torrent-choose-file"'));
 assert.match(fileInput, /type="file"/);

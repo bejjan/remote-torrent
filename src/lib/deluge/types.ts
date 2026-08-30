@@ -14,6 +14,7 @@ export interface TorrentStatus {
   total_wanted: number;
   state: TorrentState;
   progress: number;
+  is_finished?: boolean;
   num_seeds: number;
   total_seeds: number;
   num_peers: number;
