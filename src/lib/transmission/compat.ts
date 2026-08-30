@@ -238,18 +238,18 @@ export async function handleTransmissionCompat(
       }
       case "web.add_torrents": {
         const items = (params[0] as { path: string; options?: Record<string, unknown> }[]) || [];
+        const added: unknown[] = [];
         for (const item of items) {
           const options = addOptionsToTransmission(item.options);
           const upload = getTransmissionDemoUpload(item.path, admin);
-          if (item.path.startsWith("magnet:")) {
-            unwrap(await call( "torrent-add", { filename: item.path, ...options }));
-          } else if (upload?.metainfo && !demo) {
-            unwrap(await call( "torrent-add", { metainfo: upload.metainfo, ...options }));
-          } else {
-            unwrap(await call( "torrent-add", { filename: item.path, ...options }));
-          }
+          const args = item.path.startsWith("magnet:")
+            ? unwrap(await call("torrent-add", { filename: item.path, ...options }))
+            : upload?.metainfo && !demo
+              ? unwrap(await call("torrent-add", { metainfo: upload.metainfo, ...options }))
+              : unwrap(await call("torrent-add", { filename: item.path, ...options }));
+          added.push(args["torrent-added"] ?? args["torrent-duplicate"] ?? args);
         }
-        return { id, result: true, error: null };
+        return { id, result: added.length === 1 ? added[0] : added, error: null };
       }
       case "web.download_torrent_from_url":
         return { id, result: String(params[0] ?? ""), error: null };
@@ -355,14 +355,22 @@ export async function handleTransmissionCompat(
         );
         return { id, result: true, error: null };
       }
-      case "core.add_torrent_magnet":
-        unwrap(
-          await call( "torrent-add", {
+      case "core.add_torrent_magnet": {
+        const args = unwrap(
+          await call("torrent-add", {
             filename: String(params[0] ?? ""),
             ...addOptionsToTransmission((params[1] as Record<string, unknown>) || {}),
           })
         );
-        return { id, result: parseMagnetInfoHash(String(params[0] ?? "")), error: null };
+        const added = (args["torrent-added"] ?? args["torrent-duplicate"]) as
+          | { id?: number; hashString?: string }
+          | undefined;
+        return {
+          id,
+          result: added?.hashString || added?.id || parseMagnetInfoHash(String(params[0] ?? "")),
+          error: null,
+        };
+      }
       case "core.add_torrent_url":
         unwrap(
           await call( "torrent-add", {
