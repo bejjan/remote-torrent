@@ -9,7 +9,7 @@ import {
   tlsInsecureEnabled,
   uploadError,
 } from "@/lib/deluge/proxy";
-import { normalizeQbittorrentWebUrl, sanitizePublicUrl } from "./url";
+import { normalizeQbittorrentWebUrl, qbittorrentWebOrigin, sanitizePublicUrl } from "./url";
 import type { QbittorrentCallResult, QbittorrentRequest } from "./types";
 
 const insecureDispatcher = new Agent({
@@ -176,15 +176,63 @@ function collectSetCookies(headers: {
   return single ? [single] : [];
 }
 
+export function isQbittorrentLoginOk(data: unknown, setCookies?: string[]): boolean {
+  if (data === "Ok." || data === "Ok") return true;
+  return Boolean(setCookies?.some((cookie) => /^(SID|QBT_SID_[^=]*)=/i.test(cookie.trim())));
+}
+
+function rewriteQbittorrentSetCookie(value: string): string {
+  let next = rewriteSetCookie(value);
+  const expires = next.match(/;\s*Expires=([^;]+)/i)?.[1];
+  if (expires) {
+    const when = Date.parse(expires);
+    // First SID from 5.2 can expire in a couple of seconds; keep it as a session cookie
+    // so the browser still has it for auth.check_session.
+    if (Number.isFinite(when) && when - Date.now() < 60_000) {
+      next = next.replace(/;\s*Expires=[^;]*/i, "");
+    }
+  }
+  return next;
+}
+
+export function qbittorrentSessionCookieHeader(cookieHeader: string | null): string | undefined {
+  if (!cookieHeader) return undefined;
+  const kept = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => /^(SID|QBT_SID_[^=]+)=/i.test(part));
+  return kept.length ? kept.join("; ") : undefined;
+}
+
+function isLoginPath(path: string): boolean {
+  return path.replace(/\/+$/, "") === "/auth/login";
+}
+
 function parseBody(text: string, status: number, target: string): unknown {
-  if (status === 403) throw new QbittorrentProxyError("Not authenticated", 403);
-  if (status === 401) {
+  const trimmed = text.trim();
+  if (status >= 300 && status < 400) {
+    throw new QbittorrentProxyError(
+      `qBittorrent redirected the request (HTTP ${status}). Check the Web UI URL.`,
+      502
+    );
+  }
+  if (status === 403) {
+    throw new QbittorrentProxyError(
+      /banned/i.test(trimmed)
+        ? trimmed
+        : trimmed && trimmed !== "Forbidden"
+          ? trimmed
+          : "qBittorrent refused the request (HTTP 403).",
+      403
+    );
+  }
+  if (status === 401 || trimmed === "Fails.") {
     throw new QbittorrentProxyError("Incorrect username or password for qBittorrent.", 401);
   }
   if (status === 404) throw new QbittorrentProxyError("qBittorrent endpoint not found.", 404);
-  const trimmed = text.trim();
-  if (trimmed === "Fails.") throw new QbittorrentProxyError("qBittorrent request failed.", 400);
   if (trimmed === "Ok." || trimmed === "Ok") return trimmed.endsWith(".") ? "Ok." : "Ok";
+  // qBittorrent 5.2+ WebAPI returns 204 with an empty body on successful login.
+  if (status === 204) return "Ok.";
   if (!trimmed) return null;
   if (looksLikeJson(text)) {
     try {
@@ -207,9 +255,16 @@ export async function proxyQbittorrent(
   target: string,
   call: QbittorrentRequest
 ): Promise<QbittorrentCallResult> {
-  const headers: Record<string, string> = { Accept: "application/json, text/plain, */*" };
-  const cookie = req.headers.get("cookie");
-  if (cookie) headers.Cookie = cookie;
+  const origin = qbittorrentWebOrigin(target);
+  const headers: Record<string, string> = {
+    Accept: "application/json, text/plain, */*",
+    Origin: origin,
+    Referer: `${origin}/`,
+  };
+  if (!isLoginPath(call.path)) {
+    const sessionCookie = qbittorrentSessionCookieHeader(req.headers.get("cookie"));
+    if (sessionCookie) headers.Cookie = sessionCookie;
+  }
   const url = apiUrl(target, call.path, call.method === "GET" ? call.query : undefined);
 
   let body: Buffer | string | undefined;
@@ -232,7 +287,7 @@ export async function proxyQbittorrent(
       body,
       dispatcher: tlsInsecureEnabled(req) ? insecureDispatcher : secureDispatcher,
       signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-      redirect: "follow",
+      redirect: "manual",
     });
     const text = await upstream.text();
     const data = parseBody(text, upstream.status, target);
@@ -256,10 +311,10 @@ export async function loginQbittorrent(
       path: "/auth/login",
       form: { username, password },
     });
-    const ok = result.data === "Ok." || result.data === "Ok";
+    const ok = isQbittorrentLoginOk(result.data, result.setCookies);
     return { ok, setCookies: result.setCookies ?? [] };
   } catch (err) {
-    if (err instanceof QbittorrentProxyError && (err.status === 401 || err.status === 403)) {
+    if (err instanceof QbittorrentProxyError && err.status === 401) {
       return { ok: false, setCookies: [] };
     }
     throw err;
@@ -272,7 +327,7 @@ export function withQbittorrentCookies(
 ) {
   const extras = extra == null ? [] : Array.isArray(extra) ? extra : [extra];
   for (const cookie of extras) {
-    if (cookie) res.headers.append("Set-Cookie", rewriteSetCookie(cookie));
+    if (cookie) res.headers.append("Set-Cookie", rewriteQbittorrentSetCookie(cookie));
   }
   return res;
 }

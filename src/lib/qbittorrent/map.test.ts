@@ -10,7 +10,12 @@ import {
   uniqueCategories,
 } from "./map";
 import { QBITTORRENT_ETA_INFINITE, type QbittorrentTorrent } from "./types";
-import { DEFAULT_QBITTORRENT_PORT, normalizeQbittorrentWebUrl } from "./url";
+import {
+  DEFAULT_QBITTORRENT_PORT,
+  normalizeQbittorrentWebUrl,
+  qbittorrentWebOrigin,
+  suggestedQbittorrentPort,
+} from "./url";
 
 assert.equal(normalizeQbittorrentWebUrl(""), "");
 assert.equal(
@@ -27,6 +32,12 @@ assert.equal(
   "http://nas:8080/qbittorrent"
 );
 assert.equal(normalizeQbittorrentWebUrl("::1"), "http://[::1]:8080");
+assert.equal(normalizeQbittorrentWebUrl("https://qb.example"), "https://qb.example:443");
+assert.equal(normalizeQbittorrentWebUrl("https://qb.example/qbittorrent"), "https://qb.example:443/qbittorrent");
+assert.equal(suggestedQbittorrentPort("https://qb.example"), "443");
+assert.equal(suggestedQbittorrentPort("https://qb.example:8443"), "8443");
+assert.equal(suggestedQbittorrentPort("http://127.0.0.1"), String(DEFAULT_QBITTORRENT_PORT));
+assert.equal(qbittorrentWebOrigin("http://127.0.0.1:8080/qbittorrent"), "http://127.0.0.1:8080");
 
 const downloading: QbittorrentTorrent = {
   hash: "ABC",

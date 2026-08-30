@@ -14,6 +14,7 @@ import {
   qbittorrentDemoCategories,
   setQbittorrentDemoWebConfig,
 } from "./demo";
+import { isQbittorrentLoginOk, QbittorrentProxyError } from "./proxy";
 import {
   coreConfigToPrefs,
   filesTreeFromQbittorrent,
@@ -176,10 +177,13 @@ export async function handleQbittorrentCompat(
           path: "/auth/login",
           form: { username, password },
         });
-        const ok = result.data === "Ok." || result.data === "Ok";
+        const ok = isQbittorrentLoginOk(result.data, result.setCookies);
         return { id, result: ok, error: null, setCookie: result.setCookies };
-      } catch {
-        return { id, result: false, error: null };
+      } catch (err) {
+        if (err instanceof QbittorrentProxyError && err.status === 401) {
+          return { id, result: false, error: null };
+        }
+        throw err;
       }
     }
     if (method === "auth.check_session") {
