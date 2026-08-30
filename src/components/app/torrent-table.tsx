@@ -89,36 +89,51 @@ import { cn } from "@/lib/utils";
 export const TORRENT_ROW_HEIGHT = 36;
 const ROW_OVERSCAN = 10;
 
-/**
- * Finder-style zebra + inset rounded selection. Header stays full-bleed; body cells
- * clip into a side gutter. Outer corners use the same `rounded-*-md` token as
- * buttons (`--radius-md`). Only first-cell left and last-cell right corners round
- * so the row reads as one rectangle, not two pill caps on the checkbox column.
- */
-export function torrentRowClassName({
-  striped,
-  selected,
-  selectedAbove = false,
-  selectedBelow = false,
-}: {
+type TorrentRowTone = {
   striped: boolean;
   selected: boolean;
   selectedAbove?: boolean;
   selectedBelow?: boolean;
-}): string {
+};
+
+/**
+ * Finder-style zebra + inset rounded selection. Header stays full-bleed; body
+ * highlight is inset via the overlay (`left-1.5` / `right-1.5`). Do not use a
+ * thick side-border gutter — `border-left-width` / `border-right-width` clips
+ * `border-radius` so the curve looks cut off. Do not round first/last `<td>`
+ * either: the checkbox column is ~32–40×36px, so `rounded-md` on that cell
+ * reads as a pill. Paint one continuous `rounded-md` overlay behind the row.
+ * Content gutter is padding, matching header `pl-3.5` / `pr-3.5`.
+ */
+export function torrentRowClassName(_tone: TorrentRowTone): string {
   return cn(
-    "cursor-pointer",
-    "[&>td:first-child]:border-l-[0.375rem] [&>td:first-child]:border-solid [&>td:first-child]:border-transparent [&>td:first-child]:bg-clip-padding",
-    "[&>td:last-child]:border-r-[0.375rem] [&>td:last-child]:border-solid [&>td:last-child]:border-transparent [&>td:last-child]:bg-clip-padding",
-    !selected && striped && "[&>td]:bg-muted/50",
-    !selected && "hover:[&>td]:bg-muted/70",
-    !selected &&
-      striped &&
-      "[&>td:first-child]:rounded-l-md [&>td:last-child]:rounded-r-md",
-    !selected && "hover:[&>td:first-child]:rounded-l-md hover:[&>td:last-child]:rounded-r-md",
-    selected && "[&>td]:bg-primary/10 hover:[&>td]:bg-primary/15",
-    selected && !selectedAbove && "[&>td:first-child]:rounded-tl-md [&>td:last-child]:rounded-tr-md",
-    selected && !selectedBelow && "[&>td:first-child]:rounded-bl-md [&>td:last-child]:rounded-br-md"
+    "group relative isolate cursor-pointer [transform:translateZ(0)]",
+    // Overlay is the last `td` (out of flow). Content cells stack above it.
+    "[&>td:not([data-row-highlight])]:relative [&>td:not([data-row-highlight])]:z-10"
+  );
+}
+
+/** Full-row highlight: `rounded-md` (`--radius-md`, same as buttons), not cell corners. */
+export function torrentRowHighlightClassName({
+  striped,
+  selected,
+  selectedAbove = false,
+  selectedBelow = false,
+}: TorrentRowTone): string {
+  const mergeTop = selected && selectedAbove;
+  const mergeBottom = selected && selectedBelow;
+  return cn(
+    "pointer-events-none absolute inset-y-0 left-1.5 right-1.5 z-0 block border-0 p-0",
+    mergeTop && mergeBottom
+      ? "rounded-none"
+      : mergeTop
+        ? "rounded-b-md"
+        : mergeBottom
+          ? "rounded-t-md"
+          : "rounded-md",
+    !selected && striped && "bg-muted/50",
+    !selected && "group-hover:bg-muted/70",
+    selected && "bg-primary/10 group-hover:bg-primary/15"
   );
 }
 
@@ -668,7 +683,7 @@ const TorrentRow = memo(function TorrentRow({
           />
         }
       >
-        <td className="overflow-hidden px-2 py-1.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+        <td className="overflow-hidden py-1.5 pr-2 pl-3.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={selected}
             onCheckedChange={(v) => {
@@ -676,15 +691,26 @@ const TorrentRow = memo(function TorrentRow({
             }}
           />
         </td>
-        {shownColumns.map((column) => (
+        {shownColumns.map((column, index) => (
           <TorrentColumnCell
             key={column.id}
             column={column}
             torrent={torrent}
             query={query}
             sorted={sortKey === column.sortKey}
+            last={index === shownColumns.length - 1}
           />
         ))}
+        <td
+          aria-hidden
+          data-row-highlight=""
+          className={torrentRowHighlightClassName({
+            striped,
+            selected,
+            selectedAbove,
+            selectedBelow,
+          })}
+        />
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
         <ContextMenuItem
@@ -869,11 +895,13 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
   torrent: t,
   query,
   sorted,
+  last,
 }: {
   column: TorrentColumn;
   torrent: TorrentStatus;
   query: string;
   sorted?: boolean;
+  last?: boolean;
 }) {
   const hit = (text: string) => <HighlightText text={text} query={query} />;
   const cell = (() => {
@@ -986,6 +1014,7 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       "max-w-0 min-w-0 overflow-hidden align-middle",
       column.numeric && "font-mono text-xs",
       !isProgress && "text-ellipsis whitespace-nowrap",
+      last && "pr-3.5",
       sorted && "bg-muted/25"
     ),
     children: (
