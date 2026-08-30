@@ -34,7 +34,7 @@ export function StateBadge({
     <Badge
       variant="outline"
       className={cn(
-        "inline-block max-w-full min-w-0 font-medium truncate",
+        "inline-flex max-w-full min-w-0 font-medium leading-none truncate",
         STYLES[state] || STYLES.Paused,
         className
       )}
