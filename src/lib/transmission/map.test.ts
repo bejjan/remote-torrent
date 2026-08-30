@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mapTransmissionState, mapTransmissionTorrent, torrentKey, transmissionPriorityFromDeluge, delugePriorityFromTransmission, matchesTransmissionFilter, uniqueLabels } from "./map";
+import { mapTransmissionState, mapTransmissionTorrent, mapSessionStats, torrentKey, transmissionPriorityFromDeluge, delugePriorityFromTransmission, matchesTransmissionFilter, uniqueLabels } from "./map";
 import { TR_STATUS, type TransmissionTorrent } from "./types";
 import { normalizeTransmissionRpcUrl, DEFAULT_TRANSMISSION_PORT } from "./url";
 
@@ -85,5 +85,18 @@ assert.deepEqual(uniqueLabels([downloading, errored]), ["linux"]);
 assert.equal(mapTransmissionState({ id: 3, name: "q", status: TR_STATUS.DOWNLOAD_WAIT }), "Queued");
 assert.equal(mapTransmissionState({ id: 4, name: "c", status: TR_STATUS.CHECK }), "Checking");
 assert.equal(mapTransmissionState({ id: 5, name: "s", status: TR_STATUS.SEED }), "Seeding");
+
+{
+  const stats = mapSessionStats(null, [
+    { id: 1, name: "a", rateDownload: 100, rateUpload: 10, peersConnected: 2, downloadedEver: 50, uploadedEver: 7 },
+    { id: 2, name: "b", rateDownload: 20, rateUpload: 5, peersConnected: 1, downloadedEver: 10, uploadedEver: 3 },
+  ]);
+  assert.equal(stats.download_rate, 120);
+  assert.equal(stats.upload_rate, 15);
+  assert.equal(stats.num_connections, 3);
+  assert.equal(stats.payload_download, 60);
+  assert.equal(stats.payload_upload, 10);
+  assert.equal(stats.dht_nodes, 0);
+}
 
 console.log("transmission map tests passed");

@@ -311,10 +311,14 @@ export function mapSessionStats(
   let download = 0;
   let upload = 0;
   let peers = 0;
+  let payloadDownload = 0;
+  let payloadUpload = 0;
   for (const torrent of torrents) {
     download += Number(torrent.rateDownload ?? 0) || 0;
     upload += Number(torrent.rateUpload ?? 0) || 0;
     peers += Number(torrent.peersConnected ?? 0) || 0;
+    payloadDownload += Number(torrent.downloadedEver ?? 0) || 0;
+    payloadUpload += Number(torrent.uploadedEver ?? 0) || 0;
   }
   return {
     max_download: session?.["speed-limit-down-enabled"]
@@ -331,6 +335,8 @@ export function mapSessionStats(
     has_incoming_connections: peers > 0,
     free_space: Number(session?.["download-dir-free-space"] ?? 0) || 0,
     external_ip: "",
+    payload_download: payloadDownload,
+    payload_upload: payloadUpload,
   };
 }
 
