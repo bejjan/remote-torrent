@@ -43,6 +43,17 @@ assert.match(table, /case "name":/);
 assert.match(table, /hit\(t\.name\)/);
 assert.match(table, /HighlightText/);
 assert.doesNotMatch(table, /dangerouslySetInnerHTML/);
+assert.doesNotMatch(table, /numeric=\{column\.numeric\}/);
+assert.doesNotMatch(table, /numeric && "font-mono tabular"/);
+assert.doesNotMatch(table, /numeric && "font-mono text-xs tabular"/);
+assert.match(table, /column\.numeric && "font-mono text-xs"/);
+assert.match(table, /px-2 py-1\.5 tabular/);
+assert.match(table, /case "name":\s*return <td className="px-2 py-1\.5 font-medium">/);
+assert.match(table, /case "status":\s*return \(\s*<td className="px-2 py-1\.5">/);
+assert.match(table, /case "label":\s*return <td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "tracker":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "auto_managed":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.doesNotMatch(table, /<StateBadge[^/\n]*font-mono/);
 
 assert.match(
   table,

@@ -44,43 +44,48 @@ export interface TorrentColumn {
   sortKey: keyof TorrentStatus;
   hideable: boolean;
   defaultVisible: boolean;
+  /** Sizes, rates, percents, dates/durations — Geist Mono + tabular figures. */
+  numeric: boolean;
 }
 
 /** Catalog order is the default table order. Name is the identity column and cannot be hidden. */
 export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
-  { id: "queue", label: "#", sortKey: "queue", hideable: true, defaultVisible: true },
-  { id: "name", label: "Name", sortKey: "name", hideable: false, defaultVisible: true },
-  { id: "size", label: "Size", sortKey: "total_wanted", hideable: true, defaultVisible: true },
-  { id: "progress", label: "Progress", sortKey: "progress", hideable: true, defaultVisible: true },
-  { id: "status", label: "Status", sortKey: "state", hideable: true, defaultVisible: true },
+  { id: "queue", label: "#", sortKey: "queue", hideable: true, defaultVisible: true, numeric: true },
+  { id: "name", label: "Name", sortKey: "name", hideable: false, defaultVisible: true, numeric: false },
+  { id: "size", label: "Size", sortKey: "total_wanted", hideable: true, defaultVisible: true, numeric: true },
+  { id: "progress", label: "Progress", sortKey: "progress", hideable: true, defaultVisible: true, numeric: true },
+  { id: "status", label: "Status", sortKey: "state", hideable: true, defaultVisible: true, numeric: false },
   {
     id: "down",
     label: "Down",
     sortKey: "download_payload_rate",
     hideable: true,
     defaultVisible: true,
+    numeric: true,
   },
-  { id: "up", label: "Up", sortKey: "upload_payload_rate", hideable: true, defaultVisible: true },
-  { id: "eta", label: "ETA", sortKey: "eta", hideable: true, defaultVisible: true },
-  { id: "ratio", label: "Ratio", sortKey: "ratio", hideable: true, defaultVisible: true },
-  { id: "seeds", label: "Seeds", sortKey: "num_seeds", hideable: true, defaultVisible: true },
-  { id: "peers", label: "Peers", sortKey: "num_peers", hideable: true, defaultVisible: true },
-  { id: "label", label: "Label", sortKey: "label", hideable: true, defaultVisible: true },
+  { id: "up", label: "Up", sortKey: "upload_payload_rate", hideable: true, defaultVisible: true, numeric: true },
+  { id: "eta", label: "ETA", sortKey: "eta", hideable: true, defaultVisible: true, numeric: true },
+  { id: "ratio", label: "Ratio", sortKey: "ratio", hideable: true, defaultVisible: true, numeric: true },
+  { id: "seeds", label: "Seeds", sortKey: "num_seeds", hideable: true, defaultVisible: true, numeric: true },
+  { id: "peers", label: "Peers", sortKey: "num_peers", hideable: true, defaultVisible: true, numeric: true },
+  { id: "label", label: "Label", sortKey: "label", hideable: true, defaultVisible: true, numeric: false },
   {
     id: "avail",
     label: "Avail",
     sortKey: "distributed_copies",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
-  { id: "added", label: "Added", sortKey: "time_added", hideable: true, defaultVisible: false },
-  { id: "tracker", label: "Tracker", sortKey: "tracker_host", hideable: true, defaultVisible: false },
+  { id: "added", label: "Added", sortKey: "time_added", hideable: true, defaultVisible: false, numeric: true },
+  { id: "tracker", label: "Tracker", sortKey: "tracker_host", hideable: true, defaultVisible: false, numeric: false },
   {
     id: "save_path",
     label: "Download Folder",
     sortKey: "download_location",
     hideable: true,
     defaultVisible: false,
+    numeric: false,
   },
   {
     id: "downloaded",
@@ -88,6 +93,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "total_done",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "uploaded",
@@ -95,6 +101,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "total_uploaded",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "remaining",
@@ -102,6 +109,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "total_remaining",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "complete_seen",
@@ -109,6 +117,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "last_seen_complete",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "completed",
@@ -116,6 +125,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "completed_time",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "auto_managed",
@@ -123,6 +133,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "is_auto_managed",
     hideable: true,
     defaultVisible: false,
+    numeric: false,
   },
   {
     id: "down_limit",
@@ -130,6 +141,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "max_download_speed",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "up_limit",
@@ -137,6 +149,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "max_upload_speed",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "seeds_peers",
@@ -144,6 +157,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "seeds_peers_ratio",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
   {
     id: "last_transfer",
@@ -151,6 +165,7 @@ export const TORRENT_COLUMNS: readonly TorrentColumn[] = [
     sortKey: "time_since_transfer",
     hideable: true,
     defaultVisible: false,
+    numeric: true,
   },
 ];
 

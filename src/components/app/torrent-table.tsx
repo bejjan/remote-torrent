@@ -976,6 +976,7 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
       typed.props.className,
       // table-layout:fixed still lets min-content wrap; max-w-0 + nowrap/ellipsis clips to the col width.
       "max-w-0 min-w-0 overflow-hidden align-middle",
+      column.numeric && "font-mono text-xs",
       !isProgress && "text-ellipsis whitespace-nowrap",
       sorted && "bg-muted/25"
     ),
