@@ -1,6 +1,6 @@
 import packageJson from "../../../package.json";
 
-export const ABOUT_APP_NAME = "Nova";
+export const ABOUT_APP_NAME = "torro";
 export const ABOUT_TAGLINE = "modern Web UI for Deluge and Transmission";
 export const ABOUT_LICENSE = "GPL-3.0";
 export const ABOUT_LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html";
