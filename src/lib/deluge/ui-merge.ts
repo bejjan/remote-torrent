@@ -76,7 +76,9 @@ function statsEqual(a: SessionStats, b: SessionStats): boolean {
     a.dht_nodes === b.dht_nodes &&
     a.has_incoming_connections === b.has_incoming_connections &&
     a.free_space === b.free_space &&
-    a.external_ip === b.external_ip
+    a.external_ip === b.external_ip &&
+    a.payload_download === b.payload_download &&
+    a.payload_upload === b.payload_upload
   );
 }
 

@@ -81,6 +81,10 @@ export interface SessionStats {
   has_incoming_connections: boolean;
   free_space: number;
   external_ip: string;
+  /** Session payload downloaded (bytes), when the daemon reports it. */
+  payload_download?: number;
+  /** Session payload uploaded (bytes), when the daemon reports it. */
+  payload_upload?: number;
 }
 
 export type FilterTuple = [string, number];

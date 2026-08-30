@@ -19,6 +19,7 @@ import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
+import { SessionMonitor } from "@/components/app/session-monitor";
 import { SessionSpeedFavicon } from "@/components/app/session-speed-favicon";
 import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
@@ -122,6 +123,11 @@ import {
   type DetailsDock,
 } from "@/lib/deluge/ui-layout";
 import {
+  isSessionMonitorChipVisible,
+  nextRateSamples,
+  type SessionRateSample,
+} from "@/lib/deluge/session-monitor";
+import {
   DEFAULT_DOCUMENT_TITLE,
   holdLastSessionRates,
   isWebSessionSpeedVisible,
@@ -185,6 +191,8 @@ export function TorrentShell({
   const activeIdRef = useRef(activeId);
   const wantSearchFocusRef = useRef(false);
   const pollGen = useRef(0);
+  const lastRatesRef = useRef({ download: 0, upload: 0 });
+  const [rateSamples, setRateSamples] = useState<SessionRateSample[]>([]);
   const [searchFieldTitle, setSearchFieldTitle] = useState<string | undefined>(undefined);
   const [searchPlaceholder, setSearchPlaceholder] = useState(DEFAULT_TORRENT_SEARCH_PLACEHOLDER);
   const [addTorrentLabel, setAddTorrentLabel] = useState(DEFAULT_ADD_TORRENT_LABEL);
@@ -296,6 +304,9 @@ export function TorrentShell({
       const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], {}]);
       if (gen !== pollGen.current) return;
       setUi((prev) => mergeUiUpdate(prev, result));
+      const held = holdLastSessionRates(lastRatesRef.current, result.stats);
+      lastRatesRef.current = held;
+      setRateSamples((prev) => nextRateSamples(prev, held, result.connected));
       setError(null);
       if (!result.connected) setError("Daemon disconnected");
     } catch (err) {
@@ -402,7 +413,6 @@ export function TorrentShell({
   const primary = activeId && ui?.torrents?.[activeId] ? activeId : selectedIds[0] ?? null;
   const primaryTorrent = primary ? (ui?.torrents?.[primary] as TorrentStatus | undefined) : null;
   const stats = ui?.stats as SessionStats | null;
-  const lastRatesRef = useRef({ download: 0, upload: 0 });
   const rates = holdLastSessionRates(lastRatesRef.current, stats);
   lastRatesRef.current = rates;
   const downloadRate = rates.download;
@@ -670,27 +680,39 @@ export function TorrentShell({
             markClassName="size-6"
             wordmarkClassName="hidden sm:inline"
           />
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            title={searchFieldTitle}
-            placeholder={searchPlaceholder}
-            className="relative ml-auto min-w-0 max-w-xs flex-1 max-sm:hidden"
-          />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="relative ml-auto shrink-0 sm:hidden"
-            aria-label="Search torrents"
-            aria-expanded={false}
-            onClick={() => setSearchExpanded(true)}
-          >
-            <Search />
-            {search ? (
-              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
+          <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
+            {isSessionMonitorChipVisible(ui?.connected) ? (
+              <SessionMonitor
+                downloadRate={downloadRate}
+                uploadRate={uploadRate}
+                samples={rateSamples}
+                stats={stats}
+                torrents={ui?.torrents}
+                showDht={caps.dhtNodes}
+              />
             ) : null}
-          </Button>
-          <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              title={searchFieldTitle}
+              placeholder={searchPlaceholder}
+              className="relative min-w-0 max-w-xs flex-1 max-sm:hidden"
+            />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="relative shrink-0 sm:hidden"
+              aria-label="Search torrents"
+              aria-expanded={false}
+              onClick={() => setSearchExpanded(true)}
+            >
+              <Search />
+              {search ? (
+                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
+              ) : null}
+            </Button>
+            <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
+          </div>
         </div>
       </header>
 

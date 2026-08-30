@@ -31,6 +31,12 @@ assert.match(header, /aria-label="Search torrents"/);
 assert.match(header, /sm:hidden/);
 assert.match(header, /Close search/);
 assert.match(header, /<AddTorrentButton/);
+assert.match(header, /<SessionMonitor/);
+assert.match(header, /data-session-monitor|isSessionMonitorChipVisible/);
+assert.ok(
+  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<SearchField"),
+  "stats chip sits immediately left of search"
+);
 assert.ok(
   header.lastIndexOf("<SearchField") < header.lastIndexOf("<AddTorrentButton"),
   "Add torrent sits after search"
