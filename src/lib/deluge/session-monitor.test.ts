@@ -8,10 +8,19 @@ import {
   pushRateSample,
   sessionMonitorRateParts,
   sessionTransferTotals,
+  sparklineCloserSeries,
   sparklineIsDrawable,
+  sparklineLookbackLabel,
   sparklineMax,
+  sparklineNearestIndex,
+  sparklineNiceMax,
+  sparklinePointerInPlot,
+  sparklinePointX,
+  sparklinePointY,
   sparklinePolyline,
+  sparklinePolylineInPlot,
   sparklineSeriesVisible,
+  sparklineYTicks,
 } from "./session-monitor";
 
 assert.equal(SESSION_MONITOR_SAMPLE_CAP, 60);
@@ -78,6 +87,62 @@ assert.equal(sparklineSeriesVisible([{ download: 0, upload: 4 }], "upload"), tru
   assert.equal(points, "0.0,10.0 10.0,0.0");
   assert.equal(sparklinePolyline([0, 0], 10, 10, 0), "");
   assert.equal(sparklinePolyline([5], 10, 10, 5), "");
+}
+
+{
+  const kib = 1024;
+  const mib = 1024 ** 2;
+  assert.equal(sparklineNiceMax(0), 0);
+  assert.equal(sparklineNiceMax(50), 50);
+  assert.equal(sparklineNiceMax(1.2 * mib), 2 * mib);
+  assert.equal(sparklineNiceMax(600 * kib), mib);
+  assert.deepEqual(sparklineYTicks(2 * mib), [0, mib, 2 * mib]);
+  assert.deepEqual(sparklineYTicks(0), [0]);
+}
+
+{
+  const plot = { left: 10, top: 0, width: 90, height: 50 };
+  assert.equal(sparklinePointX(0, 3, plot), 10);
+  assert.equal(sparklinePointX(2, 3, plot), 100);
+  assert.equal(sparklinePointY(0, 10, plot), 50);
+  assert.equal(sparklinePointY(10, 10, plot), 0);
+  assert.equal(sparklineNearestIndex(10, 3, plot), 0);
+  assert.equal(sparklineNearestIndex(100, 3, plot), 2);
+  assert.equal(sparklineNearestIndex(55, 3, plot), 1);
+  assert.equal(sparklinePointerInPlot(10, 0, plot), true);
+  assert.equal(sparklinePointerInPlot(9, 0, plot), false);
+  assert.equal(
+    sparklinePolylineInPlot([0, 10], { left: 0, top: 0, width: 10, height: 10 }, 10),
+    "0.0,10.0 10.0,0.0"
+  );
+}
+
+assert.equal(sparklineLookbackLabel(1), "−0s");
+assert.equal(sparklineLookbackLabel(2), "−1s");
+assert.equal(sparklineLookbackLabel(30), "−29s");
+assert.equal(sparklineLookbackLabel(60), "−1m");
+assert.equal(sparklineLookbackLabel(61), "−1m");
+
+{
+  const plot = { left: 0, top: 0, width: 10, height: 10 };
+  const sample = { download: 10, upload: 0 };
+  assert.equal(
+    sparklineCloserSeries(sample, 0, 10, plot, { download: true, upload: true }),
+    "download"
+  );
+  assert.equal(
+    sparklineCloserSeries(sample, 10, 10, plot, { download: true, upload: true }),
+    "upload"
+  );
+  assert.equal(
+    sparklineCloserSeries(sample, 0, 10, plot, { download: false, upload: true }),
+    "upload"
+  );
+  assert.equal(
+    sparklineCloserSeries(sample, 4, 10, plot, { download: true, upload: false }, 2),
+    null,
+    "pointer far from the only visible line is not a hit"
+  );
 }
 
 assert.deepEqual(sessionMonitorRateParts(0, 0), { download: null, upload: null });

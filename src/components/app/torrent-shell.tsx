@@ -634,58 +634,68 @@ export function TorrentShell({
         ) : null}
         <div
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1 sm:contents sm:gap-2",
+            "flex min-w-0 flex-1 items-center gap-1",
+            "sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-2",
             searchExpanded && "max-sm:hidden"
           )}
         >
-          {mobile ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Filters"
-            >
-              <PanelLeft />
-            </Button>
-          ) : null}
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
-              <Menu />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-52">
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
-                <Info /> About torro
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>
-                <Settings /> Preferences…
-              </DropdownMenuItem>
-              {caps.connectionManager ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
-                    <Server /> Connection Manager…
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-                    <Server /> Open hosts page
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              <DropdownMenuSeparator />
-              <ThemeMenuSub />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
-                <LogOut /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Brand
-            className="min-w-0 shrink"
-            markClassName="size-6"
-            wordmarkClassName="hidden sm:inline"
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+            {mobile ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Filters"
+              >
+                <PanelLeft />
+              </Button>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Menu" />}>
+                <Menu />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-52">
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setAboutOpen(true)}>
+                  <Info /> About torro
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setPrefsOpen(true)}>
+                  <Settings /> Preferences…
+                </DropdownMenuItem>
+                {caps.connectionManager ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
+                      <Server /> Connection Manager…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
+                      <Server /> Open hosts page
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                <DropdownMenuSeparator />
+                <ThemeMenuSub />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => void logout()}>
+                  <LogOut /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Brand
+              className="min-w-0 shrink"
+              markClassName="size-6"
+              wordmarkClassName="hidden sm:inline"
+            />
+          </div>
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            title={searchFieldTitle}
+            placeholder={searchPlaceholder}
+            className="relative w-[min(20rem,30vw)] xl:w-[min(24rem,36vw)] max-sm:hidden"
           />
-          <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-1 sm:ml-0 sm:gap-2">
             {isSessionMonitorChipVisible(ui?.connected) ? (
               <SessionMonitor
                 downloadRate={downloadRate}
@@ -696,13 +706,6 @@ export function TorrentShell({
                 showDht={caps.dhtNodes}
               />
             ) : null}
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              title={searchFieldTitle}
-              placeholder={searchPlaceholder}
-              className="relative min-w-0 max-w-xs flex-1 max-sm:hidden"
-            />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -935,10 +938,14 @@ function SearchField({
 
 function AddTorrentButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <Button className="h-8 min-w-0 shrink" onClick={onClick} title={label}>
+    <Button
+      className="h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
       <Plus />
-      <span className="max-[20rem]:hidden">{label}</span>
-      <span className="hidden max-[20rem]:inline">Add</span>
+      <span className="hidden xl:inline">{label}</span>
     </Button>
   );
 }

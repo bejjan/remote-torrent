@@ -70,6 +70,111 @@ export function sparklinePolyline(
     .join(" ");
 }
 
+export type SparklinePlot = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/** Ceiling used for the panel Y-axis so tick labels stay on 1–2–5 steps. */
+export function sparklineNiceMax(max: number): number {
+  if (!(max > 0) || !Number.isFinite(max)) return 0;
+  let unit = 1;
+  while (unit * 1024 <= max && unit < 1024 ** 5) unit *= 1024;
+  const n = max / unit;
+  const exp = Math.floor(Math.log10(n));
+  const pow = 10 ** Math.max(0, exp);
+  const m = n / pow;
+  const nice = m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10;
+  const result = nice * pow * unit;
+  if (result / unit >= 1000 && unit < 1024 ** 5) return unit * 1024;
+  return result;
+}
+
+export function sparklineYTicks(max: number): number[] {
+  if (!(max > 0) || !Number.isFinite(max)) return [0];
+  return [0, max / 2, max];
+}
+
+export function sparklinePointX(index: number, count: number, plot: SparklinePlot): number {
+  if (count <= 1) return plot.left;
+  return plot.left + (index / (count - 1)) * plot.width;
+}
+
+export function sparklinePointY(value: number, max: number, plot: SparklinePlot): number {
+  const t = max > 0 ? Math.max(0, value) / max : 0;
+  return plot.top + plot.height - t * plot.height;
+}
+
+export function sparklinePolylineInPlot(
+  values: readonly number[],
+  plot: SparklinePlot,
+  max: number
+): string {
+  if (values.length < 2 || !(max > 0)) return "";
+  return values
+    .map((value, index) => {
+      const x = sparklinePointX(index, values.length, plot);
+      const y = sparklinePointY(value, max, plot);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+export function sparklineNearestIndex(x: number, count: number, plot: SparklinePlot): number {
+  if (count <= 1) return 0;
+  const t = (x - plot.left) / Math.max(1, plot.width);
+  return Math.min(count - 1, Math.max(0, Math.round(t * (count - 1))));
+}
+
+export function sparklineLookbackLabel(sampleCount: number): string {
+  const seconds = Math.max(0, sampleCount - 1);
+  if (seconds >= 45) {
+    const minutes = seconds / 60;
+    const rounded = minutes >= 10 ? Math.round(minutes) : Math.round(minutes * 10) / 10;
+    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    return `−${text}m`;
+  }
+  return `−${seconds}s`;
+}
+
+export function sparklinePointerInPlot(x: number, y: number, plot: SparklinePlot): boolean {
+  return (
+    x >= plot.left &&
+    x <= plot.left + plot.width &&
+    y >= plot.top &&
+    y <= plot.top + plot.height
+  );
+}
+
+export function sparklineCloserSeries(
+  sample: SessionRateSample,
+  pointerY: number,
+  max: number,
+  plot: SparklinePlot,
+  visible: { download: boolean; upload: boolean },
+  threshold = 16
+): keyof SessionRateSample | null {
+  const candidates: { key: keyof SessionRateSample; distance: number }[] = [];
+  if (visible.download) {
+    candidates.push({
+      key: "download",
+      distance: Math.abs(sparklinePointY(sample.download, max, plot) - pointerY),
+    });
+  }
+  if (visible.upload) {
+    candidates.push({
+      key: "upload",
+      distance: Math.abs(sparklinePointY(sample.upload, max, plot) - pointerY),
+    });
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.distance - b.distance);
+  const closest = candidates[0];
+  return closest && closest.distance <= threshold ? closest.key : null;
+}
+
 /**
  * Compact toolbar rates using the status-bar formatter.
  * Zero / invalid rates are omitted — same hide rule as the live favicon overlay.

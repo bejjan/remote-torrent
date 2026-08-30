@@ -24,22 +24,32 @@ assert.match(source, /showDht/);
 assert.match(source, /Downloaded/);
 assert.match(source, /Uploaded/);
 assert.match(source, /Connections/);
-assert.match(source, /hidden sm:block/);
-assert.match(source, /min-\[26rem\]:inline-flex/);
+assert.match(source, /hidden xl:block/);
+assert.match(source, /xl:hidden/);
+assert.match(source, /xl:inline-flex/);
+assert.doesNotMatch(source, /min-\[26rem\]:inline-flex/);
 assert.match(source, /var\(--downloading\)/);
 assert.match(source, /var\(--seeding\)/);
+assert.match(source, /Activity monitor/);
+assert.doesNotMatch(source, /Live rates from the current poll/);
+assert.doesNotMatch(source, /PopoverDescription/);
+assert.match(source, /onPointerMove/);
+assert.match(source, /formatRate\(tick\)/);
+assert.match(source, /sparklineLookbackLabel/);
+assert.match(source, /sparklinePointerInPlot/);
+assert.match(source, /now/);
 
 const header = shell.slice(shell.indexOf("<header"), shell.indexOf("{error ?"));
 assert.match(header, /<SessionMonitor/);
 assert.match(shell, /pushRateSample|nextRateSamples/);
 assert.match(shell, /isSessionMonitorChipVisible/);
 assert.ok(
-  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<SearchField"),
-  "stats chip sits immediately left of torrent search"
+  header.lastIndexOf("<SearchField") < header.lastIndexOf("<SessionMonitor"),
+  "centered search sits left of the stats chip"
 );
 assert.ok(
-  header.lastIndexOf("<SearchField") < header.lastIndexOf("<AddTorrentButton"),
-  "search still sits left of Add torrent"
+  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentButton"),
+  "stats chip sits in the right cluster with Add torrent"
 );
 
 console.log("session-monitor component tests passed");
