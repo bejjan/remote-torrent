@@ -89,7 +89,12 @@ import { cn } from "@/lib/utils";
 export const TORRENT_ROW_HEIGHT = 36;
 const ROW_OVERSCAN = 10;
 
-/** Finder-style zebra + inset rounded selection. Header stays full-bleed; body cells clip into a side gutter. */
+/**
+ * Finder-style zebra + inset rounded selection. Header stays full-bleed; body cells
+ * clip into a side gutter. Outer corners use the same `rounded-*-md` token as
+ * buttons (`--radius-md`). Only first-cell left and last-cell right corners round
+ * so the row reads as one rectangle, not two pill caps on the checkbox column.
+ */
 export function torrentRowClassName({
   striped,
   selected,
@@ -107,6 +112,9 @@ export function torrentRowClassName({
     "[&>td:last-child]:border-r-[0.375rem] [&>td:last-child]:border-solid [&>td:last-child]:border-transparent [&>td:last-child]:bg-clip-padding",
     !selected && striped && "[&>td]:bg-muted/50",
     !selected && "hover:[&>td]:bg-muted/70",
+    !selected &&
+      striped &&
+      "[&>td:first-child]:rounded-l-md [&>td:last-child]:rounded-r-md",
     !selected && "hover:[&>td:first-child]:rounded-l-md hover:[&>td:last-child]:rounded-r-md",
     selected && "[&>td]:bg-primary/10 hover:[&>td]:bg-primary/15",
     selected && !selectedAbove && "[&>td:first-child]:rounded-tl-md [&>td:last-child]:rounded-tr-md",

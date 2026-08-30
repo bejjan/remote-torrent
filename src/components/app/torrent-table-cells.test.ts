@@ -2,10 +2,30 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { torrentRowClassName } from "./torrent-table.tsx";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const table = readFileSync(join(dir, "torrent-table.tsx"), "utf8");
 const badge = readFileSync(join(dir, "state-badge.tsx"), "utf8");
+
+const unstriped = torrentRowClassName({ striped: false, selected: false });
+const striped = torrentRowClassName({ striped: true, selected: false });
+const selected = torrentRowClassName({ striped: true, selected: true });
+const selectedMid = torrentRowClassName({
+  striped: false,
+  selected: true,
+  selectedAbove: true,
+  selectedBelow: true,
+});
+assert.match(striped, /rounded-l-\[10px_4px\]/);
+assert.match(striped, /rounded-r-\[10px_4px\]/);
+assert.match(unstriped, /hover:\[&>td:first-child\]:rounded-l-\[10px_4px\]/);
+assert.doesNotMatch(unstriped, /(?<!hover:)\[&>td:first-child\]:rounded-l-\[10px_4px\]/);
+assert.match(selected, /rounded-tl-\[10px_4px\]/);
+assert.match(selected, /rounded-bl-\[10px_4px\]/);
+assert.doesNotMatch(selectedMid, /rounded-t[lr]-\[10px_4px\]/);
+assert.doesNotMatch(selectedMid, /rounded-b[lr]-\[10px_4px\]/);
+assert.doesNotMatch(striped, /rounded-(?:tl|tr|bl|br|l|r)-(?:md|lg|full)/);
 
 assert.match(table, /table-fixed/);
 assert.match(table, /TORRENT_ROW_HEIGHT = 36/);
@@ -26,8 +46,12 @@ assert.match(table, /virtualRow\.index % 2 === 1/);
 assert.match(table, /torrentRowClassName/);
 assert.match(table, /\[&>td\]:bg-muted\/50/);
 assert.match(table, /\[&>td\]:bg-primary\/10/);
-assert.match(table, /rounded-tl-md/);
-assert.match(table, /rounded-bl-md/);
+assert.match(table, /!selected &&\s+striped &&\s+"\[&>td:first-child\]:rounded-l-\[10px_4px\] \[&>td:last-child\]:rounded-r-\[10px_4px\]"/);
+assert.match(table, /hover:\[&>td:first-child\]:rounded-l-\[10px_4px\] hover:\[&>td:last-child\]:rounded-r-\[10px_4px\]/);
+assert.match(table, /\[&>td:first-child\]:rounded-tl-\[10px_4px\] \[&>td:last-child\]:rounded-tr-\[10px_4px\]/);
+assert.match(table, /\[&>td:first-child\]:rounded-bl-\[10px_4px\] \[&>td:last-child\]:rounded-br-\[10px_4px\]/);
+assert.doesNotMatch(table, /rounded-tl-md|rounded-l-md|rounded-bl-md|rounded-r-md/);
+assert.doesNotMatch(table, /rounded-(?:tl|tr|bl|br|l|r)-(?:md|lg|full)/);
 assert.match(table, /\[&>td:first-child\]:border-l-\[0\.375rem\]/);
 assert.match(table, /\[&>td:last-child\]:border-r-\[0\.375rem\]/);
 assert.match(table, /bg-clip-padding/);
