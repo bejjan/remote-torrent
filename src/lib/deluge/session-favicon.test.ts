@@ -228,7 +228,7 @@ function fakeDocument(initial: SessionFaviconLink[] = []): SessionFaviconDocumen
       return link;
     },
     head: {
-      appendChild(node) {
+      appendChild(node: SessionFaviconLink) {
         links.push(node);
         return node;
       },

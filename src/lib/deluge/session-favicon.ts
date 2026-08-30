@@ -24,7 +24,7 @@ export function sessionFaviconDownloadProgress(
   for (const torrent of torrents) {
     if (torrent.state !== FILTER_DOWNLOADING) continue;
     const progress = torrent.progress;
-    if (!Number.isFinite(progress)) continue;
+    if (typeof progress !== "number" || !Number.isFinite(progress)) continue;
     sum += Math.min(100, Math.max(0, progress));
     count += 1;
   }
@@ -58,19 +58,30 @@ export function shouldRedrawSessionFavicon({
 
 export type SessionFaviconContext = {
   clearRect(x: number, y: number, w: number, h: number): void;
-  drawImage(image: unknown, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: CanvasImageSource | unknown, dx: number, dy: number, dw: number, dh: number): void;
   beginPath(): void;
-  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  arc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    counterclockwise?: boolean
+  ): void;
   stroke(): void;
-  strokeStyle: string;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
   lineWidth: number;
-  lineCap: string;
+  lineCap: CanvasLineCap | string;
 };
 
+/** Structural canvas; real `HTMLCanvasElement` is assignable. */
 export type SessionFaviconCanvas = {
   width: number;
   height: number;
-  getContext(type: "2d"): SessionFaviconContext | null;
+  getContext(
+    contextId: "2d",
+    options?: CanvasRenderingContext2DSettings
+  ): SessionFaviconContext | null;
 };
 
 export function sessionFaviconRingRadius(size: number): number {
@@ -117,18 +128,19 @@ export function drawSessionFavicon(
 }
 
 export type SessionFaviconLink = {
-  rel: string;
-  type: string;
-  href: string;
+  rel?: string;
+  type?: string;
+  href?: string;
   sizes?: string;
   getAttribute?(name: string): string | null;
   setAttribute?(name: string, value: string): void;
 };
 
+/** Structural document; real `Document` is assignable. */
 export type SessionFaviconDocument = {
   querySelectorAll(selectors: string): ArrayLike<SessionFaviconLink>;
-  createElement(tag: string): SessionFaviconLink;
-  head: { appendChild(node: SessionFaviconLink): unknown };
+  createElement(tagName: string, options?: ElementCreationOptions): SessionFaviconLink;
+  head: { appendChild(node: SessionFaviconLink | Node): unknown };
 };
 
 function iconLinks(doc: SessionFaviconDocument): SessionFaviconLink[] {
