@@ -13,6 +13,25 @@ export function formatRate(bytesPerSec: number): string {
   return `${formatBytes(bytesPerSec)}/s`;
 }
 
+const COMPACT_UNITS = ["B", "K", "M", "G", "T", "P"] as const;
+
+/**
+ * Tight rate label for the session-speed favicon: `1.2M`, `340K`.
+ * Zero and invalid rates are empty so the overlay can hide that line.
+ */
+export function formatCompactRate(bytesPerSec: number): string {
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "";
+  const exp = Math.min(
+    Math.floor(Math.log(bytesPerSec) / Math.log(1024)),
+    COMPACT_UNITS.length - 1
+  );
+  const value = bytesPerSec / 1024 ** exp;
+  const digits = value >= 100 || exp === 0 ? 0 : 1;
+  const raw = value.toFixed(digits);
+  const compact = raw.endsWith(".0") ? raw.slice(0, -2) : raw;
+  return `${compact}${COMPACT_UNITS[exp]}`;
+}
+
 /** Per-torrent speeds: idle rows stay blank instead of "0 B/s". */
 export function formatTorrentRate(bytesPerSec: number): string {
   if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "—";

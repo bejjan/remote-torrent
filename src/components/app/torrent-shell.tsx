@@ -19,6 +19,7 @@ import { ConnectionManager } from "@/components/app/connection-manager";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
+import { SessionSpeedFavicon } from "@/components/app/session-speed-favicon";
 import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
 import {
@@ -590,6 +591,7 @@ export function TorrentShell({
 
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-background">
+      <SessionSpeedFavicon downloadRate={downloadRate} uploadRate={uploadRate} />
       <header className="flex min-h-10 min-w-0 shrink-0 items-center gap-1 border-b px-1.5 py-1.5 sm:gap-2 sm:px-2 md:px-3">
         {searchExpanded ? (
           <div className="flex min-w-0 flex-1 items-center gap-1 sm:hidden">
