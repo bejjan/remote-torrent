@@ -120,6 +120,9 @@ assert.match(shell, /setAddTorrentLabel\(addTorrentShortcutTitle/);
 assert.match(shell, /placeholder=\{placeholder\}/);
 assert.match(shell, /focusVisibleTorrentSearch/);
 assert.match(shell, /setAddOpen\(true\)/);
+assert.match(shell, /onAdded=\{\(\) => \{/);
+assert.match(shell, /selectSidebarState\(prev, FILTER_DOWNLOADING\)/);
+assert.match(shell, /void poll\(\);/);
 assert.doesNotMatch(shell, /placeholder="Search torrents"/);
 assert.doesNotMatch(shell, /⌥⌘N|Ctrl\+Alt\+N|⌘⇧N|Ctrl\+Shift\+N/);
 assert.match(

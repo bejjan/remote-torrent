@@ -70,6 +70,16 @@ assert.match(addDialog, /h-16 min-h-16 field-sizing-fixed/);
 assert.doesNotMatch(addDialog, /min-h-28/);
 assert.doesNotMatch(addDialog, /min-h-24/);
 assert.match(addDialog, /loadGen/);
+assert.match(addDialog, /onAdded\?: \(\) => void/);
+assert.match(
+  addDialog,
+  /toast\.success\("Torrent added"\);\s*onAdded\?\.\(\);\s*onOpenChange\(false\);/
+);
+assert.equal(
+  [...addDialog.matchAll(/onAdded\?\.\(\)/g)].length,
+  1,
+  "onAdded runs only on add success, not cancel or error"
+);
 
 assert.match(preview, /min-w-0 truncate overflow-hidden font-medium/);
 assert.match(preview, /truncate overflow-hidden break-all font-mono/);

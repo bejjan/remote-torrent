@@ -46,6 +46,7 @@ import {
   SIDEBAR_TRACKER_ROW_CAP,
   completeStateFilters,
   isVisibleFilterRow,
+  selectSidebarState,
   sidebarGroupRows,
   stateAllCount,
 } from "@/lib/deluge/sidebar-filters";
@@ -182,8 +183,8 @@ export function FilterSidebar({
               active={selected.state === name}
               icon={stateIcon(name)}
               showZero={showZero}
-              alwaysShow={name === FILTER_ALL}
-              onClick={() => onSelect({ ...selected, state: name })}
+              alwaysShow={name === FILTER_ALL || selected.state === name}
+              onClick={() => onSelect(selectSidebarState(selected, name))}
             />
           ))}
         </FilterGroup>

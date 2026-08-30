@@ -90,10 +90,12 @@ export function AddTorrentDialog({
   open,
   onOpenChange,
   defaultPath,
+  onAdded,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultPath: string;
+  onAdded?: () => void;
 }) {
   const [tab, setTab] = useState<AddTab>("file");
   const [file, setFile] = useState<File | null>(null);
@@ -330,6 +332,7 @@ export function AddTorrentDialog({
         await rpc("web.add_torrents", [[{ path: ready.path, options }]]);
       }
       toast.success("Torrent added");
+      onAdded?.();
       onOpenChange(false);
     } catch (err) {
       const message = errMessage(err, "Failed to add torrent");
