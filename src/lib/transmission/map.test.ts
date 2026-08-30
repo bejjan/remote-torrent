@@ -88,8 +88,8 @@ assert.equal(mapTransmissionState({ id: 5, name: "s", status: TR_STATUS.SEED }),
 
 {
   const stats = mapSessionStats(null, [
-    { id: 1, name: "a", rateDownload: 100, rateUpload: 10, peersConnected: 2, downloadedEver: 50, uploadedEver: 7 },
-    { id: 2, name: "b", rateDownload: 20, rateUpload: 5, peersConnected: 1, downloadedEver: 10, uploadedEver: 3 },
+    { id: 1, name: "a", status: TR_STATUS.DOWNLOAD, rateDownload: 100, rateUpload: 10, peersConnected: 2, downloadedEver: 50, uploadedEver: 7 },
+    { id: 2, name: "b", status: TR_STATUS.SEED, rateDownload: 20, rateUpload: 5, peersConnected: 1, downloadedEver: 10, uploadedEver: 3 },
   ]);
   assert.equal(stats.download_rate, 120);
   assert.equal(stats.upload_rate, 15);

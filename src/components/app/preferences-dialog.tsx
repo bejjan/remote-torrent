@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  LARGE_DIALOG_CLASS,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -23,6 +24,9 @@ import {
 } from "@/components/ui/select";
 import { PrefNavIcon } from "@/components/app/pref-nav-icon";
 import {
+  PREF_DIALOG_NAV_CLASS,
+  PREF_DIALOG_PAGE_CLASS,
+  PREF_DIALOG_SPLIT_CLASS,
   PrefActions,
   PrefNum,
   PrefNumPair,
@@ -31,7 +35,9 @@ import {
   PrefRow,
   PrefSection,
   PrefSwitch,
+  prefNavButtonClass,
 } from "@/components/app/pref-ui";
+import { QBittorrentPreferences } from "@/components/app/qbittorrent-preferences";
 import { TransmissionPreferences } from "@/components/app/transmission-preferences";
 import { rpc, getStoredClientKind } from "@/lib/deluge/client";
 import {
@@ -161,7 +167,7 @@ export function PreferencesDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (getStoredClientKind() === "transmission") return;
+    if (getStoredClientKind() !== "deluge") return;
     void (async () => {
       try {
         const [c, w, plugins, langs] = await Promise.all([
@@ -207,8 +213,8 @@ export function PreferencesDialog({
   if (typeof window !== "undefined" && getStoredClientKind() === "transmission") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[min(40rem,90vh)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-          <DialogHeader className="border-b p-4">
+        <DialogContent className={LARGE_DIALOG_CLASS}>
+          <DialogHeader className="shrink-0 border-b p-3 sm:p-4">
             <DialogTitle>Preferences</DialogTitle>
           </DialogHeader>
           <TransmissionPreferences
@@ -221,14 +227,31 @@ export function PreferencesDialog({
     );
   }
 
+  if (typeof window !== "undefined" && getStoredClientKind() === "qbittorrent") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className={LARGE_DIALOG_CLASS}>
+          <DialogHeader className="shrink-0 border-b p-3 sm:p-4">
+            <DialogTitle>Preferences</DialogTitle>
+          </DialogHeader>
+          <QBittorrentPreferences
+            open={open}
+            onOpenChange={onOpenChange}
+            onWebConfigChange={onWebConfigChange}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(40rem,90vh)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="border-b p-4">
+      <DialogContent className={LARGE_DIALOG_CLASS}>
+        <DialogHeader className="shrink-0 border-b p-3 sm:p-4">
           <DialogTitle>Preferences</DialogTitle>
         </DialogHeader>
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          <nav className="w-48 shrink-0 overflow-x-hidden overflow-y-auto border-r p-2">
+        <div className={PREF_DIALOG_SPLIT_CLASS}>
+          <nav className={PREF_DIALOG_NAV_CLASS}>
             {CORE_NAV_GROUPS.map((group) => (
               <NavGroup
                 key={group.label}
@@ -253,7 +276,7 @@ export function PreferencesDialog({
             ) : null}
           </nav>
           <ScrollArea className="min-w-0 flex-1 overflow-x-hidden">
-            <div className="min-w-0 px-5 py-5">
+            <div className={PREF_DIALOG_PAGE_CLASS}>
               {page === "downloads" && <DownloadsPage core={core} setCore={setCore} />}
               {page === "network" && <NetworkPage core={core} setCore={setCore} />}
               {page === "bandwidth" && <BandwidthPage core={core} setCore={setCore} />}
@@ -308,7 +331,7 @@ export function PreferencesDialog({
             </div>
           </ScrollArea>
         </div>
-        <DialogFooter className="m-0 rounded-none">
+        <DialogFooter className="m-0 shrink-0 rounded-none p-3 sm:p-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
@@ -329,9 +352,9 @@ function NavGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-2">
+    <div className="flex shrink-0 flex-row gap-1 sm:mb-2 sm:block">
       {hideTitle ? null : (
-        <p className="mb-1 px-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        <p className="mb-1 hidden px-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase sm:block">
           {title}
         </p>
       )}
@@ -355,10 +378,7 @@ function NavBtn({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-        active ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-      )}
+      className={prefNavButtonClass(active)}
     >
       <PrefNavIcon pageId={pageId} />
       <span className="min-w-0 truncate">{children}</span>
@@ -940,7 +960,7 @@ function ProxyPage({ core, setCore }: CoreProps) {
           <ProxyTypeSelect
             value={asNumber(proxy.type, 0)}
             onChange={(type) => setProxy({ ...proxy, type })}
-            className="w-56"
+            className="w-full min-w-0 max-w-56"
           />
         </PrefRow>
         <PathField
@@ -1453,7 +1473,7 @@ function ExecutePage() {
               if (v) setEvent(v);
             }}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full min-w-0 max-w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1612,7 +1632,7 @@ function AutoAddPage() {
               label={d.path}
               description={d.enabled ? (d.label ? `Enabled · label ${d.label}` : "Enabled") : "Disabled"}
             >
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   size="sm"
                   variant="outline"

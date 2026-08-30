@@ -35,6 +35,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  INSPECTOR_DIALOG_CLASS,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -838,7 +839,7 @@ export function TorrentShell({
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent
           showCloseButton={false}
-          className="flex h-[min(44rem,90vh)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+          className={INSPECTOR_DIALOG_CLASS}
         >
           <DialogHeader className="sr-only">
             <DialogTitle>{primaryTorrent?.name || "Inspector"}</DialogTitle>

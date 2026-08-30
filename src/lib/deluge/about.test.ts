@@ -17,7 +17,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string };
 
 assert.equal(ABOUT_APP_NAME, "torro");
-assert.equal(ABOUT_TAGLINE, "modern Web UI for Deluge and Transmission");
+assert.equal(ABOUT_TAGLINE, "modern Web UI for Deluge, Transmission, and qBittorrent");
 assert.equal(ABOUT_LICENSE, "GPL-3.0");
 assert.equal(ABOUT_PROJECT_LABEL, "Deluge project");
 assert.equal(ABOUT_RPC.daemonVersion, "core.get_version");

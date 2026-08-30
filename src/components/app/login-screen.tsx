@@ -22,13 +22,19 @@ import {
 } from "@/lib/demo/admin-catalog";
 import {
   type ClientKind,
+  clientDisplayName,
+  clientUsesUsername,
   getStoredClientKind,
+  getStoredQbittorrentUrl,
+  getStoredQbittorrentUsername,
   getStoredTlsInsecure,
   getStoredTransmissionUrl,
   getStoredTransmissionUsername,
   getStoredWebUrl,
   rpc,
   setStoredClientKind,
+  setStoredQbittorrentUrl,
+  setStoredQbittorrentUsername,
   setStoredTlsInsecure,
   setStoredTransmissionUrl,
   setStoredTransmissionUsername,
@@ -40,11 +46,22 @@ import {
   normalizeDelugeWebUrl,
 } from "@/lib/deluge/web-url";
 import {
+  DEFAULT_QBITTORRENT_PORT,
+  extractExplicitPort as extractQbittorrentPort,
+  normalizeQbittorrentWebUrl,
+} from "@/lib/qbittorrent/url";
+import {
   DEFAULT_TRANSMISSION_PORT,
   extractExplicitPort as extractTransmissionPort,
   normalizeTransmissionRpcUrl,
 } from "@/lib/transmission/url";
 import { cn } from "@/lib/utils";
+
+const CLIENT_OPTIONS: { id: ClientKind; label: string }[] = [
+  { id: "deluge", label: "Deluge" },
+  { id: "transmission", label: "Transmission" },
+  { id: "qbittorrent", label: "qBittorrent" },
+];
 
 function initialKind(): ClientKind {
   return typeof window === "undefined" ? "deluge" : getStoredClientKind();
@@ -66,8 +83,17 @@ function initialTransmissionPort(): string {
   return extractTransmissionPort(initialTransmissionUrl()) || String(DEFAULT_TRANSMISSION_PORT);
 }
 
-function initialUsername(): string {
-  return typeof window === "undefined" ? "" : getStoredTransmissionUsername();
+function initialQbittorrentUrl(): string {
+  return typeof window === "undefined" ? "" : getStoredQbittorrentUrl();
+}
+
+function initialQbittorrentPort(): string {
+  return extractQbittorrentPort(initialQbittorrentUrl()) || String(DEFAULT_QBITTORRENT_PORT);
+}
+
+function initialUsername(kind: ClientKind): string {
+  if (typeof window === "undefined") return "";
+  return kind === "qbittorrent" ? getStoredQbittorrentUsername() : getStoredTransmissionUsername();
 }
 
 function initialAdmin(): StoredAdminDemo {
@@ -90,7 +116,9 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [delugePort, setDelugePort] = useState(initialDelugePort);
   const [txUrl, setTxUrl] = useState(initialTransmissionUrl);
   const [txPort, setTxPort] = useState(initialTransmissionPort);
-  const [username, setUsername] = useState(initialUsername);
+  const [qbUrl, setQbUrl] = useState(initialQbittorrentUrl);
+  const [qbPort, setQbPort] = useState(initialQbittorrentPort);
+  const [username, setUsername] = useState(() => initialUsername(initialKind()));
   const [password, setPassword] = useState("");
   const [tlsInsecure, setTlsInsecure] = useState(
     () => typeof window !== "undefined" && getStoredTlsInsecure()
@@ -105,12 +133,13 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     setStoredAdminDemo(clamped);
   }
 
-  const url = kind === "transmission" ? txUrl : delugeUrl;
-  const port = kind === "transmission" ? txPort : delugePort;
+  const url = kind === "transmission" ? txUrl : kind === "qbittorrent" ? qbUrl : delugeUrl;
+  const port = kind === "transmission" ? txPort : kind === "qbittorrent" ? qbPort : delugePort;
 
   function onKindChange(next: ClientKind) {
     setKind(next);
     setStoredClientKind(next);
+    setUsername(initialUsername(next));
     setError(null);
   }
 
@@ -119,6 +148,12 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       setTxUrl(next);
       const explicit = extractTransmissionPort(next);
       if (explicit) setTxPort(explicit);
+      return;
+    }
+    if (kind === "qbittorrent") {
+      setQbUrl(next);
+      const explicit = extractQbittorrentPort(next);
+      if (explicit) setQbPort(explicit);
       return;
     }
     setDelugeUrl(next);
@@ -133,6 +168,17 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       if (!trimmed || !/^https?:\/\//i.test(trimmed)) return;
       try {
         setTxUrl(normalizeTransmissionRpcUrl(trimmed, next.trim() || String(DEFAULT_TRANSMISSION_PORT)));
+      } catch {
+        // keep the URL as typed while the port field is mid-edit
+      }
+      return;
+    }
+    if (kind === "qbittorrent") {
+      setQbPort(next);
+      const trimmed = qbUrl.trim();
+      if (!trimmed || !/^https?:\/\//i.test(trimmed)) return;
+      try {
+        setQbUrl(normalizeQbittorrentWebUrl(trimmed, next.trim() || String(DEFAULT_QBITTORRENT_PORT)));
       } catch {
         // keep the URL as typed while the port field is mid-edit
       }
@@ -158,15 +204,15 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
         target =
           kind === "transmission"
             ? normalizeTransmissionRpcUrl(target, port.trim() || undefined)
-            : normalizeDelugeWebUrl(target, port.trim() || undefined);
+            : kind === "qbittorrent"
+              ? normalizeQbittorrentWebUrl(target, port.trim() || undefined)
+              : normalizeDelugeWebUrl(target, port.trim() || undefined);
       }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : kind === "transmission"
-            ? "Invalid Transmission RPC URL"
-            : "Invalid Deluge Web URL"
+          : `Invalid ${clientDisplayName(kind)} URL`
       );
       setBusy(false);
       return;
@@ -177,6 +223,9 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
     if (kind === "transmission") {
       if (!admin.enabled) setStoredTransmissionUrl(target);
       setStoredTransmissionUsername(username);
+    } else if (kind === "qbittorrent") {
+      if (!admin.enabled) setStoredQbittorrentUrl(target);
+      setStoredQbittorrentUsername(username);
     } else if (!admin.enabled) {
       setStoredWebUrl(target);
     }
@@ -184,7 +233,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       if (admin.enabled) await yieldToPaint();
       const ok = await rpc<boolean>("auth.login", [password]);
       if (!ok) {
-        setError(kind === "transmission" ? "Incorrect username or password." : "Incorrect password.");
+        setError(clientUsesUsername(kind) ? "Incorrect username or password." : "Incorrect password.");
         return;
       }
       toast.success(
@@ -214,7 +263,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
           <div className="min-w-0">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription className="mt-1 text-pretty">
-              Connect torro to Deluge Web or Transmission RPC — or leave the URL blank for the demo.
+              Connect torro to Deluge, Transmission, or qBittorrent — or leave the URL blank for the demo.
             </CardDescription>
           </div>
         </CardHeader>
@@ -225,23 +274,23 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
               <div
                 role="radiogroup"
                 aria-label="Client"
-                className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-[3px]"
+                className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-[3px]"
               >
-                {(["deluge", "transmission"] as const).map((id) => (
+                {CLIENT_OPTIONS.map((option) => (
                   <button
-                    key={id}
+                    key={option.id}
                     type="button"
                     role="radio"
-                    aria-checked={kind === id}
+                    aria-checked={kind === option.id}
                     className={cn(
-                      "h-7 rounded-md text-sm font-medium transition-colors",
-                      kind === id
+                      "h-7 rounded-md px-1 text-[13px] font-medium transition-colors sm:text-sm",
+                      kind === option.id
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
-                    onClick={() => onKindChange(id)}
+                    onClick={() => onKindChange(option.id)}
                   >
-                    {id === "deluge" ? "Deluge" : "Transmission"}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -249,7 +298,11 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             <div className="grid min-w-0 gap-1.5">
               <div className="grid grid-cols-[minmax(0,1fr)_4.75rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
                 <Label htmlFor="daemon-url">
-                  {kind === "transmission" ? "Transmission RPC URL" : "Deluge Web URL"}
+                  {kind === "transmission"
+                    ? "Transmission RPC URL"
+                    : kind === "qbittorrent"
+                      ? "qBittorrent Web URL"
+                      : "Deluge Web URL"}
                 </Label>
                 <Label htmlFor="daemon-port">Port</Label>
               </div>
@@ -259,7 +312,9 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                   placeholder={
                     kind === "transmission"
                       ? "http://127.0.0.1:9091"
-                      : "http://192.168.1.10:8112"
+                      : kind === "qbittorrent"
+                        ? "http://127.0.0.1:8080"
+                        : "http://192.168.1.10:8112"
                   }
                   value={url}
                   onChange={(e) => onUrlChange(e.target.value)}
@@ -269,12 +324,14 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 />
                 <Input
                   id="daemon-port"
-                  placeholder={kind === "transmission" ? "9091" : "8112"}
+                  placeholder={
+                    kind === "transmission" ? "9091" : kind === "qbittorrent" ? "8080" : "8112"
+                  }
                   value={port}
                   onChange={(e) => onPortChange(e.target.value)}
                   inputMode="numeric"
                   autoComplete="off"
-                  aria-label={kind === "transmission" ? "Transmission RPC port" : "Deluge Web port"}
+                  aria-label={`${clientDisplayName(kind)} port`}
                 />
               </div>
               <p className="min-w-0 text-xs break-words text-muted-foreground">
@@ -286,6 +343,12 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                     Missing <span className="font-mono">http://</span> is added; missing port defaults to{" "}
                     {DEFAULT_TRANSMISSION_PORT}.
                   </>
+                ) : kind === "qbittorrent" ? (
+                  <>
+                    Example: <span className="font-mono text-foreground">http://127.0.0.1:8080</span>.
+                    Missing <span className="font-mono">http://</span> is added; missing port defaults to{" "}
+                    {DEFAULT_QBITTORRENT_PORT}.
+                  </>
                 ) : (
                   <>
                     Example: <span className="font-mono text-foreground">http://192.168.1.10:8112</span>.
@@ -295,24 +358,25 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 )}
               </p>
             </div>
-            {kind === "transmission" ? (
+            {clientUsesUsername(kind) ? (
               <div className="grid gap-1.5">
-                <Label htmlFor="transmission-username">Username</Label>
+                <Label htmlFor="daemon-username">Username</Label>
                 <Input
-                  id="transmission-username"
+                  id="daemon-username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Optional. Transmission RPC often uses HTTP basic auth. Leave blank if the daemon has no
-                  username.
+                  {kind === "qbittorrent"
+                    ? "Web UI username. Recent qBittorrent defaults to admin."
+                    : "Optional. Transmission RPC often uses HTTP basic auth. Leave blank if the daemon has no username."}
                 </p>
               </div>
             ) : null}
             <div className="grid gap-1.5">
               <Label htmlFor="daemon-password">
-                {kind === "transmission" ? "Password" : "Deluge Web password"}
+                {kind === "deluge" ? "Deluge Web password" : "Password"}
               </Label>
               <Input
                 id="daemon-password"
@@ -325,7 +389,9 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
               <p className="text-xs text-muted-foreground">
                 {kind === "transmission"
                   ? "RPC password (HTTP basic auth). Daemon settings are on the Transmission side."
-                  : "This is the Deluge Web password. Daemon username is in Connection Manager after login."}
+                  : kind === "qbittorrent"
+                    ? "Web UI password. Leave the URL empty to use the in-memory demo."
+                    : "This is the Deluge Web password. Daemon username is in Connection Manager after login."}
               </p>
             </div>
             <label className="flex items-start gap-2 text-sm leading-snug">
@@ -339,7 +405,11 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   For home-lab HTTPS. You can also set{" "}
                   <span className="font-mono">
-                    {kind === "transmission" ? "TRANSMISSION_TLS_INSECURE=1" : "DELUGE_TLS_INSECURE=1"}
+                    {kind === "transmission"
+                      ? "TRANSMISSION_TLS_INSECURE=1"
+                      : kind === "qbittorrent"
+                        ? "QBITTORRENT_TLS_INSECURE=1"
+                        : "DELUGE_TLS_INSECURE=1"}
                   </span>
                   .
                 </span>
@@ -398,7 +468,7 @@ function AdminDemoFoldout({
       </summary>
       <div className="flex flex-col gap-3 px-1 pb-2 pt-0.5">
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Load test with an in-memory Deluge or Transmission catalog. URL may stay blank. Password{" "}
+          Load test with an in-memory Deluge, Transmission, or qBittorrent catalog. URL may stay blank. Password{" "}
           <span className="font-mono text-foreground">deluge</span> or any value. No daemon.{" "}
           {ADMIN_DEMO_MAX_COUNT.toLocaleString()} torrents will be slow.
         </p>
@@ -412,7 +482,7 @@ function AdminDemoFoldout({
             Use dummy data
             <span className="mt-0.5 block text-xs text-muted-foreground">
               Default {ADMIN_DEMO_DEFAULT_COUNT.toLocaleString()} torrents. Client selector above
-              still picks Deluge vs Transmission.
+              still picks Deluge, Transmission, or qBittorrent.
             </span>
           </span>
         </label>

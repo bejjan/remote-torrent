@@ -4,6 +4,8 @@ import { clientKindFromRequest } from "@/lib/backend/request";
 import { handleDemoUpload } from "@/lib/deluge/demo";
 import { proxyDeluge, resolveDelugeTarget, uploadError } from "@/lib/deluge/proxy";
 import { encodeTorrentUpload, findUploadedFile } from "@/lib/deluge/upload-multipart";
+import { handleQbittorrentDemoUpload } from "@/lib/qbittorrent/demo";
+import { qbittorrentUploadError, resolveQbittorrentTarget } from "@/lib/qbittorrent/proxy";
 import { handleTransmissionDemoUpload } from "@/lib/transmission/demo";
 import { resolveTransmissionTarget, transmissionUploadError } from "@/lib/transmission/proxy";
 
@@ -12,6 +14,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   if (clientKindFromRequest(req) === "transmission") return handleTransmissionUpload(req);
+  if (clientKindFromRequest(req) === "qbittorrent") return handleQbittorrentUpload(req);
 
   const resolved = resolveDelugeTarget(req);
   if (resolved.error) return uploadError(resolved.error, 400);
@@ -59,6 +62,30 @@ async function handleTransmissionUpload(req: NextRequest) {
   const bytes = Buffer.from(await file.arrayBuffer());
   return NextResponse.json(
     handleTransmissionDemoUpload(
+      name,
+      size,
+      bytes.toString("base64"),
+      parseAdminDemoHeader(req.headers.get("x-nova-admin-demo"))
+    )
+  );
+}
+
+async function handleQbittorrentUpload(req: NextRequest) {
+  const resolved = resolveQbittorrentTarget(req);
+  if (resolved.error) return qbittorrentUploadError(resolved.error, 400);
+  const form = await req.formData();
+  const file = findUploadedFile(form);
+  const name = file?.name || "upload.torrent";
+  const size = file instanceof File ? file.size : 0;
+  if (!file) {
+    return qbittorrentUploadError(
+      "Failed to upload torrent: no file in the multipart body (expected field name \"file\").",
+      400
+    );
+  }
+  const bytes = Buffer.from(await file.arrayBuffer());
+  return NextResponse.json(
+    handleQbittorrentDemoUpload(
       name,
       size,
       bytes.toString("base64"),

@@ -6,6 +6,21 @@ import { Switch } from "@/components/ui/switch";
 import { asNumber } from "@/lib/deluge/pref-config";
 import { cn } from "@/lib/utils";
 
+export const PREF_DIALOG_SPLIT_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:flex-row";
+
+export const PREF_DIALOG_NAV_CLASS =
+  "flex shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b p-2 sm:w-48 sm:flex-col sm:overflow-x-hidden sm:overflow-y-auto sm:border-r sm:border-b-0";
+
+export const PREF_DIALOG_PAGE_CLASS = "@container min-w-0 px-4 py-4 sm:px-5 sm:py-5";
+
+export function prefNavButtonClass(active: boolean) {
+  return cn(
+    "flex w-auto shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm whitespace-nowrap sm:w-full",
+    active ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+  );
+}
+
 export function PrefPage({
   title,
   description,
@@ -16,7 +31,7 @@ export function PrefPage({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 gap-7">
+    <div className="@container grid min-w-0 gap-7">
       <header className="grid gap-1">
         <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
         {description ? <p className="text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
@@ -64,8 +79,8 @@ export function PrefRow({
   return (
     <div
       className={cn(
-        "flex justify-between gap-6 px-3.5 py-3",
-        align === "start" ? "items-start" : "items-center",
+        "flex flex-col items-stretch gap-2 px-3.5 py-3 @min-[32rem]:flex-row @min-[32rem]:justify-between @min-[32rem]:gap-6",
+        align === "start" ? "@min-[32rem]:items-start" : "@min-[32rem]:items-center",
         disabled && "pointer-events-none opacity-50"
       )}
     >
@@ -75,7 +90,9 @@ export function PrefRow({
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className="flex min-w-0 shrink-0 items-center justify-end">{children}</div>
+      <div className="flex w-full min-w-0 items-center justify-start @min-[32rem]:w-auto @min-[32rem]:shrink-0 @min-[32rem]:justify-end">
+        {children}
+      </div>
     </div>
   );
 }
@@ -96,7 +113,7 @@ export function PrefSwitch({
   return (
     <label
       className={cn(
-        "flex cursor-pointer items-center justify-between gap-6 px-3.5 py-3",
+        "flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3 @min-[32rem]:gap-6",
         disabled && "pointer-events-none cursor-not-allowed opacity-50"
       )}
     >
@@ -139,7 +156,7 @@ export function PrefPath({
       <Input
         type={type}
         placeholder={placeholder}
-        className={cn("w-[min(100%,20rem)] min-w-0 sm:w-72", mono && "font-mono text-sm")}
+        className={cn("w-full min-w-0 @min-[32rem]:w-72", mono && "font-mono text-sm")}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
@@ -165,10 +182,10 @@ export function PrefNum({
 }) {
   return (
     <PrefRow label={label} description={description} disabled={disabled}>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Input
           type="number"
-          className="max-w-28"
+          className="w-full max-w-28"
           disabled={disabled}
           value={Number.isFinite(value) ? String(value) : ""}
           onChange={(e) => onChange(asNumber(e.target.value, value))}
@@ -202,11 +219,11 @@ export function PrefNumPair({
 }) {
   return (
     <PrefRow label={label} description={description} disabled={disabled}>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Input
           type="number"
           aria-label={fromLabel}
-          className="max-w-28"
+          className="w-full max-w-28"
           disabled={disabled}
           value={Number.isFinite(from) ? String(from) : ""}
           onChange={(e) => onFrom(asNumber(e.target.value, from))}
@@ -215,7 +232,7 @@ export function PrefNumPair({
         <Input
           type="number"
           aria-label={toLabel}
-          className="max-w-28"
+          className="w-full max-w-28"
           disabled={disabled}
           value={Number.isFinite(to) ? String(to) : ""}
           onChange={(e) => onTo(asNumber(e.target.value, to))}

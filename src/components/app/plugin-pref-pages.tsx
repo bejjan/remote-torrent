@@ -38,7 +38,7 @@ export function SettingValueInput({
   if (typeof value === "string") {
     return (
       <Input
-        className="w-[min(100%,20rem)] min-w-0 sm:w-72"
+        className="w-full min-w-0 @min-[32rem]:w-72"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -46,7 +46,7 @@ export function SettingValueInput({
   }
   return (
     <Input
-      className="w-[min(100%,20rem)] min-w-0 sm:w-72"
+      className="w-full min-w-0 @min-[32rem]:w-72"
       value={JSON.stringify(value)}
       onChange={(e) => {
         try {
@@ -203,7 +203,7 @@ export function LtConfigPage({
         />
         <PrefRow label="Filter settings" description="Show only keys that match this text.">
           <Input
-            className="w-[min(100%,20rem)] min-w-0 sm:w-72"
+            className="w-full min-w-0 @min-[32rem]:w-72"
             value={filter}
             placeholder="connections_limit"
             onChange={(e) => setFilter(e.target.value)}

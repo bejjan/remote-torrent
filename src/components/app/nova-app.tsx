@@ -19,7 +19,7 @@ export function NovaApp() {
         setPhase("login");
         return;
       }
-      if (getStoredClientKind() === "transmission") {
+      if (getStoredClientKind() !== "deluge") {
         setPhase("main");
         return;
       }

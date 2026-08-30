@@ -28,7 +28,13 @@ const NAV = [
   { id: "interface", label: "Interface" },
 ];
 
-export function TransmissionPreferences({
+function bytesToKib(value: unknown): number {
+  const n = asNumber(value, 0);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n / 1024;
+}
+
+export function QBittorrentPreferences({
   open,
   onOpenChange,
   onWebConfigChange,
@@ -88,6 +94,12 @@ export function TransmissionPreferences({
   function setOn(key: string, value: boolean) {
     setCore({ ...core, [key]: value });
   }
+  function setKibLimit(key: string, kib: number) {
+    setNum(key, !Number.isFinite(kib) || kib <= 0 ? 0 : Math.round(kib * 1024));
+  }
+
+  const dlEnabled = asNumber(core.dl_limit, 0) > 0;
+  const upEnabled = asNumber(core.up_limit, 0) > 0;
 
   return (
     <>
@@ -113,37 +125,43 @@ export function TransmissionPreferences({
                   <PrefPath
                     label="Download directory"
                     mono
-                    value={asString(core["download-dir"] ?? core.download_location)}
+                    value={asString(core.save_path ?? core.download_location)}
                     onChange={(value) => {
-                      setCore({ ...core, "download-dir": value, download_location: value });
+                      setCore({ ...core, save_path: value, download_location: value });
                     }}
                   />
                   <PrefSwitch
                     label="Incomplete directory"
                     description="Keep unfinished files in a separate folder."
-                    checked={asBool(core["incomplete-dir-enabled"])}
-                    onChange={(v) => setOn("incomplete-dir-enabled", v)}
+                    checked={asBool(core.temp_path_enabled)}
+                    onChange={(v) => setOn("temp_path_enabled", v)}
                   />
                   <PrefPath
                     label="Incomplete path"
                     mono
-                    disabled={!asBool(core["incomplete-dir-enabled"])}
-                    value={asString(core["incomplete-dir"])}
-                    onChange={(value) => setStr("incomplete-dir", value)}
+                    disabled={!asBool(core.temp_path_enabled)}
+                    value={asString(core.temp_path)}
+                    onChange={(value) => setStr("temp_path", value)}
                   />
                 </PrefSection>
                 <PrefSection title="Options">
                   <PrefSwitch
-                    label="Start added torrents"
-                    description="Begin downloading as soon as a torrent is added."
-                    checked={core["start-added-torrents"] !== false}
-                    onChange={(v) => setOn("start-added-torrents", v)}
+                    label="Start torrents paused"
+                    description="Add new torrents without starting them."
+                    checked={asBool(core.start_paused_enabled)}
+                    onChange={(v) => setOn("start_paused_enabled", v)}
                   />
                   <PrefSwitch
-                    label="Rename partial files"
-                    description="Append .part to files that are still downloading."
-                    checked={asBool(core["rename-partial-files"])}
-                    onChange={(v) => setOn("rename-partial-files", v)}
+                    label="Append .!qB to incomplete files"
+                    description="Mark files that are still downloading."
+                    checked={asBool(core.incomplete_files_ext)}
+                    onChange={(v) => setOn("incomplete_files_ext", v)}
+                  />
+                  <PrefSwitch
+                    label="Pre-allocate disk space"
+                    description="Reserve the full file size when a torrent is added."
+                    checked={asBool(core.preallocate_all)}
+                    onChange={(v) => setOn("preallocate_all", v)}
                   />
                 </PrefSection>
               </PrefPage>
@@ -153,27 +171,27 @@ export function TransmissionPreferences({
                 <PrefSection title="Limits">
                   <PrefSwitch
                     label="Limit download"
-                    checked={asBool(core["speed-limit-down-enabled"])}
-                    onChange={(v) => setOn("speed-limit-down-enabled", v)}
+                    checked={dlEnabled}
+                    onChange={(v) => setNum("dl_limit", v ? 2048 * 1024 : 0)}
                   />
                   <PrefNum
                     label="Download limit"
                     suffix="KiB/s"
-                    disabled={!asBool(core["speed-limit-down-enabled"])}
-                    value={asNumber(core["speed-limit-down"], 0)}
-                    onChange={(v) => setNum("speed-limit-down", v)}
+                    disabled={!dlEnabled}
+                    value={bytesToKib(core.dl_limit)}
+                    onChange={(v) => setKibLimit("dl_limit", v)}
                   />
                   <PrefSwitch
                     label="Limit upload"
-                    checked={asBool(core["speed-limit-up-enabled"])}
-                    onChange={(v) => setOn("speed-limit-up-enabled", v)}
+                    checked={upEnabled}
+                    onChange={(v) => setNum("up_limit", v ? 512 * 1024 : 0)}
                   />
                   <PrefNum
                     label="Upload limit"
                     suffix="KiB/s"
-                    disabled={!asBool(core["speed-limit-up-enabled"])}
-                    value={asNumber(core["speed-limit-up"], 0)}
-                    onChange={(v) => setNum("speed-limit-up", v)}
+                    disabled={!upEnabled}
+                    value={bytesToKib(core.up_limit)}
+                    onChange={(v) => setKibLimit("up_limit", v)}
                   />
                 </PrefSection>
                 <PrefSection
@@ -181,21 +199,21 @@ export function TransmissionPreferences({
                   description="A second set of limits you can switch to, for example during the day."
                 >
                   <PrefSwitch
-                    label="Use alternative speeds"
-                    checked={asBool(core["alt-speed-enabled"])}
-                    onChange={(v) => setOn("alt-speed-enabled", v)}
+                    label="Enable scheduler"
+                    checked={asBool(core.scheduler_enabled)}
+                    onChange={(v) => setOn("scheduler_enabled", v)}
                   />
                   <PrefNum
                     label="Alt download"
                     suffix="KiB/s"
-                    value={asNumber(core["alt-speed-down"], 0)}
-                    onChange={(v) => setNum("alt-speed-down", v)}
+                    value={bytesToKib(core.alt_dl_limit)}
+                    onChange={(v) => setKibLimit("alt_dl_limit", v)}
                   />
                   <PrefNum
                     label="Alt upload"
                     suffix="KiB/s"
-                    value={asNumber(core["alt-speed-up"], 0)}
-                    onChange={(v) => setNum("alt-speed-up", v)}
+                    value={bytesToKib(core.alt_up_limit)}
+                    onChange={(v) => setKibLimit("alt_up_limit", v)}
                   />
                 </PrefSection>
               </PrefPage>
@@ -204,55 +222,55 @@ export function TransmissionPreferences({
               <PrefPage title="Queue" description="How many torrents stay active and when seeding stops.">
                 <PrefSection title="Downloads">
                   <PrefSwitch
-                    label="Download queue"
-                    description="Limit how many torrents may download at once."
-                    checked={asBool(core["download-queue-enabled"])}
-                    onChange={(v) => setOn("download-queue-enabled", v)}
+                    label="Torrent queueing"
+                    description="Limit how many torrents may be active at once."
+                    checked={asBool(core.queueing_enabled)}
+                    onChange={(v) => setOn("queueing_enabled", v)}
                   />
                   <PrefNum
                     label="Max active downloads"
-                    disabled={!asBool(core["download-queue-enabled"])}
-                    value={asNumber(core["download-queue-size"], 5)}
-                    onChange={(v) => setNum("download-queue-size", v)}
+                    disabled={!asBool(core.queueing_enabled)}
+                    value={asNumber(core.max_active_downloads, 5)}
+                    onChange={(v) => setNum("max_active_downloads", v)}
+                  />
+                  <PrefNum
+                    label="Max active uploads"
+                    disabled={!asBool(core.queueing_enabled)}
+                    value={asNumber(core.max_active_uploads, 5)}
+                    onChange={(v) => setNum("max_active_uploads", v)}
+                  />
+                  <PrefNum
+                    label="Max active torrents"
+                    disabled={!asBool(core.queueing_enabled)}
+                    value={asNumber(core.max_active_torrents, 10)}
+                    onChange={(v) => setNum("max_active_torrents", v)}
                   />
                 </PrefSection>
                 <PrefSection title="Seeding">
                   <PrefSwitch
-                    label="Seed queue"
-                    description="Limit how many torrents may seed at once."
-                    checked={asBool(core["seed-queue-enabled"])}
-                    onChange={(v) => setOn("seed-queue-enabled", v)}
-                  />
-                  <PrefNum
-                    label="Max active seeds"
-                    disabled={!asBool(core["seed-queue-enabled"])}
-                    value={asNumber(core["seed-queue-size"], 5)}
-                    onChange={(v) => setNum("seed-queue-size", v)}
-                  />
-                  <PrefSwitch
-                    label="Seed ratio limit"
+                    label="Share ratio limit"
                     description="Stop seeding when a torrent reaches this share ratio."
-                    checked={asBool(core["ratio-limit-enabled"])}
-                    onChange={(v) => setOn("ratio-limit-enabled", v)}
+                    checked={asBool(core.max_ratio_enabled)}
+                    onChange={(v) => setOn("max_ratio_enabled", v)}
                   />
                   <PrefNum
                     label="Ratio"
-                    disabled={!asBool(core["ratio-limit-enabled"])}
-                    value={asNumber(core["ratio-limit"], 2)}
-                    onChange={(v) => setNum("ratio-limit", v)}
+                    disabled={!asBool(core.max_ratio_enabled)}
+                    value={asNumber(core.max_ratio, 2)}
+                    onChange={(v) => setNum("max_ratio", v)}
                   />
                   <PrefSwitch
-                    label="Idle seeding limit"
-                    description="Stop seeding after a period with no upload activity."
-                    checked={asBool(core["idle-seeding-limit-enabled"])}
-                    onChange={(v) => setOn("idle-seeding-limit-enabled", v)}
+                    label="Seeding time limit"
+                    description="Stop seeding after this many minutes."
+                    checked={asBool(core.max_seeding_time_enabled)}
+                    onChange={(v) => setOn("max_seeding_time_enabled", v)}
                   />
                   <PrefNum
-                    label="Idle minutes"
+                    label="Seeding minutes"
                     suffix="min"
-                    disabled={!asBool(core["idle-seeding-limit-enabled"])}
-                    value={asNumber(core["idle-seeding-limit"], 30)}
-                    onChange={(v) => setNum("idle-seeding-limit", v)}
+                    disabled={!asBool(core.max_seeding_time_enabled)}
+                    value={asNumber(core.max_seeding_time, 0)}
+                    onChange={(v) => setNum("max_seeding_time", v)}
                   />
                 </PrefSection>
               </PrefPage>
@@ -261,72 +279,72 @@ export function TransmissionPreferences({
               <PrefPage title="Network" description="Ports, peer limits, and how peers are discovered.">
                 <PrefSection title="Port">
                   <PrefNum
-                    label="Peer port"
-                    value={asNumber(core["peer-port"], 51413)}
-                    onChange={(v) => setNum("peer-port", v)}
+                    label="Listen port"
+                    value={asNumber(core.listen_port, 6881)}
+                    onChange={(v) => setNum("listen_port", v)}
                   />
                   <PrefSwitch
                     label="Randomize port on start"
-                    description="Pick a random incoming port each time Transmission starts."
-                    checked={asBool(core["peer-port-random-on-start"])}
-                    onChange={(v) => setOn("peer-port-random-on-start", v)}
+                    description="Pick a random incoming port each time qBittorrent starts."
+                    checked={asBool(core.random_port)}
+                    onChange={(v) => setOn("random_port", v)}
                   />
                   <PrefSwitch
-                    label="Port forwarding"
-                    description="Automatically forward the peer port with UPnP or NAT-PMP."
-                    checked={asBool(core["port-forwarding-enabled"])}
-                    onChange={(v) => setOn("port-forwarding-enabled", v)}
+                    label="UPnP / NAT-PMP"
+                    description="Automatically forward the listen port."
+                    checked={asBool(core.upnp)}
+                    onChange={(v) => setOn("upnp", v)}
                   />
                 </PrefSection>
                 <PrefSection title="Peers">
                   <PrefNum
-                    label="Peer limit"
+                    label="Global connection limit"
                     description="Maximum peers across the whole session."
-                    value={asNumber(core["peer-limit-global"], 200)}
-                    onChange={(v) => setNum("peer-limit-global", v)}
+                    value={asNumber(core.max_connec, 500)}
+                    onChange={(v) => setNum("max_connec", v)}
                   />
                   <PrefNum
-                    label="Peers per torrent"
-                    value={asNumber(core["peer-limit-per-torrent"], 60)}
-                    onChange={(v) => setNum("peer-limit-per-torrent", v)}
+                    label="Connections per torrent"
+                    value={asNumber(core.max_connec_per_torrent, 100)}
+                    onChange={(v) => setNum("max_connec_per_torrent", v)}
                   />
                 </PrefSection>
                 <PrefSection title="Discovery">
                   <PrefSwitch
                     label="DHT"
                     description="Find peers without a tracker."
-                    checked={core["dht-enabled"] !== false}
-                    onChange={(v) => setOn("dht-enabled", v)}
+                    checked={core.dht !== false}
+                    onChange={(v) => setOn("dht", v)}
                   />
                   <PrefSwitch
                     label="PEX"
                     description="Learn about peers from others in the swarm."
-                    checked={core["pex-enabled"] !== false}
-                    onChange={(v) => setOn("pex-enabled", v)}
+                    checked={core.pex !== false}
+                    onChange={(v) => setOn("pex", v)}
                   />
                   <PrefSwitch
                     label="Local peer discovery"
                     description="Find peers on your local network."
-                    checked={core["lpd-enabled"] !== false}
-                    onChange={(v) => setOn("lpd-enabled", v)}
+                    checked={core.lsd !== false}
+                    onChange={(v) => setOn("lsd", v)}
                   />
                   <PrefSwitch
-                    label="µTP"
-                    description="Use the Micro Transport Protocol to reduce impact on other traffic."
-                    checked={core["utp-enabled"] !== false}
-                    onChange={(v) => setOn("utp-enabled", v)}
+                    label="Anonymous mode"
+                    description="Hide identifying client information from trackers."
+                    checked={asBool(core.anonymous_mode)}
+                    onChange={(v) => setOn("anonymous_mode", v)}
                   />
-                  <PrefPath
+                  <PrefNum
                     label="Encryption"
-                    description="required, preferred, or tolerated"
-                    value={asString(core.encryption) || "preferred"}
-                    onChange={(value) => setStr("encryption", value)}
+                    description="0 prefer, 1 require, 2 disable"
+                    value={asNumber(core.encryption, 0)}
+                    onChange={(v) => setNum("encryption", v)}
                   />
                 </PrefSection>
               </PrefPage>
             ) : null}
             {page === "interface" ? (
-              <PrefPage title="Interface" description="How torro looks while connected to Transmission.">
+              <PrefPage title="Interface" description="How torro looks while connected to qBittorrent.">
                 <PrefSection title="Appearance">
                   <PrefSwitch
                     label="Show sidebar"

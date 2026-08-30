@@ -3,6 +3,14 @@ import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { clientKindFromRequest } from "@/lib/backend/request";
 import { handleDemoRpc, type JsonRpcRequest } from "@/lib/deluge/demo";
 import { jsonRpcError, proxyDeluge, resolveDelugeTarget } from "@/lib/deluge/proxy";
+import { handleQbittorrentCompat } from "@/lib/qbittorrent/compat";
+import {
+  QbittorrentProxyError,
+  proxyQbittorrent,
+  qbittorrentCredentials,
+  resolveQbittorrentTarget,
+  withQbittorrentCookies,
+} from "@/lib/qbittorrent/proxy";
 import { handleTransmissionCompat } from "@/lib/transmission/compat";
 import {
   TransmissionProxyError,
@@ -25,6 +33,9 @@ export async function POST(req: NextRequest) {
 
   if (clientKindFromRequest(req) === "transmission") {
     return handleTransmissionJson(req, body);
+  }
+  if (clientKindFromRequest(req) === "qbittorrent") {
+    return handleQbittorrentJson(req, body);
   }
 
   const resolved = resolveDelugeTarget(req);
@@ -76,5 +87,34 @@ async function handleTransmissionJson(req: NextRequest, body: JsonRpcRequest) {
       return jsonRpcError(body.id ?? null, err.message, err.status);
     }
     return jsonRpcError(body.id ?? null, err instanceof Error ? err.message : "Transmission RPC failed");
+  }
+}
+
+async function handleQbittorrentJson(req: NextRequest, body: JsonRpcRequest) {
+  const resolved = resolveQbittorrentTarget(req);
+  if (resolved.error) return jsonRpcError(body.id ?? null, resolved.error, 400);
+  const creds = qbittorrentCredentials(req);
+
+  const live = resolved.demo
+    ? undefined
+    : async (call: Parameters<typeof proxyQbittorrent>[2]) => proxyQbittorrent(req, resolved.target, call);
+
+  try {
+    const demo = await handleQbittorrentCompat(body, {
+      demo: resolved.demo,
+      cookieHeader: req.headers.get("cookie"),
+      live,
+      username: creds.username,
+      password: creds.password,
+      admin: parseAdminDemoHeader(req.headers.get("x-nova-admin-demo")),
+    });
+    const res = NextResponse.json({ id: demo.id, result: demo.result, error: demo.error });
+    const cookies = demo.setCookie == null ? [] : Array.isArray(demo.setCookie) ? demo.setCookie : [demo.setCookie];
+    return withQbittorrentCookies(res, cookies);
+  } catch (err) {
+    if (err instanceof QbittorrentProxyError) {
+      return jsonRpcError(body.id ?? null, err.message, err.status);
+    }
+    return jsonRpcError(body.id ?? null, err instanceof Error ? err.message : "qBittorrent request failed");
   }
 }

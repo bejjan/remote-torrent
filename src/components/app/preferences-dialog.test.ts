@@ -9,13 +9,16 @@ const prefUi = readFileSync(join(dir, "pref-ui.tsx"), "utf8");
 
 assert.match(source, /CORE_NAV_GROUPS/);
 assert.match(source, /PrefNavIcon/);
-assert.match(source, /w-48/);
+assert.match(source, /LARGE_DIALOG_CLASS/);
+assert.match(source, /PREF_DIALOG_NAV_CLASS/);
+assert.match(source, /PREF_DIALOG_SPLIT_CLASS/);
 assert.match(source, /dirtyConfig/);
 assert.match(source, /core\.set_config/);
 assert.match(source, /web\.set_config/);
-assert.match(source, /max-w-3xl/);
-assert.match(prefUi, /justify-between/);
+assert.match(prefUi, /@min-\[32rem\]:justify-between/);
 assert.match(prefUi, /max-w-28/);
+assert.match(prefUi, /PREF_DIALOG_NAV_CLASS/);
+assert.match(prefUi, /flex-col overflow-hidden sm:flex-row/);
 assert.match(prefUi, /checked=\{checked === true\}/);
 assert.match(source, /ENC_POLICY_SELECT_ITEMS/);
 assert.match(source, /ENC_LEVEL_SELECT_ITEMS/);
@@ -37,6 +40,7 @@ assert.match(source, /PluginStubPage/);
 assert.match(source, /show_session_speed/);
 assert.match(source, /show_sidebar/);
 assert.match(source, /TransmissionPreferences/);
+assert.match(source, /QBittorrentPreferences/);
 assert.doesNotMatch(source, /lorem ipsum/i);
 
 console.log("preferences-dialog tests passed");

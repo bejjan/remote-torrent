@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getStoredClientKind, rpc } from "@/lib/deluge/client";
+import { clientDisplayName, getStoredClientKind, rpc } from "@/lib/deluge/client";
 import {
   ABOUT_APP_NAME,
   ABOUT_DAEMON_UNAVAILABLE,
@@ -18,6 +18,8 @@ import {
   ABOUT_LICENSE_URL,
   ABOUT_PROJECT_LABEL,
   ABOUT_PROJECT_URL,
+  ABOUT_QBITTORRENT_LABEL,
+  ABOUT_QBITTORRENT_URL,
   ABOUT_TAGLINE,
   ABOUT_TRANSMISSION_LABEL,
   ABOUT_TRANSMISSION_URL,
@@ -82,11 +84,11 @@ export function AboutDialog({
         <dl className="grid gap-1.5 text-sm">
           <VersionRow label="This UI" value={info?.uiVersion ?? UI_VERSION} />
           <VersionRow
-            label={getStoredClientKind() === "transmission" ? "Transmission" : "Deluge"}
+            label={clientDisplayName(getStoredClientKind())}
             value={info?.daemonVersion ?? null}
             loading={loading}
           />
-          {getStoredClientKind() === "deluge" ? (
+          {getStoredClientKind() !== "transmission" ? (
             <VersionRow
               label="libtorrent"
               value={info?.libtorrentVersion ?? null}
@@ -108,6 +110,10 @@ export function AboutDialog({
           {" · "}
           <a href={ABOUT_TRANSMISSION_URL} target="_blank" rel="noreferrer">
             {ABOUT_TRANSMISSION_LABEL}
+          </a>
+          {" · "}
+          <a href={ABOUT_QBITTORRENT_URL} target="_blank" rel="noreferrer">
+            {ABOUT_QBITTORRENT_LABEL}
           </a>
         </p>
         <DialogFooter showCloseButton className="m-0" />

@@ -9,6 +9,7 @@ import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  ADD_DIALOG_CLASS,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -31,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DelugeError, getStoredClientKind, rpc, uploadTorrent } from "@/lib/deluge/client";
+import { clientCapabilities, DelugeError, getStoredClientKind, rpc, uploadTorrent } from "@/lib/deluge/client";
 import { formatBytes } from "@/lib/deluge/format";
 import {
   commonPriority,
@@ -135,7 +136,7 @@ export function AddTorrentDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chooseFileRef = useRef<HTMLButtonElement>(null);
   const loadGen = useRef(0);
-  const transmission = getStoredClientKind() === "transmission";
+  const caps = clientCapabilities(getStoredClientKind());
 
   useEffect(() => {
     if (!open) {
@@ -406,13 +407,11 @@ export function AddTorrentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-h-[90vh] min-w-0 max-w-[calc(100%-2rem)] grid-cols-1 overflow-x-hidden overflow-y-auto sm:max-w-xl"
-        initialFocus={chooseFileRef}
-      >
-        <DialogHeader>
+      <DialogContent className={ADD_DIALOG_CLASS} initialFocus={chooseFileRef}>
+        <DialogHeader className="shrink-0 border-b p-3 pr-12 sm:p-4">
           <DialogTitle>Add torrent</DialogTitle>
         </DialogHeader>
+        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-x-hidden overflow-y-auto px-4 py-3">
         <Tabs
           className="min-w-0"
           value={tab}
@@ -473,13 +472,13 @@ export function AddTorrentDialog({
                 tabIndex={-1}
                 onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
               />
-              <div className="flex min-w-0 items-center gap-x-3 gap-y-1.5">
+              <div className="flex min-w-0 flex-col gap-x-3 gap-y-1.5 sm:flex-row sm:items-center">
                 <Button
                   ref={chooseFileRef}
                   id="add-torrent-choose-file"
                   type="button"
                   variant="outline"
-                  className="shrink-0"
+                  className="w-full shrink-0 sm:w-auto"
                   autoFocus
                   aria-describedby="add-torrent-file-name"
                   onClick={() => fileInputRef.current?.click()}
@@ -511,8 +510,9 @@ export function AddTorrentDialog({
             />
           </TabsContent>
           <TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3">
-            <div className="flex min-h-16 min-w-0 items-center gap-2">
+            <div className="flex min-h-16 min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
               <Input
+                className="min-w-0"
                 placeholder="https://example.com/file.torrent"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -523,7 +523,13 @@ export function AddTorrentDialog({
                   }
                 }}
               />
-              <Button type="button" variant="outline" disabled={loadingInfo || !url.trim()} onClick={() => void fetchUrl()}>
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={loadingInfo || !url.trim()}
+                onClick={() => void fetchUrl()}
+              >
                 Load
               </Button>
             </div>
@@ -593,7 +599,7 @@ export function AddTorrentDialog({
             </button>
             {advancedOpen ? (
               <div className="grid gap-x-3 gap-y-2 border-t border-border px-2.5 py-2 sm:grid-cols-2 sm:items-center">
-                {transmission ? null : (
+                {caps.kind === "deluge" ? (
                   <>
                     <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
                       <Switch size="sm" checked={moveCompleted} onCheckedChange={setMoveCompleted} />
@@ -609,23 +615,27 @@ export function AddTorrentDialog({
                       className="h-7"
                     />
                   </>
-                )}
+                ) : null}
                 <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
                   <Switch size="sm" checked={addPaused} onCheckedChange={setAddPaused} />
                   Add in paused state
                 </label>
-                {transmission ? null : (
+                {caps.sequentialDownload || caps.prioritizeFirstLast ? (
                   <>
-                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
-                      <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
-                      Sequential download
-                    </label>
-                    <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
-                      <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
-                      Prioritize first and last pieces
-                    </label>
+                    {caps.sequentialDownload ? (
+                      <label className="flex min-h-7 items-center gap-2 text-sm leading-snug">
+                        <Switch size="sm" checked={sequential} onCheckedChange={setSequential} />
+                        Sequential download
+                      </label>
+                    ) : null}
+                    {caps.prioritizeFirstLast ? (
+                      <label className="flex min-h-7 items-center gap-2 text-sm leading-snug sm:col-span-2">
+                        <Switch size="sm" checked={firstLast} onCheckedChange={setFirstLast} />
+                        Prioritize first and last pieces
+                      </label>
+                    ) : null}
                   </>
-                )}
+                ) : null}
                 <div className="grid grid-cols-[auto_1fr] items-center gap-2">
                   <Label htmlFor="add-max-down" className="text-sm font-normal leading-snug">
                     Max download
@@ -657,7 +667,8 @@ export function AddTorrentDialog({
             ) : null}
           </div>
         </div>
-        <DialogFooter>
+        </div>
+        <DialogFooter className="m-0 shrink-0 rounded-none p-3 sm:p-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -708,7 +719,7 @@ function TorrentPreviewCard({
       </div>
       <div
         className={cn(
-          "min-h-56 max-h-56 min-w-0 overflow-auto rounded-md border bg-muted/30 px-2 py-1",
+          "min-h-40 max-h-56 min-w-0 overflow-auto rounded-md border bg-muted/30 px-2 py-1 sm:min-h-56",
           (loading || emptyTree) && "flex items-center justify-center"
         )}
       >

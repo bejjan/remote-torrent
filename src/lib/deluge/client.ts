@@ -1,7 +1,10 @@
 import {
+  getSessionQbittorrentPassword,
   getSessionTransmissionPassword,
   getStoredClientKind,
+  getStoredQbittorrentUsername,
   getStoredTransmissionUsername,
+  setSessionQbittorrentPassword,
   setSessionTransmissionPassword,
 } from "@/lib/backend/client-kind";
 import {
@@ -10,6 +13,7 @@ import {
   getStoredAdminDemo,
 } from "@/lib/demo/admin-catalog";
 import { readLocalStorage, removeLocalStorage, storageKey, writeLocalStorage } from "@/lib/storage";
+import { normalizeQbittorrentWebUrl } from "@/lib/qbittorrent/url";
 import { normalizeTransmissionRpcUrl } from "@/lib/transmission/url";
 import { formatUnknownMethodMessage } from "./plugins";
 import type { JsonRpcResponse } from "./types";
@@ -20,14 +24,18 @@ export {
   setStoredClientKind,
   getStoredTransmissionUsername,
   setStoredTransmissionUsername,
+  getStoredQbittorrentUsername,
+  setStoredQbittorrentUsername,
   clientCapabilities,
   clientDisplayName,
+  clientUsesUsername,
 } from "@/lib/backend/client-kind";
 export type { ClientKind } from "@/lib/backend/client-kind";
 
 export const STORAGE_URL = storageKey("web-url");
 export const STORAGE_TLS = storageKey("tls-insecure");
 export const STORAGE_TRANSMISSION_URL = storageKey("transmission-url");
+export const STORAGE_QBITTORRENT_URL = storageKey("qbittorrent-url");
 
 export function getStoredWebUrl(): string {
   return readLocalStorage(STORAGE_URL) ?? "";
@@ -60,6 +68,23 @@ export function setStoredTransmissionUrl(url: string) {
     writeLocalStorage(STORAGE_TRANSMISSION_URL, normalizeTransmissionRpcUrl(trimmed));
   } catch {
     writeLocalStorage(STORAGE_TRANSMISSION_URL, trimmed.replace(/\/$/, ""));
+  }
+}
+
+export function getStoredQbittorrentUrl(): string {
+  return readLocalStorage(STORAGE_QBITTORRENT_URL) ?? "";
+}
+
+export function setStoredQbittorrentUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    removeLocalStorage(STORAGE_QBITTORRENT_URL);
+    return;
+  }
+  try {
+    writeLocalStorage(STORAGE_QBITTORRENT_URL, normalizeQbittorrentWebUrl(trimmed));
+  } catch {
+    writeLocalStorage(STORAGE_QBITTORRENT_URL, trimmed.replace(/\/$/, ""));
   }
 }
 
@@ -101,6 +126,19 @@ function proxyHeaders(): Record<string, string> {
     }
     return headers;
   }
+  if (getStoredClientKind() === "qbittorrent") {
+    const url = getStoredQbittorrentUrl();
+    if (url) headers["X-QBittorrent-URL"] = url;
+    const username = getStoredQbittorrentUsername();
+    if (username) headers["X-QBittorrent-Username"] = username;
+    const password = getSessionQbittorrentPassword();
+    if (password) headers["X-QBittorrent-Password"] = password;
+    if (getStoredTlsInsecure()) {
+      headers["X-QBittorrent-TLS-Insecure"] = "1";
+      headers["X-Deluge-TLS-Insecure"] = "1";
+    }
+    return headers;
+  }
   const webUrl = getStoredWebUrl();
   if (webUrl) headers["X-Deluge-URL"] = webUrl;
   if (getStoredTlsInsecure()) headers["X-Deluge-TLS-Insecure"] = "1";
@@ -137,6 +175,11 @@ function unreachableMessage(status: number): string {
       ? "Incorrect username or password for Transmission RPC."
       : "Cannot reach Transmission. Check the RPC URL and that transmission-daemon is running.";
   }
+  if (getStoredClientKind() === "qbittorrent") {
+    return status === 401 || status === 403
+      ? "Incorrect username or password for qBittorrent."
+      : "Cannot reach qBittorrent. Check the Web UI URL and that qBittorrent is running.";
+  }
   return "Cannot reach Deluge Web. Check the URL and that deluge-web is running.";
 }
 
@@ -144,6 +187,9 @@ export async function rpc<T = unknown>(method: string, params: unknown[] = []): 
   const id = requestId++;
   if (method === "auth.login" && getStoredClientKind() === "transmission") {
     setSessionTransmissionPassword(typeof params[0] === "string" ? params[0] : "");
+  }
+  if (method === "auth.login" && getStoredClientKind() === "qbittorrent") {
+    setSessionQbittorrentPassword(typeof params[0] === "string" ? params[0] : "");
   }
 
   const res = await fetch("/api/json", {
@@ -174,14 +220,22 @@ export async function rpc<T = unknown>(method: string, params: unknown[] = []): 
     throw new DelugeError(
       getStoredClientKind() === "transmission"
         ? "Transmission did not return JSON. Check that the URL points at the RPC endpoint (http://host:9091/transmission/rpc)."
-        : "Deluge Web did not return JSON. Check that the URL points at deluge-web (http://host:8112)."
+        : getStoredClientKind() === "qbittorrent"
+          ? "qBittorrent did not return JSON. Check that the URL points at the Web UI (http://host:8080)."
+          : "Deluge Web did not return JSON. Check that the URL points at deluge-web (http://host:8112)."
     );
   }
   if (data.error) {
     throw new DelugeError(formatUnknownMethodMessage(method, data.error.message || "RPC error"));
   }
-  if (method === "auth.login" && data.result !== true) setSessionTransmissionPassword("");
-  if (method === "auth.delete_session") setSessionTransmissionPassword("");
+  if (method === "auth.login" && data.result !== true) {
+    setSessionTransmissionPassword("");
+    setSessionQbittorrentPassword("");
+  }
+  if (method === "auth.delete_session") {
+    setSessionTransmissionPassword("");
+    setSessionQbittorrentPassword("");
+  }
   return data.result as T;
 }
 
