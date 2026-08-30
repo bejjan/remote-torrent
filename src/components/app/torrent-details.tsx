@@ -1,7 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { MoreHorizontal, PanelBottom, PanelRight, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsDown,
+  ChevronsUp,
+  FolderInput,
+  MoreHorizontal,
+  PanelBottom,
+  PanelRight,
+  Pause,
+  Play,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { FileTree } from "@/components/app/torrent-file-tree";
 import { OptionsForm } from "@/components/app/torrent-options-form";
@@ -23,7 +37,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { rpc } from "@/lib/deluge/client";
 import {
   formatBytes,
@@ -42,19 +58,30 @@ import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
 
+const QUICK_INSPECT_TAB_CLASS =
+  "h-7 flex-none rounded-lg border-0 bg-transparent px-2.5 text-[13px] font-normal text-muted-foreground shadow-none after:hidden hover:bg-muted/50 hover:text-muted-foreground data-active:border-transparent data-active:bg-muted data-active:font-normal data-active:text-foreground data-active:shadow-none data-active:hover:bg-muted data-active:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-none dark:hover:text-muted-foreground dark:data-active:border-transparent dark:data-active:bg-muted dark:data-active:hover:text-foreground";
+
 export function TorrentDetails({
   torrentId,
   torrent,
   className,
+  variant = "panel",
   dock,
   onDockChange,
+  onAct,
+  onRemove,
+  onMove,
   onClose,
 }: {
   torrentId: string | null;
   torrent: TorrentStatus | null;
   className?: string;
+  variant?: "panel" | "dialog";
   dock?: DetailsDock;
   onDockChange?: (dock: DetailsDock) => void;
+  onAct?: (method: string, torrentIds?: string[]) => void;
+  onRemove?: (torrentIds: string[]) => void;
+  onMove?: (torrentIds: string[]) => void;
   onClose?: () => void;
 }) {
   const [tab, setTab] = useState("status");
@@ -112,27 +139,40 @@ export function TorrentDetails({
       onValueChange={setTab}
       className={cn("@container flex h-full min-h-0 min-w-0 flex-col gap-0", className)}
     >
-      <DetailsHeader
-        name={detail?.name || "Details"}
-        dock={dock ?? "bottom"}
-        onDockChange={onDockChange}
-        onClose={onClose}
+      {variant === "dialog" ? (
+        <InspectorStatusBar name={detail?.name || "Inspector"} onClose={onClose} />
+      ) : (
+        <DetailsHeader
+          name={detail?.name || "Details"}
+          dock={dock ?? "bottom"}
+          onDockChange={onDockChange}
+          onClose={onClose}
+        />
+      )}
+      <InspectorTabs
+        actions={
+          variant === "dialog" ? (
+            <InspectorActionBar
+              torrentId={torrentId}
+              onAct={onAct}
+              onRemove={onRemove}
+              onMove={onMove}
+            />
+          ) : undefined
+        }
       />
-      <div className="min-w-0 overflow-x-auto border-b px-2 pt-1">
-        <TabsList variant="line" className="w-max min-w-full justify-start">
-          <TabsTrigger value="status">Status</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-          <TabsTrigger value="peers">Peers</TabsTrigger>
-          <TabsTrigger value="options">Options</TabsTrigger>
-          <TabsTrigger value="trackers">Trackers</TabsTrigger>
-        </TabsList>
-      </div>
       {torrentId && detail ? (
         <>
-          <TabsContent value="status" className="min-h-0 min-w-0 overflow-auto p-3">
-            <StatusGrid torrent={detail} />
+          <TabsContent
+            value="status"
+            className={cn("min-h-0 min-w-0 overflow-auto", variant === "dialog" ? "p-4" : "p-3")}
+          >
+            <StatusGrid torrent={detail} large={variant === "dialog"} />
           </TabsContent>
-          <TabsContent value="files" className="min-h-0 min-w-0 overflow-auto p-3">
+          <TabsContent
+            value="files"
+            className={cn("min-h-0 min-w-0 overflow-auto", variant === "dialog" ? "p-4" : "p-3")}
+          >
             {files ? (
               <FileTree
                 key={torrentId}
@@ -145,26 +185,63 @@ export function TorrentDetails({
               <Muted>No files</Muted>
             )}
           </TabsContent>
-          <TabsContent value="peers" className="min-h-0 min-w-0 overflow-auto p-3">
+          <TabsContent
+            value="peers"
+            className={cn("min-h-0 min-w-0 overflow-auto", variant === "dialog" ? "p-4" : "p-3")}
+          >
             <PeerTable peers={peers} />
           </TabsContent>
-          <TabsContent value="options" className="min-h-0 min-w-0 overflow-auto p-3">
+          <TabsContent
+            value="options"
+            className={cn("min-h-0 min-w-0 overflow-auto", variant === "dialog" ? "p-4" : "p-3")}
+          >
             <OptionsForm
               key={`${torrentId}:${typeof detail.max_connections === "number" || typeof detail.max_upload_slots === "number" ? "ready" : "pending"}`}
               torrentId={torrentId}
               torrent={detail}
             />
           </TabsContent>
-          <TabsContent value="trackers" className="min-h-0 min-w-0 overflow-auto p-3">
+          <TabsContent
+            value="trackers"
+            className={cn("min-h-0 min-w-0 overflow-auto", variant === "dialog" ? "p-4" : "p-3")}
+          >
             <TrackersForm key={torrentId} torrentId={torrentId} trackers={trackers} onChange={setTrackers} />
           </TabsContent>
         </>
       ) : (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-3 text-sm text-muted-foreground">
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground",
+            variant === "dialog" ? "px-4" : "px-3"
+          )}
+        >
           Select a torrent to inspect status, files, peers, and options.
         </div>
       )}
     </Tabs>
+  );
+}
+
+function InspectorStatusBar({ name, onClose }: { name: string; onClose?: () => void }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 overflow-hidden bg-background px-3 py-2">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 truncate text-sm font-medium" title={name}>
+          {name}
+        </div>
+      </div>
+      {onClose ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close inspector"
+          className="shrink-0 text-muted-foreground"
+          onClick={onClose}
+        >
+          <X />
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -208,7 +285,7 @@ function DetailsHeader({
   );
 
   return (
-    <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b px-2 py-1">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden px-2 py-1">
       {onDockChange ? (
         <ContextMenu>
           <ContextMenuTrigger className="min-w-0 flex-1 overflow-hidden">
@@ -290,95 +367,254 @@ function DetailsDockControl({
   );
 }
 
+function InspectorTabs({ actions }: { actions?: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 border-b bg-background pl-1.5 pr-3">
+      <div className="min-w-0 flex-1 overflow-x-auto">
+        <TabsList className="h-8 w-max items-center justify-start gap-0.5 rounded-none bg-transparent p-0">
+          <TabsTrigger value="status" className={QUICK_INSPECT_TAB_CLASS}>
+            Status
+          </TabsTrigger>
+          <TabsTrigger value="files" className={QUICK_INSPECT_TAB_CLASS}>
+            Files
+          </TabsTrigger>
+          <TabsTrigger value="peers" className={QUICK_INSPECT_TAB_CLASS}>
+            Peers
+          </TabsTrigger>
+          <TabsTrigger value="options" className={QUICK_INSPECT_TAB_CLASS}>
+            Options
+          </TabsTrigger>
+          <TabsTrigger value="trackers" className={QUICK_INSPECT_TAB_CLASS}>
+            Trackers
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      {actions ? <div className="flex shrink-0 items-center gap-px">{actions}</div> : null}
+    </div>
+  );
+}
+
+function InspectorActionBar({
+  torrentId,
+  onAct,
+  onRemove,
+  onMove,
+}: {
+  torrentId: string | null;
+  onAct?: (method: string, torrentIds?: string[]) => void;
+  onRemove?: (torrentIds: string[]) => void;
+  onMove?: (torrentIds: string[]) => void;
+}) {
+  const ids = torrentId ? [torrentId] : [];
+  const disabled = !ids.length;
+
+  return (
+    <>
+      <InspectorAction
+        label="Pause"
+        disabled={disabled}
+        onClick={() => onAct?.("core.pause_torrent", ids)}
+      >
+        <Pause />
+      </InspectorAction>
+      <InspectorAction
+        label="Resume"
+        disabled={disabled}
+        onClick={() => onAct?.("core.resume_torrent", ids)}
+      >
+        <Play />
+      </InspectorAction>
+      <InspectorAction
+        label="Remove"
+        disabled={disabled}
+        onClick={() => onRemove?.(ids)}
+      >
+        <Trash2 />
+      </InspectorAction>
+      <Separator orientation="vertical" className="mx-1 h-4" />
+      <InspectorAction
+        label="Queue top"
+        disabled={disabled}
+        onClick={() => onAct?.("core.queue_top", ids)}
+      >
+        <ChevronsUp />
+      </InspectorAction>
+      <InspectorAction
+        label="Queue up"
+        disabled={disabled}
+        onClick={() => onAct?.("core.queue_up", ids)}
+      >
+        <ArrowUp />
+      </InspectorAction>
+      <InspectorAction
+        label="Queue down"
+        disabled={disabled}
+        onClick={() => onAct?.("core.queue_down", ids)}
+      >
+        <ArrowDown />
+      </InspectorAction>
+      <InspectorAction
+        label="Queue bottom"
+        disabled={disabled}
+        onClick={() => onAct?.("core.queue_bottom", ids)}
+      >
+        <ChevronsDown />
+      </InspectorAction>
+      <Separator orientation="vertical" className="mx-1 h-4" />
+      <InspectorAction
+        label="Move storage"
+        disabled={disabled}
+        onClick={() => onMove?.(ids)}
+      >
+        <FolderInput />
+      </InspectorAction>
+      <InspectorAction
+        label="Force recheck"
+        disabled={disabled}
+        onClick={() => onAct?.("core.force_recheck", ids)}
+      >
+        <RefreshCw />
+      </InspectorAction>
+    </>
+  );
+}
+
+function InspectorAction({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={label}
+            disabled={disabled}
+            className="text-muted-foreground"
+            onClick={onClick}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function Muted({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
-function StatusGrid({ torrent }: { torrent: TorrentStatus }) {
+function statusTypeClass(large?: boolean) {
+  return large ? "text-sm @min-[36rem]:text-[15px]" : "text-sm";
+}
+
+function StatusGrid({ torrent, large }: { torrent: TorrentStatus; large?: boolean }) {
+  const type = statusTypeClass(large);
   return (
-    <div className="grid min-w-0 gap-4">
-      <StatusGroup title="Transfer">
+    <div className="grid min-w-0 divide-y">
+      <StatusGroup title="Transfer" type={type}>
         <div className="grid min-w-0 gap-1.5">
-          <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
-            <span className="shrink-0 text-xs text-muted-foreground">Progress</span>
-            <span className="min-w-0 truncate text-right tabular">{formatProgress(torrent.progress)}</span>
-          </div>
-          <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-muted">
+          <StatusFieldList type={type}>
+            <StatusRow label="Progress" value={formatProgress(torrent.progress)} type={type} />
+          </StatusFieldList>
+          <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
             <div
               className={cn("h-full rounded-full", stateBarClass(torrent.state))}
               style={{ width: `${Math.min(100, Math.max(0, torrent.progress))}%` }}
             />
           </div>
         </div>
-        <StatusFieldList>
-          <StatusRow label="Downloaded" value={formatBytes(torrent.total_payload_download)} />
-          <StatusRow label="Uploaded" value={formatBytes(torrent.total_payload_upload)} />
-          <StatusRow label="Download speed" value={formatTorrentRate(torrent.download_payload_rate)} />
-          <StatusRow label="Upload speed" value={formatTorrentRate(torrent.upload_payload_rate)} />
+        <StatusFieldList type={type}>
+          <StatusRow label="Downloaded" value={formatBytes(torrent.total_payload_download)} type={type} />
+          <StatusRow label="Uploaded" value={formatBytes(torrent.total_payload_upload)} type={type} />
+          <StatusRow label="Download speed" value={formatTorrentRate(torrent.download_payload_rate)} type={type} />
+          <StatusRow label="Upload speed" value={formatTorrentRate(torrent.upload_payload_rate)} type={type} />
         </StatusFieldList>
       </StatusGroup>
-      <StatusGroup title="State">
-        <StatusFieldList>
-          <StatusRow label="Name" value={torrent.name} wrap />
+      <StatusGroup title="State" type={type}>
+        <StatusFieldList type={type}>
+          <StatusRow label="Name" value={torrent.name} wrap type={type} />
           <StatusRow
             label="State"
             value={<StateBadge state={torrent.state} message={torrent.message} />}
+            type={type}
           />
           <StatusRow
             label="Size"
             value={`${formatBytes(torrent.total_done)} / ${formatBytes(torrent.total_wanted)}`}
+            type={type}
           />
-          <StatusRow label="ETA" value={formatTorrentEta(torrent.eta, torrent.progress)} />
-          <StatusRow label="Ratio" value={formatRatio(torrent.ratio)} />
-          <StatusRow label="Seeds" value={formatSwarmCount(torrent.num_seeds, torrent.total_seeds)} />
-          <StatusRow label="Peers" value={formatSwarmCount(torrent.num_peers, torrent.total_peers)} />
-          <StatusRow label="Availability" value={torrent.distributed_copies.toFixed(3)} />
-          <StatusRow label="Label" value={torrent.label || "—"} />
-          <StatusRow label="Owner" value={torrent.owner || "—"} />
+          <StatusRow label="ETA" value={formatTorrentEta(torrent.eta, torrent.progress)} type={type} />
+          <StatusRow label="Ratio" value={formatRatio(torrent.ratio)} type={type} />
+          <StatusRow label="Seeds" value={formatSwarmCount(torrent.num_seeds, torrent.total_seeds)} type={type} />
+          <StatusRow label="Peers" value={formatSwarmCount(torrent.num_peers, torrent.total_peers)} type={type} />
+          <StatusRow label="Availability" value={torrent.distributed_copies.toFixed(3)} type={type} />
+          <StatusRow label="Label" value={torrent.label || "—"} type={type} />
+          <StatusRow label="Owner" value={torrent.owner || "—"} type={type} />
         </StatusFieldList>
       </StatusGroup>
-      <StatusGroup title="Times">
-        <StatusFieldList>
-          <StatusRow label="Added" value={formatDate(torrent.time_added)} />
-          <StatusRow label="Completed" value={formatDate(torrent.completed_time)} />
-          <StatusRow label="Active time" value={formatDuration(torrent.active_time)} />
-          <StatusRow label="Seeding time" value={formatDuration(torrent.seeding_time)} />
+      <StatusGroup title="Times" type={type}>
+        <StatusFieldList type={type}>
+          <StatusRow label="Added" value={formatDate(torrent.time_added)} type={type} />
+          <StatusRow label="Completed" value={formatDate(torrent.completed_time)} type={type} />
+          <StatusRow label="Active time" value={formatDuration(torrent.active_time)} type={type} />
+          <StatusRow label="Seeding time" value={formatDuration(torrent.seeding_time)} type={type} />
         </StatusFieldList>
       </StatusGroup>
-      <StatusGroup title="Paths">
-        <StatusFieldList>
-          <StatusRow label="Tracker" value={torrent.tracker_host} wrap />
-          <StatusRow label="Tracker status" value={torrent.tracker_status} wrap />
-          <StatusRow label="Download folder" value={torrent.download_location} wrap />
+      <StatusGroup title="Paths" type={type}>
+        <StatusFieldList type={type}>
+          <StatusRow label="Tracker" value={torrent.tracker_host} wrap type={type} />
+          <StatusRow label="Tracker status" value={torrent.tracker_status} wrap type={type} />
+          <StatusRow label="Download folder" value={torrent.download_location} wrap type={type} />
         </StatusFieldList>
       </StatusGroup>
-      <StatusGroup title="Info">
-        <StatusFieldList>
+      <StatusGroup title="Info" type={type}>
+        <StatusFieldList type={type}>
           <StatusRow
             label="Pieces"
             value={`${torrent.num_pieces} × ${formatBytes(torrent.piece_length, 0)}`}
+            type={type}
           />
-          <StatusRow label="Message" value={torrent.message || "—"} wrap />
-          <StatusRow label="Comment" value={torrent.comment || "—"} wrap />
-          <StatusRow label="Creator" value={torrent.creator || "—"} wrap />
+          <StatusRow label="Message" value={torrent.message || "—"} wrap type={type} />
+          <StatusRow label="Comment" value={torrent.comment || "—"} wrap type={type} />
+          <StatusRow label="Creator" value={torrent.creator || "—"} wrap type={type} />
         </StatusFieldList>
       </StatusGroup>
     </div>
   );
 }
 
-function StatusGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function StatusGroup({
+  title,
+  type,
+  children,
+}: {
+  title: string;
+  type: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="grid min-w-0 gap-1.5">
-      <h3 className="text-xs font-medium text-foreground">{title}</h3>
+    <section className="grid min-w-0 gap-2 py-4 first:pt-0 last:pb-0">
+      <h3 className={cn("font-semibold text-foreground", type)}>{title}</h3>
       {children}
     </section>
   );
 }
 
-function StatusFieldList({ children }: { children: React.ReactNode }) {
+function StatusFieldList({ children, type }: { children: React.ReactNode; type: string }) {
   return (
-    <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-1.5 text-sm @min-[480px]:grid-cols-2">
+    <dl className={cn("grid min-w-0 grid-cols-[38%_1fr] gap-x-3 gap-y-1.5", type)}>
       {children}
     </dl>
   );
@@ -388,22 +624,24 @@ function StatusRow({
   label,
   value,
   wrap,
+  type,
 }: {
   label: string;
   value: React.ReactNode;
   wrap?: boolean;
+  type: string;
 }) {
   const text = typeof value === "string" ? value : undefined;
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+    <>
+      <dt className={cn("min-w-0 text-left text-muted-foreground", type)}>{label}</dt>
       <dd
-        className={cn("min-w-0 text-right tabular", wrap ? "break-all" : "truncate")}
+        className={cn("min-w-0 text-left tabular", type, wrap ? "break-all" : "truncate")}
         title={text}
       >
         {value}
       </dd>
-    </div>
+    </>
   );
 }
 

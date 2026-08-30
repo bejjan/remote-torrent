@@ -167,7 +167,7 @@ export function OptionsForm({ torrentId, torrent }: { torrentId: string; torrent
         )}
       </OptionSection>
 
-      <div className="@min-[440px]:col-span-2">
+      <div className="col-span-full">
         <Button type="submit" size="sm">
           Apply
         </Button>
