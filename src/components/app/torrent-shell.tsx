@@ -20,7 +20,7 @@ import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { FilterSidebar, type SidebarFilters } from "@/components/app/filter-sidebar";
 import { PreferencesDialog } from "@/components/app/preferences-dialog";
 import { SessionMonitor } from "@/components/app/session-monitor";
-import { SessionSpeedFavicon } from "@/components/app/session-speed-favicon";
+import { SessionProgressFavicon } from "@/components/app/session-progress-favicon";
 import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
 import {
@@ -122,6 +122,7 @@ import {
   saveTorrentColumnWidths,
   type DetailsDock,
 } from "@/lib/deluge/ui-layout";
+import { sessionFaviconDownloadProgress } from "@/lib/deluge/session-favicon";
 import {
   isSessionMonitorChipVisible,
   nextRateSamples,
@@ -418,6 +419,10 @@ export function TorrentShell({
   const downloadRate = rates.download;
   const uploadRate = rates.upload;
   const speedTitle = sessionSpeedDocumentTitle(downloadRate, uploadRate, showSessionSpeed);
+  const faviconProgress = useMemo(
+    () => sessionFaviconDownloadProgress(Object.values(ui?.torrents ?? {})),
+    [ui?.torrents]
+  );
 
   useEffect(() => {
     writeDocumentTitleIfChanged(document, speedTitle);
@@ -603,7 +608,7 @@ export function TorrentShell({
 
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-background">
-      <SessionSpeedFavicon downloadRate={downloadRate} uploadRate={uploadRate} />
+      <SessionProgressFavicon progress={faviconProgress} />
       <header className="flex min-h-10 min-w-0 shrink-0 items-center gap-1 border-b px-1.5 py-1.5 sm:gap-2 sm:px-2 md:px-3">
         {searchExpanded ? (
           <div className="flex min-w-0 flex-1 items-center gap-1 sm:hidden">

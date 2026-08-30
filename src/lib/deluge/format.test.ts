@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import {
-  formatCompactRate,
   formatTorrentEta,
   formatTorrentRate,
   formatSwarmCount,
@@ -11,15 +10,6 @@ import {
   trackerFaviconSources,
   trackerFaviconUrl,
 } from "./format";
-
-assert.equal(formatCompactRate(0), "");
-assert.equal(formatCompactRate(-1), "");
-assert.equal(formatCompactRate(Number.NaN), "");
-assert.equal(formatCompactRate(512), "512B");
-assert.equal(formatCompactRate(1024), "1K");
-assert.equal(formatCompactRate(340 * 1024), "340K");
-assert.equal(formatCompactRate(1.2 * 1024 ** 2), "1.2M");
-assert.equal(formatCompactRate(12.5 * 1024 ** 3), "12.5G");
 
 assert.equal(formatTorrentRate(0), "—");
 assert.equal(formatTorrentRate(-1), "—");

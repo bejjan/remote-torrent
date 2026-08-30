@@ -10,19 +10,12 @@ import {
   drawSessionFavicon,
   restoreStaticFavicon,
   sessionFaviconDrawKey,
-  sessionFaviconOverlayLines,
   shouldRedrawSessionFavicon,
 } from "@/lib/deluge/session-favicon";
 
-export function SessionSpeedFavicon({
-  downloadRate,
-  uploadRate,
-}: {
-  downloadRate: number;
-  uploadRate: number;
-}) {
-  const ratesRef = useRef({ downloadRate, uploadRate });
-  ratesRef.current = { downloadRate, uploadRate };
+export function SessionProgressFavicon({ progress }: { progress: number | null }) {
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
   const paintRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -41,8 +34,8 @@ export function SessionSpeedFavicon({
 
     const paint = () => {
       if (cancelled || !logoReady) return;
-      const { downloadRate: down, uploadRate: up } = ratesRef.current;
-      const nextKey = sessionFaviconDrawKey(down, up);
+      const nextProgress = progressRef.current;
+      const nextKey = sessionFaviconDrawKey(nextProgress);
       const now = performance.now();
       if (
         !shouldRedrawSessionFavicon({
@@ -67,7 +60,7 @@ export function SessionSpeedFavicon({
         lastDrawAt = now;
         return;
       }
-      if (!drawSessionFavicon(canvas, logo, sessionFaviconOverlayLines(down, up))) return;
+      if (!drawSessionFavicon(canvas, logo, nextProgress)) return;
       try {
         applySessionFaviconHref(document, canvas.toDataURL("image/png"));
       } catch {
@@ -98,7 +91,7 @@ export function SessionSpeedFavicon({
 
   useEffect(() => {
     paintRef.current();
-  }, [downloadRate, uploadRate]);
+  }, [progress]);
 
   return null;
 }
