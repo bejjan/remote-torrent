@@ -26,32 +26,47 @@ assert.doesNotMatch(shell, /const toolbar =/);
 assert.doesNotMatch(header, /flex-wrap/);
 assert.match(header, /flex min-h-10 min-w-0 shrink-0 items-center/);
 assert.match(header, /wordmarkClassName="hidden sm:inline"/);
-assert.match(header, /min-w-0 max-w-xs flex-1 max-sm:hidden/);
+assert.match(header, /w-\[min\(20rem,30vw\)\] xl:w-\[min\(24rem,36vw\)\] max-sm:hidden/);
+assert.match(header, /sm:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
 assert.match(header, /aria-label="Search torrents"/);
 assert.match(header, /sm:hidden/);
 assert.match(header, /Close search/);
 assert.match(header, /<AddTorrentButton/);
+assert.match(header, /<SessionMonitor/);
+assert.match(header, /data-session-monitor|isSessionMonitorChipVisible/);
+assert.ok(
+  header.lastIndexOf("<SearchField") < header.lastIndexOf("<SessionMonitor"),
+  "centered search sits left of the stats chip"
+);
 assert.ok(
   header.lastIndexOf("<SearchField") < header.lastIndexOf("<AddTorrentButton"),
   "Add torrent sits after search"
+);
+assert.ok(
+  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentButton"),
+  "stats chip sits in the right cluster with Add torrent"
 );
 assert.ok(
   header.lastIndexOf('aria-label="Search torrents"') < header.lastIndexOf("<AddTorrentButton"),
   "Add torrent sits after the mobile search icon"
 );
 
-assert.match(addBtn, /<Button className="h-8 min-w-0 shrink"/);
 assert.match(addBtn, /<Plus \/>/);
 assert.match(addBtn, /\{label\}/);
-assert.match(addBtn, />Add</);
+assert.match(addBtn, /hidden xl:inline/);
 assert.match(addBtn, /title=\{label\}/);
+assert.match(addBtn, /aria-label=\{label\}/);
+assert.doesNotMatch(addBtn, />Add</);
+assert.doesNotMatch(addBtn, /max-\[20rem\]/);
 assert.doesNotMatch(addBtn, /Add torrent…/);
 assert.doesNotMatch(addBtn, /variant=/);
 assert.doesNotMatch(addBtn, /size=/);
 assert.doesNotMatch(addBtn, /disabled/);
 assert.match(shell, /className="h-8 min-w-0 pl-7"/);
+assert.match(shell, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
 assert.ok(
-  shell.includes('className="h-8 min-w-0 pl-7"') && shell.includes('className="h-8 min-w-0 shrink"'),
+  shell.includes('className="h-8 min-w-0 pl-7"') &&
+    shell.includes("h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"),
   "Search input and Add torrent share h-8"
 );
 
@@ -79,15 +94,30 @@ assert.ok(
   "hamburger sits left of the logo"
 );
 assert.match(header, /ThemeMenuSub/);
-assert.match(header, /About Nova/);
-assert.doesNotMatch(header, /About Nova…/);
+assert.match(header, /About torro/);
+assert.doesNotMatch(header, /About Nova/);
+assert.doesNotMatch(header, /About torro…/);
 assert.ok(
-  header.indexOf("About Nova") < header.indexOf("Preferences…"),
-  "About Nova sits above Preferences in the hamburger"
+  header.indexOf("About torro") < header.indexOf("Preferences…"),
+  "About torro sits above Preferences in the hamburger"
 );
 assert.doesNotMatch(header, /More actions/);
 assert.doesNotMatch(header, /ThemeToggle/);
 
+assert.match(table, /Open inspector\.\.\./);
+assert.match(table, /<AppWindow \/> Open inspector\.\.\./);
+assert.ok(
+  table.indexOf("Open inspector...") < table.indexOf("<Pause /> Pause"),
+  "Open inspector sits at the top of the torrent context menu"
+);
+assert.match(table, /handlersRef.current.openDetails\(id\)/);
+assert.match(table, /onDoubleClick=\{\(\) => handlersRef.current.openDetails\(id\)\}/);
+assert.match(table, /Open inspector\.\.\./);
+assert.match(table, /<AppWindow \/> Open inspector\.\.\./);
+assert.ok(
+  table.indexOf("Open inspector...") < table.indexOf("<Pause /> Pause"),
+  "Open inspector sits at the top of the torrent context menu"
+);
 assert.match(table, /<Pause \/> Pause/);
 assert.match(table, /<Play \/> Resume/);
 assert.match(table, /<Trash2 \/> Remove/);
@@ -144,9 +174,12 @@ assert.equal(
 assert.match(brand, /wordmarkClassName/);
 assert.match(brand, /min-w-0 truncate font-heading/);
 assert.match(brand, /shrink-0/);
-assert.match(brand, /\/logo\.png/);
+assert.match(brand, /\/logo\.svg/);
+assert.match(brand, />\s*torro\s*</);
 assert.doesNotMatch(brand, /bg-primary text-primary-foreground/);
+assert.doesNotMatch(brand, /text-primary/);
 
+assert.match(login, /Connect torro/);
 assert.match(login, /minmax\(0,1fr\)/);
 assert.match(login, /min-w-0 max-w-md/);
 assert.match(login, /px-3 py-8 sm:px-4/);

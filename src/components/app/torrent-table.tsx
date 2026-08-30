@@ -503,7 +503,9 @@ export const TorrentTable = memo(function TorrentTable({
     >
       <table
         className="table-fixed border-separate border-spacing-0 text-sm"
-        style={{ width: "100%", minWidth: tableMinWidth }}
+        // Pixel sum of <col> widths. width:100% redistributes leftover viewport space
+        // across columns, so resizing one header shrinks/grows the others.
+        style={{ width: tableMinWidth }}
       >
         <colgroup>
           <col style={{ width: widthFor(SELECT_COLUMN_ID) }} />
@@ -968,13 +970,26 @@ const TorrentColumnCell = memo(function TorrentColumnCell({
   })();
   if (!cell) return null;
   const typed = cell as ReactElement<{ className?: string; children?: React.ReactNode }>;
+  const isProgress = column.id === "progress";
   return cloneElement(typed, {
     className: cn(
       typed.props.className,
       // table-layout:fixed still lets min-content wrap; max-w-0 + nowrap/ellipsis clips to the col width.
-      "max-w-0 min-w-0 overflow-hidden align-middle text-ellipsis whitespace-nowrap",
+      "max-w-0 min-w-0 overflow-hidden align-middle",
+      column.numeric && "font-mono text-xs",
+      !isProgress && "text-ellipsis whitespace-nowrap",
       sorted && "bg-muted/25"
     ),
-    children: <div className="flex h-full min-w-0 items-center truncate">{typed.props.children}</div>,
+    children: (
+      <div
+        className={cn(
+          "min-w-0",
+          // flex + text-overflow:ellipsis clips without drawing dots; progress needs flex for the bar.
+          isProgress ? "flex h-full w-full items-center" : "truncate"
+        )}
+      >
+        {typed.props.children}
+      </div>
+    ),
   });
 });

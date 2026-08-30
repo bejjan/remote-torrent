@@ -40,10 +40,8 @@ assert.match(footer, /formatRate\(downloadRate\)/);
 assert.match(footer, /formatRate\(uploadRate\)/);
 assert.doesNotMatch(footer, /stats\s*&&\s*\(/);
 
-assert.match(shell, /SessionSpeedFavicon/);
-assert.match(
-  shell,
-  /<SessionSpeedFavicon downloadRate=\{downloadRate\} uploadRate=\{uploadRate\}/
-);
+assert.match(shell, /SessionProgressFavicon/);
+assert.match(shell, /<SessionProgressFavicon progress=\{faviconProgress\}/);
+assert.doesNotMatch(shell, /SessionSpeedFavicon/);
 
 console.log("torrent-shell session speed tests passed");

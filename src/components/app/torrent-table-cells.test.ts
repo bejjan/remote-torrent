@@ -13,12 +13,15 @@ assert.match(table, /whitespace-nowrap/);
 assert.match(table, /overflow-hidden/);
 assert.match(table, /text-ellipsis/);
 assert.match(table, /max-w-0/);
-assert.match(table, /flex h-full min-w-0 items-center truncate/);
+assert.match(table, /isProgress \? "flex h-full w-full items-center" : "truncate"/);
+assert.doesNotMatch(table, /flex h-full min-w-0 items-center/);
 assert.match(table, /applyVisibleSelection/);
 assert.match(table, /visibleSelectionState/);
 assert.match(table, /border-separate border-spacing-0 text-sm/);
 assert.doesNotMatch(table, /border-separate border-spacing-0 px-1\.5/);
-assert.match(table, /width: "100%", minWidth: tableMinWidth/);
+assert.match(table, /style=\{\{ width: tableMinWidth \}\}/);
+assert.doesNotMatch(table, /width: "100%"/);
+assert.doesNotMatch(table, /minWidth: tableMinWidth/);
 assert.match(table, /virtualRow\.index % 2 === 1/);
 assert.match(table, /torrentRowClassName/);
 assert.match(table, /\[&>td\]:bg-muted\/50/);
@@ -40,14 +43,27 @@ assert.match(table, /case "name":/);
 assert.match(table, /hit\(t\.name\)/);
 assert.match(table, /HighlightText/);
 assert.doesNotMatch(table, /dangerouslySetInnerHTML/);
+assert.doesNotMatch(table, /numeric=\{column\.numeric\}/);
+assert.doesNotMatch(table, /numeric && "font-mono tabular"/);
+assert.doesNotMatch(table, /numeric && "font-mono text-xs tabular"/);
+assert.match(table, /column\.numeric && "font-mono text-xs"/);
+assert.match(table, /px-2 py-1\.5 tabular/);
+assert.match(table, /case "name":\s*return <td className="px-2 py-1\.5 font-medium">/);
+assert.match(table, /case "status":\s*return \(\s*<td className="px-2 py-1\.5">/);
+assert.match(table, /case "label":\s*return <td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "tracker":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "auto_managed":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.doesNotMatch(table, /<StateBadge[^/\n]*font-mono/);
 
 assert.match(
   table,
-  /className: cn\(\s*typed\.props\.className,[\s\S]*max-w-0 min-w-0 overflow-hidden align-middle text-ellipsis whitespace-nowrap/
+  /className: cn\(\s*typed\.props\.className,[\s\S]*max-w-0 min-w-0 overflow-hidden align-middle/
 );
-assert.match(table, /children: <div className="flex h-full min-w-0 items-center truncate">\{typed\.props\.children\}<\/div>/);
+assert.match(table, /const isProgress = column\.id === "progress"/);
+assert.match(table, /!isProgress && "text-ellipsis whitespace-nowrap"/);
+assert.match(table, /isProgress \? "flex h-full w-full items-center" : "truncate"/);
 
-assert.match(table, /flex min-w-0 items-center gap-2/);
+assert.match(table, /flex min-w-0 w-full flex-1 items-center gap-2/);
 assert.match(table, /h-1\.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black\/10 dark:bg-white\/15/);
 assert.doesNotMatch(table, /min-w-8/);
 

@@ -3,35 +3,60 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  SESSION_FAVICON_FONT,
   SESSION_FAVICON_LOGO_SRC,
   SESSION_FAVICON_MARK,
   SESSION_FAVICON_MIN_INTERVAL_MS,
-  SESSION_FAVICON_PILL,
+  SESSION_FAVICON_RING_PROGRESS,
+  SESSION_FAVICON_RING_TRACK,
+  SESSION_FAVICON_RING_WIDTH,
   SESSION_FAVICON_SIZE,
-  SESSION_FAVICON_TEXT,
   STATIC_FAVICON_HREF,
   applySessionFaviconHref,
   drawSessionFavicon,
   restoreStaticFavicon,
+  sessionFaviconDownloadProgress,
   sessionFaviconDrawKey,
-  sessionFaviconOverlayLines,
+  sessionFaviconRingRadius,
   shouldRedrawSessionFavicon,
   type SessionFaviconContext,
   type SessionFaviconDocument,
   type SessionFaviconLink,
 } from "./session-favicon";
 
-assert.deepEqual(sessionFaviconOverlayLines(0, 0), []);
-assert.deepEqual(sessionFaviconOverlayLines(-1, Number.NaN), []);
-assert.deepEqual(sessionFaviconOverlayLines(1.2 * 1024 ** 2, 0), ["↓ 1.2M"]);
-assert.deepEqual(sessionFaviconOverlayLines(0, 340 * 1024), ["↑ 340K"]);
-assert.deepEqual(sessionFaviconOverlayLines(1.2 * 1024 ** 2, 340 * 1024), [
-  "↓ 1.2M",
-  "↑ 340K",
-]);
-assert.equal(sessionFaviconDrawKey(0, 0), "");
-assert.equal(sessionFaviconDrawKey(1024, 0), "↓ 1K");
+assert.equal(sessionFaviconDownloadProgress([]), null);
+assert.equal(
+  sessionFaviconDownloadProgress([{ state: "Seeding", progress: 100 }]),
+  null,
+  "seeding is not a current download"
+);
+assert.equal(
+  sessionFaviconDownloadProgress([{ state: "Paused", progress: 40 }]),
+  null,
+  "paused incomplete torrents do not count"
+);
+assert.equal(
+  sessionFaviconDownloadProgress([{ state: "Downloading", progress: 40 }]),
+  40
+);
+assert.equal(
+  sessionFaviconDownloadProgress([
+    { state: "Downloading", progress: 20 },
+    { state: "Downloading", progress: 80 },
+    { state: "Seeding", progress: 100 },
+  ]),
+  50
+);
+assert.equal(
+  sessionFaviconDownloadProgress([{ state: "Downloading", progress: Number.NaN }]),
+  null
+);
+
+assert.equal(sessionFaviconDrawKey(null), "");
+assert.equal(sessionFaviconDrawKey(Number.NaN), "");
+assert.equal(sessionFaviconDrawKey(0), "0");
+assert.equal(sessionFaviconDrawKey(40.4), "40");
+assert.equal(sessionFaviconDrawKey(40.6), "41");
+assert.equal(sessionFaviconDrawKey(100), "100");
 
 assert.equal(
   shouldRedrawSessionFavicon({
@@ -46,7 +71,7 @@ assert.equal(
 assert.equal(
   shouldRedrawSessionFavicon({
     prevKey: "",
-    nextKey: "↓ 1K",
+    nextKey: "40",
     lastDrawAt: 0,
     now: 10,
   }),
@@ -54,8 +79,8 @@ assert.equal(
 );
 assert.equal(
   shouldRedrawSessionFavicon({
-    prevKey: "↓ 1K",
-    nextKey: "↓ 1K",
+    prevKey: "40",
+    nextKey: "40",
     lastDrawAt: 1,
     now: 5000,
   }),
@@ -63,8 +88,8 @@ assert.equal(
 );
 assert.equal(
   shouldRedrawSessionFavicon({
-    prevKey: "↓ 1K",
-    nextKey: "↓ 2K",
+    prevKey: "40",
+    nextKey: "41",
     lastDrawAt: 100,
     now: 200,
     minIntervalMs: SESSION_FAVICON_MIN_INTERVAL_MS,
@@ -74,7 +99,7 @@ assert.equal(
 );
 assert.equal(
   shouldRedrawSessionFavicon({
-    prevKey: "↓ 1K",
+    prevKey: "40",
     nextKey: "",
     lastDrawAt: 100,
     now: 400,
@@ -86,32 +111,24 @@ function mockContext(): SessionFaviconContext & { calls: unknown[][] } {
   const calls: unknown[][] = [];
   return {
     calls,
-    font: "",
-    fillStyle: "",
-    textAlign: "",
-    textBaseline: "",
+    strokeStyle: "",
+    lineWidth: 0,
+    lineCap: "",
     clearRect: (...args: unknown[]) => {
       calls.push(["clearRect", ...args]);
     },
     drawImage: (...args: unknown[]) => {
       calls.push(["drawImage", args[0], args[1], args[2], args[3], args[4]]);
     },
-    fillText: (...args: unknown[]) => {
-      calls.push(["fillText", ...args]);
-    },
-    fill: () => {
-      calls.push(["fill"]);
-    },
     beginPath: () => {
       calls.push(["beginPath"]);
     },
-    fillRect: (...args: unknown[]) => {
-      calls.push(["fillRect", ...args]);
+    arc: (...args: unknown[]) => {
+      calls.push(["arc", ...args]);
     },
-    roundRect: (...args: unknown[]) => {
-      calls.push(["roundRect", ...args]);
+    stroke: () => {
+      calls.push(["stroke"]);
     },
-    measureText: (text: string) => ({ width: text.length * 6 }),
   };
 }
 
@@ -123,13 +140,13 @@ function mockContext(): SessionFaviconContext & { calls: unknown[][] } {
     height: SESSION_FAVICON_SIZE,
     getContext: () => ctx,
   };
-  assert.equal(drawSessionFavicon(canvas, logo, []), true);
+  assert.equal(drawSessionFavicon(canvas, logo, null), true);
   assert.deepEqual(ctx.calls[0], ["clearRect", 0, 0, 64, 64]);
   assert.deepEqual(ctx.calls[1], ["drawImage", logo, 0, 0, 64, 64]);
   assert.equal(
-    ctx.calls.some((call) => call[0] === "fillText"),
+    ctx.calls.some((call) => call[0] === "arc"),
     false,
-    "zero rates draw the S logo only"
+    "no downloads draw the logo only"
   );
 }
 
@@ -140,24 +157,49 @@ function mockContext(): SessionFaviconContext & { calls: unknown[][] } {
     height: SESSION_FAVICON_SIZE,
     getContext: () => ctx,
   };
-  const lines = sessionFaviconOverlayLines(1.2 * 1024 ** 2, 340 * 1024);
-  assert.equal(drawSessionFavicon(canvas, {}, lines), true);
-  assert.equal(ctx.font, SESSION_FAVICON_FONT);
-  assert.equal(ctx.textAlign, "right");
-  assert.ok(ctx.calls.some((call) => call[0] === "roundRect"));
-  const texts = ctx.calls.filter((call) => call[0] === "fillText").map((call) => call[1]);
-  assert.deepEqual(texts, ["↓ 1.2M", "↑ 340K"]);
-  assert.equal(ctx.fillStyle, SESSION_FAVICON_TEXT);
-  assert.ok(SESSION_FAVICON_PILL.startsWith("rgba(0,0,0,"));
+  assert.equal(drawSessionFavicon(canvas, {}, 0), true);
+  const arcs = ctx.calls.filter((call) => call[0] === "arc");
+  assert.equal(arcs.length, 1, "0% download paints the empty track");
+  assert.equal(ctx.strokeStyle, SESSION_FAVICON_RING_TRACK);
+}
+
+{
+  const ctx = mockContext();
+  const canvas = {
+    width: SESSION_FAVICON_SIZE,
+    height: SESSION_FAVICON_SIZE,
+    getContext: () => ctx,
+  };
+  assert.equal(drawSessionFavicon(canvas, {}, 50), true);
+  assert.equal(ctx.lineCap, "round");
+  assert.equal(ctx.lineWidth, SESSION_FAVICON_RING_WIDTH);
+  const arcs = ctx.calls.filter((call) => call[0] === "arc");
+  assert.equal(arcs.length, 2);
+  const radius = sessionFaviconRingRadius(SESSION_FAVICON_SIZE);
+  assert.deepEqual(arcs[0], ["arc", 32, 32, radius, 0, Math.PI * 2]);
+  assert.equal(arcs[1][1], 32);
+  assert.equal(arcs[1][2], 32);
+  assert.equal(arcs[1][3], radius);
+  assert.equal(arcs[1][4], -Math.PI / 2);
+  assert.equal(arcs[1][5], Math.PI / 2);
+  assert.equal(ctx.strokeStyle, SESSION_FAVICON_RING_PROGRESS);
+}
+
+{
+  const ctx = mockContext();
+  const canvas = {
+    width: SESSION_FAVICON_SIZE,
+    height: SESSION_FAVICON_SIZE,
+    getContext: () => ctx,
+  };
+  assert.equal(drawSessionFavicon(canvas, {}, 100), true);
+  const arcs = ctx.calls.filter((call) => call[0] === "arc");
+  assert.deepEqual(arcs[1], ["arc", 32, 32, sessionFaviconRingRadius(64), 0, Math.PI * 2]);
 }
 
 {
   assert.equal(
-    drawSessionFavicon(
-      { width: 64, height: 64, getContext: () => null },
-      {},
-      ["↓ 1K"]
-    ),
+    drawSessionFavicon({ width: 64, height: 64, getContext: () => null }, {}, 40),
     false
   );
 }
@@ -221,7 +263,7 @@ function fakeDocument(initial: SessionFaviconLink[] = []): SessionFaviconDocumen
 
 const here = dirname(fileURLToPath(import.meta.url));
 const component = readFileSync(
-  join(here, "../../components/app/session-speed-favicon.tsx"),
+  join(here, "../../components/app/session-progress-favicon.tsx"),
   "utf8"
 );
 const login = readFileSync(join(here, "../../components/app/login-screen.tsx"), "utf8");
@@ -229,8 +271,9 @@ assert.match(component, /canvas\.toDataURL\("image\/png"\)/);
 assert.match(component, /SESSION_FAVICON_LOGO_SRC/);
 assert.match(component, /restoreStaticFavicon\(document\)/);
 assert.match(component, /shouldRedrawSessionFavicon/);
+assert.doesNotMatch(component, /downloadRate|uploadRate|formatCompactRate|fillText/);
 assert.equal(SESSION_FAVICON_LOGO_SRC, "/logo.png");
 assert.equal(STATIC_FAVICON_HREF, "/icon.png");
-assert.doesNotMatch(login, /SessionSpeedFavicon/);
+assert.doesNotMatch(login, /SessionProgressFavicon|SessionSpeedFavicon/);
 
 console.log("session-favicon tests passed");

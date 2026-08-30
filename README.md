@@ -15,6 +15,9 @@ Licensed under [GPL-3.0](./LICENSE).
 ## Features
 
 - One layout for both clients: sidebar filters, searchable table, details pane, and **Add torrent**
+- Finder-style list selection (click, Shift-click, keyboard) and a double-click inspector dialog
+- Live session chip with transfer sparkline; tab favicon shows download progress
+- Browser notification when a torrent finishes
 - Row actions for pause / resume / remove / queue / move / recheck
 - Menu for Preferences, Connection Manager, theme, and sign out
 - Connection screen: choose **Deluge** or **Transmission**, then URL and credentials
@@ -26,6 +29,14 @@ Licensed under [GPL-3.0](./LICENSE).
 ## Screenshots
 
 Light-mode desktop views of the current UI.
+
+### Inspector
+
+Double-click a row for the centered inspector. The docked details pane stays a pane.
+
+<p align="center">
+  <img src="docs/screenshots/inspector.png" alt="torro torrent inspector dialog" />
+</p>
 
 ### Preferences
 

@@ -184,4 +184,33 @@ assert.equal(columnDropEdge(4, 5, 2, 5), "after");
 assert.equal(columnDropEdge(4, 5, 4, 5), "after");
 assert.equal(columnDropEdge(0, 0, 0, 5), "before");
 
+{
+  const text = TORRENT_COLUMNS.filter((column) => !column.numeric).map((column) => column.id);
+  const numeric = TORRENT_COLUMNS.filter((column) => column.numeric).map((column) => column.id);
+  assert.deepEqual(text, ["name", "status", "label", "tracker", "save_path", "auto_managed"]);
+  assert.deepEqual(numeric, [
+    "queue",
+    "size",
+    "progress",
+    "down",
+    "up",
+    "eta",
+    "ratio",
+    "seeds",
+    "peers",
+    "avail",
+    "added",
+    "downloaded",
+    "uploaded",
+    "remaining",
+    "complete_seen",
+    "completed",
+    "down_limit",
+    "up_limit",
+    "seeds_peers",
+    "last_transfer",
+  ]);
+  assert.equal(text.length + numeric.length, TORRENT_COLUMNS.length);
+}
+
 console.log("torrent-columns tests passed");

@@ -1,30 +1,41 @@
-import { formatCompactRate } from "./format";
+import { FILTER_DOWNLOADING } from "./sidebar-filters";
 
 export const SESSION_FAVICON_SIZE = 64;
 export const SESSION_FAVICON_LOGO_SRC = "/logo.png";
 export const STATIC_FAVICON_HREF = "/icon.png";
 export const SESSION_FAVICON_MIN_INTERVAL_MS = 250;
-export const SESSION_FAVICON_MARK = "data-session-speed-favicon";
-export const SESSION_FAVICON_FONT =
-  "700 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-export const SESSION_FAVICON_PILL = "rgba(0,0,0,0.78)";
-export const SESSION_FAVICON_TEXT = "#ffffff";
+export const SESSION_FAVICON_MARK = "data-session-progress-favicon";
+export const SESSION_FAVICON_RING_WIDTH = 7;
+export const SESSION_FAVICON_RING_INSET = 5;
+export const SESSION_FAVICON_RING_TRACK = "rgba(0,0,0,0.45)";
+export const SESSION_FAVICON_RING_PROGRESS = "#7eb6ff";
 
-export function sessionFaviconOverlayLines(
-  downloadRate: number,
-  uploadRate: number
-): string[] {
-  const lines: string[] = [];
-  const down = formatCompactRate(downloadRate);
-  const up = formatCompactRate(uploadRate);
-  if (down) lines.push(`↓ ${down}`);
-  if (up) lines.push(`↑ ${up}`);
-  return lines;
+export type SessionFaviconTorrent = {
+  state?: string;
+  progress?: number;
+};
+
+/** Mean progress of torrents currently downloading. `null` when none are. */
+export function sessionFaviconDownloadProgress(
+  torrents: Iterable<SessionFaviconTorrent>
+): number | null {
+  let sum = 0;
+  let count = 0;
+  for (const torrent of torrents) {
+    if (torrent.state !== FILTER_DOWNLOADING) continue;
+    const progress = torrent.progress;
+    if (!Number.isFinite(progress)) continue;
+    sum += Math.min(100, Math.max(0, progress));
+    count += 1;
+  }
+  if (count === 0) return null;
+  return sum / count;
 }
 
-/** Stable key so we skip `link[rel=icon]` writes when compact text did not change. */
-export function sessionFaviconDrawKey(downloadRate: number, uploadRate: number): string {
-  return sessionFaviconOverlayLines(downloadRate, uploadRate).join("\n");
+/** Stable 1% key so we skip `link[rel=icon]` writes on tiny progress jitter. */
+export function sessionFaviconDrawKey(progress: number | null): string {
+  if (progress == null || !Number.isFinite(progress)) return "";
+  return String(Math.round(Math.min(100, Math.max(0, progress))));
 }
 
 export function shouldRedrawSessionFavicon({
@@ -48,16 +59,12 @@ export function shouldRedrawSessionFavicon({
 export type SessionFaviconContext = {
   clearRect(x: number, y: number, w: number, h: number): void;
   drawImage(image: unknown, dx: number, dy: number, dw: number, dh: number): void;
-  measureText(text: string): { width: number };
-  fillText(text: string, x: number, y: number): void;
   beginPath(): void;
-  fill(): void;
-  fillRect(x: number, y: number, w: number, h: number): void;
-  roundRect?(x: number, y: number, w: number, h: number, radii?: number): void;
-  font: string;
-  fillStyle: string;
-  textAlign: string;
-  textBaseline: string;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  stroke(): void;
+  strokeStyle: string;
+  lineWidth: number;
+  lineCap: string;
 };
 
 export type SessionFaviconCanvas = {
@@ -66,46 +73,46 @@ export type SessionFaviconCanvas = {
   getContext(type: "2d"): SessionFaviconContext | null;
 };
 
+export function sessionFaviconRingRadius(size: number): number {
+  return size / 2 - SESSION_FAVICON_RING_WIDTH / 2 - SESSION_FAVICON_RING_INSET;
+}
+
 export function drawSessionFavicon(
   canvas: SessionFaviconCanvas,
   logo: unknown,
-  lines: readonly string[]
+  progress: number | null
 ): boolean {
   const ctx = canvas.getContext("2d");
   if (!ctx) return false;
   const size = canvas.width;
   ctx.clearRect(0, 0, size, size);
   ctx.drawImage(logo, 0, 0, size, size);
-  if (!lines.length) return true;
+  if (progress == null || !Number.isFinite(progress)) return true;
 
-  ctx.font = SESSION_FAVICON_FONT;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "top";
-  const padX = 3;
-  const padY = 2;
-  const lineH = 11;
-  let textW = 0;
-  for (const line of lines) {
-    textW = Math.max(textW, ctx.measureText(line).width);
-  }
-  const boxW = Math.ceil(textW + padX * 2);
-  const boxH = Math.ceil(lines.length * lineH + padY * 2);
-  const boxX = Math.max(1, size - boxW - 2);
-  const boxY = Math.max(1, size - boxH - 2);
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = sessionFaviconRingRadius(size);
+  const start = -Math.PI / 2;
+  const clamped = Math.min(100, Math.max(0, progress));
+  const span = (clamped / 100) * Math.PI * 2;
 
-  ctx.fillStyle = SESSION_FAVICON_PILL;
-  if (typeof ctx.roundRect === "function") {
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 3);
-    ctx.fill();
+  ctx.lineCap = "round";
+  ctx.lineWidth = SESSION_FAVICON_RING_WIDTH;
+  ctx.strokeStyle = SESSION_FAVICON_RING_TRACK;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (span <= 0) return true;
+
+  ctx.strokeStyle = SESSION_FAVICON_RING_PROGRESS;
+  ctx.beginPath();
+  if (clamped >= 99.95) {
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   } else {
-    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.arc(cx, cy, radius, start, start + span);
   }
-
-  ctx.fillStyle = SESSION_FAVICON_TEXT;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, boxX + boxW - padX, boxY + padY + i * lineH);
-  });
+  ctx.stroke();
   return true;
 }
 
@@ -143,7 +150,7 @@ export function applySessionFaviconHref(doc: SessionFaviconDocument, href: strin
 
   if (marked.href !== href) {
     marked.type = "image/png";
-    marked.sizes = "32x32";
+    marked.sizes = `${SESSION_FAVICON_SIZE}x${SESSION_FAVICON_SIZE}`;
     marked.href = href;
     changed = true;
   }

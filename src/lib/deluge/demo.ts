@@ -247,7 +247,7 @@ function makeTorrent(opts: {
     num_files: countFiles(opts.files),
     message: opts.message ?? "",
     comment: "Demo torrent",
-    creator: "Nova",
+    creator: "torro",
     max_connections: -1,
     max_upload_slots: -1,
     stop_at_ratio: false,
@@ -954,6 +954,8 @@ function sessionStats(state: DemoState): SessionStats {
     has_incoming_connections: true,
     free_space: 128 * 1024 ** 3,
     external_ip: "203.0.113.42",
+    payload_download: list.reduce((n, t) => n + (t.total_done || 0), 0),
+    payload_upload: list.reduce((n, t) => n + (t.total_uploaded || 0), 0),
   };
 }
 
