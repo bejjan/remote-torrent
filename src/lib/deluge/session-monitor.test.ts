@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { formatRate } from "./format";
 import {
   SESSION_MONITOR_SAMPLE_CAP,
+  formatConnectionCount,
   isSessionMonitorChipVisible,
   nextRateSamples,
   pushRateSample,
@@ -91,6 +92,13 @@ assert.equal(sessionMonitorRateParts(0, 1024).download, null);
 assert.equal(isSessionMonitorChipVisible(undefined), false);
 assert.equal(isSessionMonitorChipVisible(false), false);
 assert.equal(isSessionMonitorChipVisible(true), true);
+
+assert.equal(formatConnectionCount(0), "0");
+assert.equal(formatConnectionCount(48), "48");
+assert.equal(formatConnectionCount(9999), "9999");
+assert.equal(formatConnectionCount(10000), "10K");
+assert.equal(formatConnectionCount(222402), "222K");
+assert.equal(formatConnectionCount(-1), "—");
 
 assert.deepEqual(
   sessionTransferTotals({ payload_download: 100, payload_upload: 20 }, null),

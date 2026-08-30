@@ -3,6 +3,7 @@
 import { Activity } from "lucide-react";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
 import {
+  formatConnectionCount,
   sparklineIsDrawable,
   sparklineMax,
   sparklinePolyline,
@@ -12,6 +13,7 @@ import {
   type SessionRateSample,
 } from "@/lib/deluge/session-monitor";
 import type { SessionStats, TorrentStatus } from "@/lib/deluge/types";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -51,16 +53,21 @@ export function SessionMonitor({
   return (
     <Popover>
       <PopoverTrigger
-        data-session-monitor=""
-        aria-label="Session statistics"
-        title="Session statistics"
-        className={cn(
-          "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-1.5 text-xs text-muted-foreground",
-          "hover:bg-muted hover:text-foreground",
-          "outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          "data-popup-open:bg-muted data-popup-open:text-foreground",
-          className
-        )}
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-session-monitor=""
+            aria-label="Session statistics"
+            title="Session statistics"
+            className={cn(
+              "h-8 gap-1.5 px-1.5 text-xs text-muted-foreground",
+              "hover:text-foreground aria-expanded:text-foreground",
+              className
+            )}
+          />
+        }
       >
         {drawable ? (
           <RateSparkline
@@ -71,8 +78,8 @@ export function SessionMonitor({
           />
         ) : null}
         <Activity className={cn("size-3.5", drawable && "sm:hidden")} aria-hidden />
-        <span className="tabular" title="Connections">
-          {connections == null ? "—" : connections}
+        <span className="tabular" title={connections == null ? "Connections" : `${connections} connections`}>
+          {connections == null ? "—" : formatConnectionCount(connections)}
         </span>
         {rates.download || rates.upload ? (
           <span className="hidden items-center gap-1.5 min-[26rem]:inline-flex">

@@ -11,6 +11,8 @@ assert.match(source, /"use client"/);
 assert.match(source, /from "@\/components\/ui\/popover"/);
 assert.match(source, /PopoverTrigger/);
 assert.match(source, /PopoverContent/);
+assert.match(source, /render=\{/);
+assert.match(source, /formatConnectionCount/);
 assert.doesNotMatch(source, /DropdownMenu/);
 assert.doesNotMatch(source, /recharts|chart\.js|visx|nivo/i);
 assert.match(source, /<polyline/);

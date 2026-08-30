@@ -89,6 +89,15 @@ export function isSessionMonitorChipVisible(connected: boolean | null | undefine
   return Boolean(connected);
 }
 
+/** Compact connection count for the toolbar chip (`222K`); the popover keeps the full number. */
+export function formatConnectionCount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "—";
+  const n = Math.trunc(value);
+  if (n < 10000) return String(n);
+  if (n < 1_000_000) return `${Math.round(n / 1000)}K`;
+  return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
+}
+
 export function sessionTransferTotals(
   stats: { payload_download?: unknown; payload_upload?: unknown } | null | undefined,
   torrents: Record<string, { total_done?: unknown; total_uploaded?: unknown }> | null | undefined
