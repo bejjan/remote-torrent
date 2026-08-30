@@ -468,6 +468,11 @@ export function TorrentShell({
     setDetailsOpen(true);
   }, []);
 
+  useEffect(() => {
+    if (!detailsOpen) return;
+    if (!activeId || !ui?.torrents?.[activeId]) setDetailsOpen(false);
+  }, [detailsOpen, activeId, ui?.torrents]);
+
   const openRemove = useCallback((torrentIds: string[]) => {
     setSelected(new Set(torrentIds));
     setRemoveOpen(true);
@@ -581,21 +586,6 @@ export function TorrentShell({
       onSetLabel={setLabel}
       onRemove={openRemove}
       onMove={openMove}
-    />
-  );
-
-  const details = (
-    <TorrentDetails
-      torrentId={primary}
-      torrent={primaryTorrent ?? null}
-      className="h-full"
-      dock={detailsDock}
-      onDockChange={changeDetailsDock}
-      onClose={() => {
-        setActiveId(null);
-        setSelected(new Set());
-        setDetailsOpen(false);
-      }}
     />
   );
 
@@ -775,13 +765,22 @@ export function TorrentShell({
                 edge={detailsDock === "right" ? "start" : "end"}
                 ariaLabel="Resize torrent details"
                 onDelta={detailsDock === "right" ? resizeDetailsWidth : resizeDetails}
-                className={
-                  detailsDock === "right"
-                    ? "bg-transparent hover:bg-sidebar-border data-active:bg-sidebar-border before:hidden"
-                    : undefined
-                }
               />
-              <div className="h-full min-h-0 overflow-hidden">{details}</div>
+              <div className="h-full min-h-0 overflow-hidden">
+                <TorrentDetails
+                  torrentId={primary}
+                  torrent={primaryTorrent ?? null}
+                  className="h-full"
+                  variant="panel"
+                  dock={detailsDock}
+                  onDockChange={changeDetailsDock}
+                  onClose={() => {
+                    setActiveId(null);
+                    setSelected(new Set());
+                    setDetailsOpen(false);
+                  }}
+                />
+              </div>
             </div>
           ) : null}
         </div>
@@ -828,21 +827,26 @@ export function TorrentShell({
         </SheetContent>
       </Sheet>
 
-      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent side="bottom" className="h-[80vh] gap-0 p-0" showCloseButton={false}>
-          <SheetHeader className="sr-only">
-            <SheetTitle>{primaryTorrent?.name || "Details"}</SheetTitle>
-          </SheetHeader>
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="flex h-[min(44rem,90vh)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>{primaryTorrent?.name || "Inspector"}</DialogTitle>
+          </DialogHeader>
           <TorrentDetails
             torrentId={primary}
             torrent={primaryTorrent ?? null}
-            className="h-full"
-            dock={detailsDock}
-            onDockChange={changeDetailsDock}
+            className="h-full min-h-0"
+            variant="dialog"
+            onAct={act}
+            onRemove={openRemove}
+            onMove={openMove}
             onClose={() => setDetailsOpen(false)}
           />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <AddTorrentDialog open={addOpen} onOpenChange={setAddOpen} defaultPath={downloadPath} />
       <RemoveTorrentDialog
