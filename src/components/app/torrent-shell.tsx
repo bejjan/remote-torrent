@@ -471,6 +471,20 @@ export function TorrentShell({
     [poll, selected]
   );
 
+  const setOptions = useCallback(
+    async (options: Record<string, unknown>, torrentIds?: string[]) => {
+      const ids = torrentIds ?? [...selected];
+      if (!ids.length) return;
+      try {
+        await rpc("core.set_torrent_options", [ids, options]);
+        await poll();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Action failed");
+      }
+    },
+    [poll, selected]
+  );
+
   const openDetails = useCallback((id: string) => {
     setActiveId(id);
     setDetailsOpen(true);
@@ -579,6 +593,7 @@ export function TorrentShell({
       tableMinWidth={tableMinWidth}
       widthFor={widthFor}
       labels={labels}
+      clientKind={caps.kind}
       loading={loading}
       hasUi={Boolean(ui)}
       mobile={mobile}
@@ -592,6 +607,7 @@ export function TorrentShell({
       onAddTorrent={openAdd}
       onAct={act}
       onSetLabel={setLabel}
+      onSetOptions={setOptions}
       onRemove={openRemove}
       onMove={openMove}
     />

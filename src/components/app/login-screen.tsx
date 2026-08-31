@@ -49,6 +49,7 @@ import {
   DEFAULT_QBITTORRENT_PORT,
   extractExplicitPort as extractQbittorrentPort,
   normalizeQbittorrentWebUrl,
+  suggestedQbittorrentPort,
 } from "@/lib/qbittorrent/url";
 import {
   DEFAULT_TRANSMISSION_PORT,
@@ -88,7 +89,7 @@ function initialQbittorrentUrl(): string {
 }
 
 function initialQbittorrentPort(): string {
-  return extractQbittorrentPort(initialQbittorrentUrl()) || String(DEFAULT_QBITTORRENT_PORT);
+  return suggestedQbittorrentPort(initialQbittorrentUrl());
 }
 
 function initialUsername(kind: ClientKind): string {
@@ -154,6 +155,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       setQbUrl(next);
       const explicit = extractQbittorrentPort(next);
       if (explicit) setQbPort(explicit);
+      else if (/^https:\/\//i.test(next.trim())) setQbPort("443");
       return;
     }
     setDelugeUrl(next);
@@ -346,8 +348,8 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 ) : kind === "qbittorrent" ? (
                   <>
                     Example: <span className="font-mono text-foreground">http://127.0.0.1:8080</span>.
-                    Missing <span className="font-mono">http://</span> is added; missing port defaults to{" "}
-                    {DEFAULT_QBITTORRENT_PORT}.
+                    Missing <span className="font-mono">http://</span> is added; HTTP defaults to{" "}
+                    {DEFAULT_QBITTORRENT_PORT}, HTTPS to 443.
                   </>
                 ) : (
                   <>

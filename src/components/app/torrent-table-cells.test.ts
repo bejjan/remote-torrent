@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { torrentRowClassName, torrentRowHighlightClassName } from "./torrent-table.tsx";
+import {
+  cellTextOverflows,
+  overflowTooltipLabel,
+  torrentRowClassName,
+  torrentRowHighlightClassName,
+} from "./torrent-table";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const table = readFileSync(join(dir, "torrent-table.tsx"), "utf8");
@@ -45,7 +50,9 @@ assert.match(unstripedHighlight, /(?:^|\s)rounded-md(?:\s|$)/);
 assert.match(selected, /(?:^|\s)rounded-md(?:\s|$)/);
 assert.match(selected, /bg-primary\/10/);
 assert.match(stripedHighlight, /bg-muted\/50/);
-assert.match(unstripedHighlight, /group-hover:bg-muted\/70/);
+assert.match(unstriped, /cursor-default/);
+assert.doesNotMatch(unstriped, /cursor-pointer/);
+assert.doesNotMatch(unstripedHighlight, /group-hover/);
 assert.doesNotMatch(unstripedHighlight, /(?:^|\s)bg-muted\/50(?:\s|$)/);
 assert.match(selectedMid, /rounded-none/);
 assert.doesNotMatch(selectedMid, /rounded-(?:md|t-md|b-md)\b/);
@@ -54,6 +61,12 @@ assert.match(selectedBottom, /rounded-b-md/);
 assert.doesNotMatch(stripedHighlight, /rounded-(?:l|r|tl|tr|bl|br)-md/);
 assert.doesNotMatch(stripedHighlight, /rounded-sm|rounded-full|rounded-\[/);
 
+assert.match(
+  table,
+  /className="min-h-0 flex-1 overflow-auto outline-none focus:outline-none"/,
+);
+assert.match(table, /aria-label="Torrent list"/);
+assert.match(table, /tabIndex=\{0\}/);
 assert.match(table, /table-fixed/);
 assert.match(table, /TORRENT_ROW_HEIGHT = 36/);
 assert.match(table, /whitespace-nowrap/);
@@ -69,13 +82,22 @@ assert.doesNotMatch(table, /border-separate border-spacing-0 px-1\.5/);
 assert.match(table, /style=\{\{ width: tableMinWidth \}\}/);
 assert.doesNotMatch(table, /width: "100%"/);
 assert.doesNotMatch(table, /minWidth: tableMinWidth/);
+assert.match(table, /function TorrentListSkeleton/);
+assert.match(table, /Loading torrents/);
+assert.doesNotMatch(table, /Loading torrents…/);
+assert.match(table, /TORRENT_SKELETON_ROWS/);
+assert.match(table, /aria-busy="true"/);
 assert.match(table, /virtualRow\.index % 2 === 1/);
 assert.match(table, /torrentRowClassName/);
 assert.match(table, /torrentRowHighlightClassName/);
 assert.match(table, /data-row-highlight/);
 assert.match(table, /absolute inset-y-0 left-1\.5 right-1\.5/);
 assert.match(table, /bg-muted\/50/);
-assert.match(table, /bg-primary\/10 group-hover:bg-primary\/15/);
+assert.match(table, /selected && "bg-primary\/10"/);
+assert.doesNotMatch(table, /group-hover:bg-primary\/15/);
+assert.doesNotMatch(table, /group-hover:bg-muted\/70/);
+assert.match(table, /cursor-default \[transform:translateZ\(0\)\]/);
+assert.doesNotMatch(table, /cursor-pointer \[transform:translateZ\(0\)\]/);
 assert.doesNotMatch(table, /\[&>td\]:bg-muted\/50/);
 assert.doesNotMatch(table, /\[&>td\]:bg-primary\/10/);
 assert.doesNotMatch(table, /\[&>td:first-child\]:rounded/);
@@ -96,9 +118,19 @@ assert.match(table, /ChevronDown/);
 assert.doesNotMatch(table, /▲/);
 assert.doesNotMatch(table, /▼/);
 assert.doesNotMatch(table, /cursor-pointer border-b hover:bg-muted\/50/);
+assert.match(table, /flex w-full max-w-full cursor-default items-center gap-1 truncate py-2/);
+assert.match(table, /relative overflow-visible cursor-default p-0 select-none/);
+assert.doesNotMatch(table, /inline-flex max-w-full cursor-grab/);
+assert.doesNotMatch(table, /: "cursor-grab"/);
+assert.doesNotMatch(table, /sorted && "bg-muted\/25"/);
+assert.doesNotMatch(table, /sorted=\{sortKey === column\.sortKey\}/);
+assert.match(table, /formatCompactDate/);
+assert.doesNotMatch(table, /hit\(formatDate\(/);
 assert.match(table, /TorrentColumnCell/);
 assert.match(table, /case "name":/);
-assert.match(table, /hit\(t\.name\)/);
+assert.match(table, /torrentColumnCellText/);
+assert.match(table, /hit\(text\)/);
+assert.match(table, /case "name":\s*return t\.name/);
 assert.match(table, /HighlightText/);
 assert.doesNotMatch(table, /dangerouslySetInnerHTML/);
 assert.doesNotMatch(table, /numeric=\{column\.numeric\}/);
@@ -109,9 +141,28 @@ assert.match(table, /px-2 py-1\.5 tabular/);
 assert.match(table, /case "name":\s*return <td className="px-2 py-1\.5 font-medium">/);
 assert.match(table, /case "status":\s*return \(\s*<td className="px-2 py-1\.5">/);
 assert.match(table, /case "label":\s*return <td className="px-2 py-1\.5 text-muted-foreground">/);
-assert.match(table, /case "tracker":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
-assert.match(table, /case "auto_managed":\s*return \(\s*<td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "tracker":\s*return <td className="px-2 py-1\.5 text-muted-foreground">/);
+assert.match(table, /case "auto_managed":\s*return <td className="px-2 py-1\.5 text-muted-foreground">/);
 assert.doesNotMatch(table, /<StateBadge[^/\n]*font-mono/);
+
+assert.match(table, /function OverflowTooltip/);
+assert.match(table, /overflowTooltipLabel/);
+assert.match(table, /cellTextOverflows/);
+assert.match(table, /onPointerEnter/);
+assert.match(table, /overflowingRef/);
+assert.match(table, /TooltipProvider delay=\{400\}/);
+assert.match(table, /TooltipTrigger/);
+assert.match(table, /delay=\{400\}/);
+assert.match(table, /TooltipContent/);
+assert.doesNotMatch(table, /new ResizeObserver/);
+assert.match(table, /EMPTY_CELL/);
+assert.match(table, /column\.id === "status" && t\.state === "Error"/);
+
+assert.equal(overflowTooltipLabel("—"), undefined);
+assert.equal(overflowTooltipLabel(""), undefined);
+assert.equal(overflowTooltipLabel("Long Name.iso"), "Long Name.iso");
+assert.equal(cellTextOverflows({ scrollWidth: 120, clientWidth: 80 } as HTMLElement), true);
+assert.equal(cellTextOverflows({ scrollWidth: 80, clientWidth: 80 } as HTMLElement), false);
 
 assert.match(
   table,
@@ -126,7 +177,10 @@ assert.match(table, /h-1\.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black
 assert.doesNotMatch(table, /min-w-8/);
 
 assert.match(badge, /inline-flex max-w-full min-w-0 font-medium leading-none truncate/);
-assert.match(badge, /inline-flex max-w-full min-w-0 cursor-help/);
+assert.match(badge, /inline-flex max-w-full min-w-0 cursor-default/);
+assert.doesNotMatch(badge, /cursor-help/);
+assert.match(badge, /TooltipProvider delay=\{400\}/);
+assert.match(badge, /delay=\{400\}/);
 
 const emptyState = table.slice(table.indexOf("if (torrents.length === 0)"), table.indexOf("const dragFromIndex"));
 assert.match(emptyState, /const query = search\.trim\(\)/);

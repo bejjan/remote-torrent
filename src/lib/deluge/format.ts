@@ -112,9 +112,82 @@ export function formatDate(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toLocaleString();
 }
 
+export type FormatCompactDateOptions = {
+  now?: Date | number;
+  locale?: string;
+};
+
+function toDate(value: Date | number): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function startOfLocalDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/** 12-hour vs 24-hour follows the locale (region), not a hard-coded clock. */
+function localeUsesHour12(locale?: string): boolean {
+  return Boolean(new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hour12);
+}
+
+function capitalizeLocale(value: string, locale?: string): string {
+  const [first] = [...value];
+  if (!first) return value;
+  return `${first.toLocaleUpperCase(locale)}${value.slice(first.length)}`;
+}
+
+/**
+ * Compact table timestamps: "Today 9:05 AM", "Yesterday 21:00", "15 Jan, 14:30".
+ * Hour cycle (12h vs 24h) and relative words follow `locale` / the runtime locale.
+ */
+export function formatCompactDate(
+  epochSeconds: number,
+  options: FormatCompactDateOptions = {}
+): string {
+  if (!epochSeconds) return "—";
+  const date = new Date(epochSeconds * 1000);
+  if (!Number.isFinite(date.getTime())) return "—";
+
+  const now = toDate(options.now ?? Date.now());
+  const { locale } = options;
+  const hour12 = localeUsesHour12(locale);
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: hour12 ? "numeric" : "2-digit",
+    minute: "2-digit",
+  };
+
+  const dayDiff = Math.round((startOfLocalDay(date) - startOfLocalDay(now)) / 86_400_000);
+  if (dayDiff === 0 || dayDiff === -1) {
+    const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(dayDiff, "day");
+    const time = new Intl.DateTimeFormat(locale, timeOptions).format(date);
+    return `${capitalizeLocale(relative, locale)} ${time}`;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    ...timeOptions,
+  }).format(date);
+}
+
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
   return formatEta(seconds);
+}
+
+/** Announce URLs from Deluge / Transmission / qBittorrent inspect payloads. */
+export function normalizeTorrentTrackers(value: unknown): { url: string; tier: number }[] {
+  if (!Array.isArray(value)) return [];
+  const out: { url: string; tier: number }[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const url = String(rec.url ?? rec.announce ?? "").trim();
+    if (!url || url.startsWith("**")) continue;
+    out.push({ url, tier: Number(rec.tier ?? 0) || 0 });
+  }
+  return out;
 }
 
 export function trackerHost(url: string): string {

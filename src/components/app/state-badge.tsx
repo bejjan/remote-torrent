@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import type { TorrentState } from "@/lib/deluge/types";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { errorStatusTooltip } from "@/lib/deluge/error-status";
 import { cn } from "@/lib/utils";
 
@@ -46,17 +46,19 @@ export function StateBadge({
   if (state !== "Error") return badge;
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        delay={200}
-        render={<span className="inline-flex max-w-full min-w-0 cursor-help" />}
-      >
-        {badge}
-      </TooltipTrigger>
-      <TooltipContent className="max-w-sm text-left whitespace-normal break-words">
-        {errorStatusTooltip(message)}
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider delay={400}>
+      <Tooltip>
+        <TooltipTrigger
+          delay={400}
+          render={<span className="inline-flex max-w-full min-w-0 cursor-default" />}
+        >
+          {badge}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-sm text-left whitespace-normal break-words">
+          {errorStatusTooltip(message)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

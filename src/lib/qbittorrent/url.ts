@@ -34,6 +34,19 @@ function ensureHttpUrl(input: string): string {
   return `http://${bracketIpv6IfNeeded(trimmed)}`;
 }
 
+/** HTTPS without a port is almost always a reverse proxy on 443, not :8080. */
+export function defaultQbittorrentPort(protocol: string): string {
+  return protocol === "https:" ? "443" : String(DEFAULT_QBITTORRENT_PORT);
+}
+
+export function suggestedQbittorrentPort(input: string): string {
+  const explicit = extractExplicitPort(input);
+  if (explicit) return explicit;
+  return /^https:\/\//i.test(input.trim())
+    ? "443"
+    : String(DEFAULT_QBITTORRENT_PORT);
+}
+
 export function extractExplicitPort(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -94,11 +107,15 @@ export function normalizeQbittorrentWebUrl(input: string, portOverride?: string)
     }
     port = String(n);
   } else {
-    port = parsed.port || extractExplicitPort(raw) || String(DEFAULT_QBITTORRENT_PORT);
+    port = parsed.port || extractExplicitPort(raw) || defaultQbittorrentPort(parsed.protocol);
   }
 
   const path = webPath(parsed.pathname);
   return `${parsed.protocol}//${formatHost(parsed.hostname)}:${port}${path}${parsed.search}`;
+}
+
+export function qbittorrentWebOrigin(target: string): string {
+  return new URL(target).origin;
 }
 
 export function sanitizePublicUrl(url: string): string {
