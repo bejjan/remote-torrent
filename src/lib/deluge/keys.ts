@@ -74,6 +74,22 @@ export const OPTIONS_KEYS = [
   "super_seeding",
 ] as const;
 
+/**
+ * Inspector `web.get_torrent_status` keys. Deluge SessionProxy treats an empty
+ * list as "whatever `update_ui` already cached" (grid fields only), so trackers,
+ * peers, and options never come back unless they are named here.
+ */
+export const INSPECT_KEYS: string[] = [
+  ...new Set<string>([
+    ...STATUS_KEYS,
+    ...OPTIONS_KEYS,
+    ...DETAILS_KEYS,
+    "sequential_download",
+    "peers",
+    "trackers",
+  ]),
+];
+
 export const STATE_FILTERS = [
   "All",
   "Downloading",

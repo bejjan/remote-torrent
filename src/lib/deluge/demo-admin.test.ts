@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { handleDemoRpc, resetDelugeAdminDemo } from "./demo";
 import { defaultAdminDemoConfig } from "../demo/admin-catalog";
+import { INSPECT_KEYS } from "./keys";
 
 resetDelugeAdminDemo();
 
@@ -27,9 +28,16 @@ assert.ok(result.filters.tracker_host.length <= 40, "tracker filter list stays m
 assert.ok(result.filters.state.some(([name, count]) => name === "Downloading" && count > 0));
 
 const [tid] = Object.keys(result.torrents);
-const status = call("web.get_torrent_status", [tid, ["name", "peers"]]);
+const status = call("web.get_torrent_status", [tid, ["name", "peers", "trackers"]]);
 assert.equal(status.error, null);
 assert.ok((status.result as { name: string }).name);
+assert.ok(Array.isArray((status.result as { trackers: unknown[] }).trackers));
+assert.ok((status.result as { trackers: unknown[] }).trackers.length > 0);
+assert.ok(INSPECT_KEYS.includes("trackers"));
+assert.ok(INSPECT_KEYS.includes("peers"));
+const inspect = call("web.get_torrent_status", [tid, INSPECT_KEYS], 11);
+assert.equal(inspect.error, null);
+assert.ok(((inspect.result as { trackers: unknown[] }).trackers ?? []).length > 0);
 
 const simpleLogin = handleDemoRpc({ method: "auth.login", params: ["deluge"], id: 2 }, null);
 assert.equal(simpleLogin.result, true);

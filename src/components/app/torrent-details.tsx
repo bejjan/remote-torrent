@@ -51,7 +51,9 @@ import {
   formatTorrentEta,
   formatTorrentRate,
   formatSwarmCount,
+  normalizeTorrentTrackers,
 } from "@/lib/deluge/format";
+import { INSPECT_KEYS } from "@/lib/deluge/keys";
 import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
 import type { DetailsDock } from "@/lib/deluge/ui-layout";
 import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
@@ -87,7 +89,7 @@ export function TorrentDetails({
   const [tab, setTab] = useState("status");
   const [files, setFiles] = useState<FileNode | null>(null);
   const [peers, setPeers] = useState<TorrentPeer[]>([]);
-  const [trackers, setTrackers] = useState<TorrentTracker[]>([]);
+  const [trackers, setTrackers] = useState<TorrentTracker[] | null>(null);
   const [detail, setDetail] = useState<TorrentStatus | null>(torrent);
   const loadGen = useRef(0);
   const detailTorrentId = useRef<string | null>(torrentId);
@@ -99,39 +101,37 @@ export function TorrentDetails({
   }, [torrent, torrentId]);
 
   const loadDetails = useCallback(async () => {
-    if (!torrentId) {
-      setFiles(null);
-      setPeers([]);
-      setTrackers([]);
-      return;
-    }
-    const gen = ++loadGen.current;
-    try {
-      const [tree, status] = await Promise.all([
-        rpc<FileNode>("web.get_torrent_files", [torrentId]),
-        rpc<TorrentStatus & { peers?: TorrentPeer[]; trackers?: TorrentTracker[] }>(
-          "web.get_torrent_status",
-          [torrentId, []]
-        ),
-      ]);
+    if (!torrentId) return;
+    const gen = loadGen.current;
+    const statusP = rpc<TorrentStatus & { peers?: TorrentPeer[]; trackers?: unknown }>(
+      "web.get_torrent_status",
+      [torrentId, INSPECT_KEYS]
+    ).then((status) => {
+      if (gen !== loadGen.current) return;
+      setPeers(status.peers || []);
+      setTrackers(normalizeTorrentTrackers(status.trackers));
+      setDetail(normalizeTorrentStatus(status));
+    });
+    const filesP = rpc<FileNode>("web.get_torrent_files", [torrentId]).then((tree) => {
       if (gen !== loadGen.current) return;
       setFiles(tree);
-      setPeers(status.peers || []);
-      setTrackers(status.trackers || []);
-      setDetail(normalizeTorrentStatus(status));
-    } catch {
-      /* polling shell still has grid fields */
-    }
+    });
+    await Promise.allSettled([statusP, filesP]);
   }, [torrentId]);
 
   useEffect(() => {
+    loadGen.current += 1;
+    setFiles(null);
+    setPeers([]);
+    setTrackers(null);
+    if (!torrentId) return;
     void loadDetails();
     const id = setInterval(() => void loadDetails(), 2000);
     return () => {
       loadGen.current += 1;
       clearInterval(id);
     };
-  }, [loadDetails]);
+  }, [loadDetails, torrentId]);
 
   return (
     <Tabs
@@ -715,16 +715,49 @@ function PeerTable({ peers }: { peers: TorrentPeer[] }) {
   );
 }
 
+function TrackersSkeleton() {
+  return (
+    <div className="min-w-0 overflow-x-auto" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading trackers</span>
+      <table className="w-full table-fixed text-sm">
+        <colgroup>
+          <col />
+          <col className="w-12" />
+        </colgroup>
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="py-1 pr-2 font-medium">URL</th>
+            <th className="py-1 font-medium">Tier</th>
+          </tr>
+        </thead>
+        <tbody>
+          {["w-[92%]", "w-[76%]", "w-[84%]"].map((width) => (
+            <tr key={width} className="border-t">
+              <td className="py-1.5 pr-2">
+                <div className={cn("h-3 animate-pulse rounded-sm bg-muted", width)} />
+              </td>
+              <td className="py-1.5">
+                <div className="h-3 w-6 animate-pulse rounded-sm bg-muted" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function TrackersForm({
   torrentId,
   trackers,
   onChange,
 }: {
   torrentId: string;
-  trackers: TorrentTracker[];
+  trackers: TorrentTracker[] | null;
   onChange: (t: TorrentTracker[]) => void;
 }) {
   const [url, setUrl] = useState("");
+  const loaded = trackers != null;
 
   async function save(next: TorrentTracker[]) {
     try {
@@ -737,30 +770,36 @@ function TrackersForm({
 
   return (
     <div className="grid min-w-0 gap-3">
-      <div className="min-w-0 overflow-x-auto">
-        <table className="w-full table-fixed text-sm">
-          <colgroup>
-            <col />
-            <col className="w-12" />
-          </colgroup>
-          <thead className="text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="py-1 pr-2 font-medium">URL</th>
-              <th className="py-1 font-medium">Tier</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trackers.map((t) => (
-              <tr key={t.url} className="border-t">
-                <td className="min-w-0 truncate py-1 pr-2 font-mono text-xs" title={t.url}>
-                  {t.url}
-                </td>
-                <td className="py-1 tabular">{t.tier}</td>
+      {trackers == null ? (
+        <TrackersSkeleton />
+      ) : trackers.length ? (
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col />
+              <col className="w-12" />
+            </colgroup>
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-2 font-medium">URL</th>
+                <th className="py-1 font-medium">Tier</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {trackers.map((t) => (
+                <tr key={t.url} className="border-t">
+                  <td className="min-w-0 truncate py-1 pr-2 font-mono text-xs" title={t.url}>
+                    {t.url}
+                  </td>
+                  <td className="py-1 tabular">{t.tier}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <Muted>No trackers.</Muted>
+      )}
       <div className="flex min-w-0 flex-col gap-2 @min-[400px]:flex-row">
         <Input
           className="min-w-0 w-full"
@@ -771,8 +810,9 @@ function TrackersForm({
         <Button
           variant="outline"
           className="shrink-0 @min-[400px]:self-auto"
+          disabled={!loaded}
           onClick={() => {
-            if (!url.trim()) return;
+            if (!url.trim() || trackers == null) return;
             void save([...trackers, { url: url.trim(), tier: 0 }]);
             setUrl("");
           }}
