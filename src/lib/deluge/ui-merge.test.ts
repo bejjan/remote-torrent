@@ -198,6 +198,34 @@ assert.equal(torrentStatusEqual(a, { ...a, progress: 11 }), false);
 
 {
   const prev: UiUpdate = {
+    connected: false,
+    torrents: { ida: a },
+    filters: null,
+    stats: null,
+  };
+  const reconnecting: UiUpdate = {
+    connected: true,
+    torrents: null,
+    filters: null,
+    stats: null,
+  };
+  const whileConnecting = mergeUiUpdate(prev, reconnecting);
+  assert.equal(whileConnecting.torrents, null);
+  assert.equal(whileConnecting.connected, true);
+
+  const next: UiUpdate = {
+    connected: true,
+    torrents: { idb: b },
+    filters: null,
+    stats: null,
+  };
+  const merged = mergeUiUpdate(whileConnecting, next);
+  assert.equal(merged.torrents && "ida" in merged.torrents, false);
+  assert.ok(merged.torrents && "idb" in merged.torrents);
+}
+
+{
+  const prev: UiUpdate = {
     connected: true,
     torrents: { ida: a, idb: b },
     filters: null,

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(dir, "torrent-dialogs.tsx"), "utf8");
-const dialogUi = readFileSync(join(dir, "../ui/dialog.tsx"), "utf8");
+const details = readFileSync(join(dir, "torrent-details.tsx"), "utf8");
 
 const addDialog = source.slice(
   source.indexOf("export function AddTorrentDialog"),
@@ -20,16 +20,50 @@ const tree = source.slice(
   source.indexOf("export function RemoveTorrentDialog")
 );
 
-assert.match(addDialog, /ADD_DIALOG_CLASS/);
+assert.match(addDialog, /ADD_POPOVER_CLASS/);
 assert.match(addDialog, /min-w-0/);
 assert.match(addDialog, /overflow-x-hidden/);
 assert.match(addDialog, /grid-cols-1/);
 assert.doesNotMatch(addDialog, /90vh/);
 assert.doesNotMatch(addDialog, /sm:max-w-2xl/);
 assert.doesNotMatch(addDialog, /sm:max-w-3xl/);
-assert.match(dialogUi, /export const ADD_DIALOG_CLASS/);
-assert.match(dialogUi, /sm:max-w-xl/);
-assert.match(dialogUi, /100svh/);
+assert.match(source, /export const ADD_POPOVER_CLASS/);
+assert.match(source, /w-\[min\(32rem,calc\(100vw-1\.5rem\)\)\]/);
+assert.doesNotMatch(source, /w-\[min\(36rem/);
+assert.match(source, /100svh/);
+assert.match(addDialog, /<Popover/);
+assert.match(addDialog, /PopoverTrigger/);
+assert.match(addDialog, /PopoverContent/);
+assert.match(addDialog, /align="end"/);
+assert.match(addDialog, /collisionPadding=\{8\}/);
+assert.match(addDialog, /<PopoverTitle className="sr-only">Add torrent<\/PopoverTitle>/);
+assert.doesNotMatch(addDialog, /<DialogTitle>Add torrent<\/DialogTitle>/);
+assert.doesNotMatch(addDialog, /DialogHeader/);
+assert.doesNotMatch(addDialog, /DialogFooter/);
+assert.match(addDialog, /ADD_PILL_TAB_CLASS/);
+assert.match(addDialog, /h-8 w-max items-center justify-start gap-0\.5 rounded-none bg-transparent p-0/);
+assert.match(addDialog, /flex min-w-0 shrink-0 items-center border-b p-1\.5/);
+assert.ok(
+  addDialog.indexOf("ADD_PILL_TAB_CLASS") < addDialog.indexOf("border-b p-1.5") ||
+    addDialog.indexOf("border-b p-1.5") < addDialog.indexOf("overflow-y-auto"),
+  "pill tabs sit above the divider and body"
+);
+assert.ok(
+  addDialog.indexOf("border-b p-1.5") < addDialog.indexOf("overflow-y-auto"),
+  "tab row divider sits above the scrolling body"
+);
+assert.match(source, /h-7 flex-none rounded-lg border-0/);
+assert.match(source, /text-\[13px\] font-normal text-muted-foreground/);
+assert.match(source, /after:hidden/);
+assert.match(source, /data-active:bg-muted data-active:font-normal/);
+assert.match(details, /QUICK_INSPECT_TAB_CLASS/);
+assert.match(details, /h-7 flex-none rounded-lg border-0/);
+assert.match(addDialog, /<Plus \/>/);
+assert.match(addDialog, /hidden xl:inline/);
+assert.match(addDialog, /title=\{label\}/);
+assert.match(addDialog, /aria-label=\{label\}/);
+assert.match(addDialog, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
+assert.doesNotMatch(addDialog, /Add torrent…/);
 
 assert.match(addDialog, /id="add-torrent-file-name"/);
 assert.match(addDialog, /id="add-torrent-choose-file"/);
@@ -76,9 +110,11 @@ assert.match(addDialog, /className="min-h-16"/);
 assert.match(addDialog, /useState<AddTab>\("file"\)/);
 assert.doesNotMatch(addDialog, /useState<AddTab>\("(magnet|url)"\)/);
 assert.match(addDialog, /setTab\("file"\)/);
-assert.match(addDialog, /TabsContent value="file" className="grid min-h-16 min-w-0 gap-3 pt-3"/);
-assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-16 gap-3 pt-3"/);
-assert.match(addDialog, /TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3"/);
+assert.match(addDialog, /TabsContent value="file" className="grid min-h-16 min-w-0 gap-3"/);
+assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-16 gap-3"/);
+assert.match(addDialog, /TabsContent value="url" className="grid min-h-16 min-w-0 gap-3"/);
+assert.doesNotMatch(addDialog, /TabsList className="w-full"/);
+assert.doesNotMatch(addDialog, /<Dialog /);
 assert.match(addDialog, /min-h-16 min-w-0 content-center/);
 assert.match(addDialog, /h-16 min-h-16 field-sizing-fixed/);
 assert.doesNotMatch(addDialog, /min-h-28/);
@@ -111,5 +147,18 @@ assert.match(tree, /FilePrioritySelect/);
 
 assert.match(source, /if \(open\) setRemoveData\(false\)/);
 assert.match(source, /if \(open\) setPath\(currentPath\)/);
+
+assert.match(addDialog, /<form/);
+assert.match(addDialog, /event\.currentTarget\.requestSubmit\(\)/);
+assert.match(addDialog, /event\.target instanceof HTMLInputElement/);
+assert.match(addDialog, /type="submit"/);
+assert.match(addDialog, /type="button"/);
+assert.match(addDialog, /id="add-download-location"/);
+assert.doesNotMatch(
+  addDialog,
+  /<Button disabled=\{!canAdd\} onClick=\{\(\) => void submit\(\)\}>/
+);
+
+assert.match(addDialog, /details\.reason === "focus-out"/);
 
 console.log("add-torrent dialog width and truncation tests passed");

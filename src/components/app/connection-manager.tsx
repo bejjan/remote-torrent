@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Loader2, Plus, PlugZap, Power, PowerOff, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, PlugZap, Power, PowerOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Brand } from "@/components/app/brand";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { rpc } from "@/lib/deluge/client";
 import type { HostInfo, HostStatus } from "@/lib/deluge/types";
 
+const HOST_SKELETON_ROWS = 3;
+const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_PORT = "58846";
+const DEFAULT_USER = "localclient";
+
 interface HostRow {
   info: HostInfo;
   status: string;
   version: string;
+}
+
+function isHostConnected(status: string): boolean {
+  return status.toLowerCase() === "connected";
 }
 
 async function loadHosts(): Promise<HostRow[]> {
@@ -37,20 +46,26 @@ async function loadHosts(): Promise<HostRow[]> {
 
 export function ConnectionManager({
   onConnected,
+  onConnecting,
+  onConnectFailed,
   onBack,
   embedded = false,
 }: {
   onConnected: () => void;
+  onConnecting?: () => void;
+  onConnectFailed?: () => void;
   onBack?: () => void;
   embedded?: boolean;
 }) {
   const [rows, setRows] = useState<HostRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [host, setHost] = useState("127.0.0.1");
-  const [port, setPort] = useState("58846");
-  const [user, setUser] = useState("localclient");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [host, setHost] = useState(DEFAULT_HOST);
+  const [port, setPort] = useState(DEFAULT_PORT);
+  const [user, setUser] = useState(DEFAULT_USER);
   const [password, setPassword] = useState("");
 
   const refresh = useCallback(async () => {
@@ -59,6 +74,8 @@ export function ConnectionManager({
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load hosts");
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -68,12 +85,21 @@ export function ConnectionManager({
 
   async function connect(id: string) {
     setBusy(id);
+    onConnecting?.();
     try {
+      try {
+        if (await rpc<boolean>("web.connected")) {
+          await rpc("web.disconnect");
+        }
+      } catch {
+        /* already disconnected */
+      }
       await rpc("web.connect", [id]);
       toast.success("Connected to daemon");
       onConnected();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Connect failed");
+      onConnectFailed?.();
     } finally {
       setBusy(null);
     }
@@ -117,22 +143,60 @@ export function ConnectionManager({
     }
   }
 
-  async function addHost() {
+  function resetForm() {
+    setEditingId(null);
+    setHost(DEFAULT_HOST);
+    setPort(DEFAULT_PORT);
+    setUser(DEFAULT_USER);
+    setPassword("");
+  }
+
+  function openAdd() {
+    resetForm();
+    setFormOpen(true);
+  }
+
+  function openEdit(row: HostRow) {
+    const [id, hostname, p, username] = row.info;
+    setEditingId(id);
+    setHost(hostname);
+    setPort(String(p));
+    setUser(username || DEFAULT_USER);
+    setPassword("");
+    setFormOpen(true);
+  }
+
+  function onFormOpenChange(open: boolean) {
+    setFormOpen(open);
+    if (!open) resetForm();
+  }
+
+  async function saveHost() {
     try {
-      await rpc("web.add_host", [host, Number(port), user, password]);
-      setAddOpen(false);
-      setPassword("");
+      if (editingId) {
+        if (!password) {
+          toast.error("Enter the daemon password to save changes");
+          return;
+        }
+        const ok = await rpc<boolean>("web.edit_host", [editingId, host, Number(port), user, password]);
+        if (!ok) throw new Error("Edit host failed");
+        toast.success("Host updated");
+      } else {
+        await rpc("web.add_host", [host, Number(port), user, password]);
+        toast.success("Host added");
+      }
+      setFormOpen(false);
+      resetForm();
       await refresh();
-      toast.success("Host added");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Add host failed");
+      toast.error(err instanceof Error ? err.message : editingId ? "Edit host failed" : "Add host failed");
     }
   }
 
   const body = (
     <div className="flex flex-col gap-4">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border" aria-busy={!loaded}>
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-muted-foreground">
             <tr>
@@ -143,7 +207,9 @@ export function ConnectionManager({
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {!loaded ? (
+              <HostTableSkeleton />
+            ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
                   No daemons yet. Add a host to connect.
@@ -152,6 +218,7 @@ export function ConnectionManager({
             ) : (
               rows.map((row) => {
                 const [id, hostname, p, username] = row.info;
+                const connected = isHostConnected(row.status);
                 const online = row.status.toLowerCase() === "online";
                 return (
                   <tr key={id} className="border-t">
@@ -159,31 +226,36 @@ export function ConnectionManager({
                       <div className="font-medium">
                         {hostname}:{p}
                       </div>
-                      <div className="text-xs text-muted-foreground">{username || "localclient"}</div>
+                      <div className="text-xs text-muted-foreground">{username || DEFAULT_USER}</div>
                     </td>
                     <td className="px-3 py-2">
-                      <Badge variant={online ? "default" : "secondary"}>{row.status}</Badge>
+                      <HostStatusBadge status={row.status} connected={connected} online={online} />
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{row.version || "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex justify-end gap-1">
-                        <HostActionBtn
-                          label="Connect"
-                          size="sm"
-                          variant="default"
-                          disabled={busy === id}
-                          onClick={() => void connect(id)}
-                        >
-                          {busy === id ? <Loader2 className="animate-spin" /> : <PlugZap />}
-                          <span className="hidden sm:inline">Connect</span>
-                        </HostActionBtn>
+                        {!connected ? (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            aria-label="Connect"
+                            disabled={busy === id}
+                            onClick={() => void connect(id)}
+                          >
+                            {busy === id ? <Loader2 className="animate-spin" /> : <PlugZap />}
+                            <span className="hidden sm:inline">Connect</span>
+                          </Button>
+                        ) : null}
                         <HostActionBtn label="Start" variant="outline" onClick={() => void start(id)}>
                           <Power />
                         </HostActionBtn>
                         <HostActionBtn label="Stop" variant="outline" onClick={() => void stop(id)}>
                           <PowerOff />
                         </HostActionBtn>
-                        <HostActionBtn label="Remove" onClick={() => void remove(id)}>
+                        <HostActionBtn label="Edit" variant="outline" onClick={() => openEdit(row)}>
+                          <Pencil />
+                        </HostActionBtn>
+                        <HostActionBtn label="Remove" variant="destructive" onClick={() => void remove(id)}>
                           <Trash2 />
                         </HostActionBtn>
                       </div>
@@ -196,7 +268,7 @@ export function ConnectionManager({
         </table>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => setAddOpen(true)}>
+        <Button variant="outline" onClick={openAdd}>
           <Plus />
           Add host
         </Button>
@@ -206,11 +278,10 @@ export function ConnectionManager({
           </Button>
         ) : null}
       </div>
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog open={formOpen} onOpenChange={onFormOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add daemon</DialogTitle>
-            <DialogDescription>Connection details for a Deluge daemon.</DialogDescription>
+            <DialogTitle>{editingId ? "Edit daemon" : "Add daemon"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
@@ -228,13 +299,16 @@ export function ConnectionManager({
             <div className="grid gap-1.5">
               <Label>Password</Label>
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              {editingId ? (
+                <p className="text-xs text-muted-foreground">Re-enter the daemon password to save changes.</p>
+              ) : null}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
+            <Button variant="outline" onClick={() => onFormOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={() => void addHost()}>Add</Button>
+            <Button onClick={() => void saveHost()}>{editingId ? "Save" : "Add"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -260,6 +334,55 @@ export function ConnectionManager({
   );
 }
 
+function HostStatusBadge({
+  status,
+  connected,
+  online,
+}: {
+  status: string;
+  connected: boolean;
+  online: boolean;
+}) {
+  if (connected) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-transparent bg-[color:var(--seeding)]/15 text-[color:var(--seeding)]"
+      >
+        {status}
+      </Badge>
+    );
+  }
+  return <Badge variant={online ? "default" : "secondary"}>{status}</Badge>;
+}
+
+function HostTableSkeleton() {
+  return (
+    <>
+      <tr className="sr-only">
+        <td colSpan={4}>Loading hosts</td>
+      </tr>
+      {Array.from({ length: HOST_SKELETON_ROWS }, (_, row) => (
+        <tr key={row} className="border-t" aria-hidden="true">
+          <td className="px-3 py-2">
+            <div className="h-4 w-36 animate-pulse rounded-md bg-muted" />
+            <div className="mt-1.5 h-3 w-20 animate-pulse rounded-md bg-muted" />
+          </td>
+          <td className="px-3 py-2">
+            <div className="h-5 w-16 animate-pulse rounded-full bg-muted" />
+          </td>
+          <td className="px-3 py-2">
+            <div className="h-3 w-12 animate-pulse rounded-md bg-muted" />
+          </td>
+          <td className="px-3 py-2">
+            <div className="ml-auto h-7 w-40 animate-pulse rounded-md bg-muted" />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function HostActionBtn({
   label,
   children,
@@ -272,7 +395,7 @@ function HostActionBtn({
   children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  variant?: "ghost" | "outline" | "default";
+  variant?: "ghost" | "outline" | "default" | "destructive";
   size?: "icon-sm" | "sm";
 }) {
   return (

@@ -17,9 +17,10 @@ const footer = shell.slice(
   shell.indexOf("<footer"),
   shell.indexOf("<Sheet open={sidebarOpen}")
 );
-const addBtn = shell.slice(
-  shell.indexOf("function AddTorrentButton"),
-  shell.indexOf("function AddTorrentButton") + 500
+const dialogs = readFileSync(join(dir, "torrent-dialogs.tsx"), "utf8");
+const addTrigger = dialogs.slice(
+  dialogs.indexOf("<PopoverTrigger"),
+  dialogs.indexOf("</PopoverTrigger>")
 );
 
 assert.doesNotMatch(shell, /const toolbar =/);
@@ -31,7 +32,7 @@ assert.match(header, /sm:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
 assert.match(header, /aria-label="Search torrents"/);
 assert.match(header, /sm:hidden/);
 assert.match(header, /Close search/);
-assert.match(header, /<AddTorrentButton/);
+assert.match(header, /<AddTorrentDialog/);
 assert.match(header, /<SessionMonitor/);
 assert.match(header, /data-session-monitor|isSessionMonitorChipVisible/);
 assert.ok(
@@ -39,34 +40,39 @@ assert.ok(
   "centered search sits left of the stats chip"
 );
 assert.ok(
-  header.lastIndexOf("<SearchField") < header.lastIndexOf("<AddTorrentButton"),
+  header.lastIndexOf("<SearchField") < header.lastIndexOf("<AddTorrentDialog"),
   "Add torrent sits after search"
 );
 assert.ok(
-  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentButton"),
+  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentDialog"),
   "stats chip sits in the right cluster with Add torrent"
 );
 assert.ok(
-  header.lastIndexOf('aria-label="Search torrents"') < header.lastIndexOf("<AddTorrentButton"),
+  header.lastIndexOf('aria-label="Search torrents"') < header.lastIndexOf("<AddTorrentDialog"),
   "Add torrent sits after the mobile search icon"
 );
+assert.equal(
+  [...header.matchAll(/<AddTorrentDialog/g)].length,
+  1,
+  "one Add torrent trigger lives in the header"
+);
 
-assert.match(addBtn, /<Plus \/>/);
-assert.match(addBtn, /\{label\}/);
-assert.match(addBtn, /hidden xl:inline/);
-assert.match(addBtn, /title=\{label\}/);
-assert.match(addBtn, /aria-label=\{label\}/);
-assert.doesNotMatch(addBtn, />Add</);
-assert.doesNotMatch(addBtn, /max-\[20rem\]/);
-assert.doesNotMatch(addBtn, /Add torrent…/);
-assert.doesNotMatch(addBtn, /variant=/);
-assert.doesNotMatch(addBtn, /size=/);
-assert.doesNotMatch(addBtn, /disabled/);
+assert.match(addTrigger, /<Plus \/>/);
+assert.match(addTrigger, /\{label\}/);
+assert.match(addTrigger, /hidden xl:inline/);
+assert.match(addTrigger, /title=\{label\}/);
+assert.match(addTrigger, /aria-label=\{label\}/);
+assert.doesNotMatch(addTrigger, />Add</);
+assert.doesNotMatch(addTrigger, /max-\[20rem\]/);
+assert.doesNotMatch(addTrigger, /Add torrent…/);
+assert.doesNotMatch(addTrigger, /variant=/);
+assert.doesNotMatch(addTrigger, /size=/);
+assert.doesNotMatch(addTrigger, /disabled/);
 assert.match(shell, /className="h-8 min-w-0 pl-7"/);
-assert.match(shell, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
+assert.match(dialogs, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
 assert.ok(
   shell.includes('className="h-8 min-w-0 pl-7"') &&
-    shell.includes("h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"),
+    dialogs.includes("h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"),
   "Search input and Add torrent share h-8"
 );
 
@@ -86,8 +92,12 @@ assert.doesNotMatch(header, /hidden lg:inline-flex/);
 
 assert.match(header, /Preferences…/);
 assert.match(header, /Connection Manager…/);
-assert.match(header, /Open hosts page/);
-assert.doesNotMatch(header, /Open hosts page…/);
+assert.doesNotMatch(header, /Open hosts page/);
+assert.match(shell, /onConnecting=\{beginHostSwitch\}/);
+assert.match(shell, /onConnected=\{finishHostSwitch\}/);
+assert.match(shell, /onConnectFailed=\{abortHostSwitch\}/);
+assert.match(shell, /resetNotifyCompleteMemory/);
+assert.match(shell, /switchingHosts/);
 assert.match(header, /aria-label="Menu"/);
 assert.ok(
   header.indexOf('aria-label="Menu"') < header.indexOf("<Brand"),
@@ -201,17 +211,36 @@ assert.match(brand, />\s*torro\s*</);
 assert.doesNotMatch(brand, /bg-primary text-primary-foreground/);
 assert.doesNotMatch(brand, /text-primary/);
 
-assert.match(login, /Connect torro/);
+assert.doesNotMatch(login, /Connect torro/);
 assert.match(login, /minmax\(0,1fr\)/);
-assert.match(login, /min-w-0 max-w-md/);
+assert.match(login, /min-w-0 max-w-\[25rem\]/);
 assert.match(login, /px-3 py-8 sm:px-4/);
-assert.match(login, /aria-label="Client"/);
+assert.match(login, /aria-label=\{label\}/);
+assert.match(login, /label="Client"/);
 assert.match(login, /role="radiogroup"/);
-assert.match(login, /"deluge" \? "Deluge" : "Transmission"/);
-assert.match(login, /Transmission RPC URL/);
-assert.match(login, /Admin: synthetic session/);
-assert.match(login, /Use dummy data/);
+assert.match(login, /role="radio"/);
+assert.doesNotMatch(login, /RadioGroupItem/);
+assert.doesNotMatch(login, /sr-only/);
+assert.match(login, /<Brand markClassName="size-9" \/>[\s\S]*<Card /);
+assert.match(login, /\/clients\/deluge\.png/);
+assert.match(login, /\/clients\/transmission\.png/);
+assert.match(login, /\/clients\/qbittorrent\.svg/);
+assert.match(login, /Web URL/);
+assert.doesNotMatch(login, /Deluge Web URL|Transmission RPC URL|qBittorrent Web URL/);
+assert.doesNotMatch(login, /Deluge Web password/);
+assert.match(login, />Password</);
+assert.match(login, /Demo mode/);
+assert.match(login, /flex gap-2\.5[\s\S]*Demo mode[\s\S]*Sign in/);
+assert.doesNotMatch(login, /flex gap-2\.5[\s\S]*Sign in[\s\S]*Demo mode/);
+assert.doesNotMatch(login, /Try demo/);
+assert.match(login, /h-10 min-w-0 flex-1/);
+assert.match(login, /Sample library/);
+assert.match(login, /Load test/);
 assert.match(login, /Torrent count/);
 assert.match(login, /nova:admin-demo|setStoredAdminDemo|admin-demo/);
+assert.match(login, /stripExplicitPort/);
+assert.match(login, /submitFormOnInputEnter/);
+assert.match(login, /type="submit"/);
+assert.doesNotMatch(login, /Admin: synthetic session/);
 
 console.log("torrent-shell toolbar breakpoint tests passed");

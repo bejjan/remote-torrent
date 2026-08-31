@@ -51,6 +51,7 @@ interface ExtraTorrent {
 interface DemoState {
   sessions: Set<string>;
   connected: boolean;
+  connectedHostId: string | null;
   hosts: HostInfo[];
   hostOnline: boolean;
   torrents: Record<string, ExtraTorrent>;
@@ -653,6 +654,7 @@ function createState(torrents?: Record<string, ExtraTorrent>): DemoState {
   return {
     sessions: delugeSessions,
     connected: true,
+    connectedHostId: HOST_ID,
     hosts: [[HOST_ID, "127.0.0.1", 58846, "localclient"]],
     hostOnline: true,
     torrents: torrents ?? seedTorrents(),
@@ -762,6 +764,9 @@ function getState(admin?: AdminDemoConfig | null): DemoState {
   }
   if (!g.__delugeNovaDemo) g.__delugeNovaDemo = createState();
   const state = g.__delugeNovaDemo;
+  if (state.connectedHostId === undefined) {
+    state.connectedHostId = state.connected ? HOST_ID : null;
+  }
   if (!state.ltconfig) {
     const session = defaultLtSessionSettings();
     state.ltconfig = {
@@ -1184,16 +1189,24 @@ export function handleDemoRpc(
       case "web.connect":
         state.connected = true;
         state.hostOnline = true;
+        state.connectedHostId = String(params[0] ?? HOST_ID);
         return { id, result: ["connected"], error: null };
       case "web.disconnect":
         state.connected = false;
+        state.connectedHostId = null;
         return { id, result: null, error: null };
       case "web.get_hosts":
         return { id, result: state.hosts, error: null };
       case "web.get_host_status": {
         const hid = String(params[0] ?? HOST_ID);
-        const status = state.hostOnline ? "Online" : "Offline";
-        return { id, result: [hid, status, DEMO_DAEMON_VERSION], error: null };
+        const connectedId = state.connectedHostId ?? (state.connected ? HOST_ID : null);
+        const status =
+          state.connected && hid === connectedId
+            ? "Connected"
+            : state.hostOnline
+              ? "Online"
+              : "Offline";
+        return { id, result: [hid, status, status === "Offline" ? "" : DEMO_DAEMON_VERSION], error: null };
       }
       case "web.add_host": {
         const host = String(params[0] ?? "127.0.0.1");
@@ -1203,9 +1216,23 @@ export function handleDemoRpc(
         state.hosts.push([hid, host, port, user]);
         return { id, result: [true, hid], error: null };
       }
+      case "web.edit_host": {
+        const hid = String(params[0] ?? "");
+        const host = String(params[1] ?? "127.0.0.1");
+        const port = Number(params[2] ?? 58846);
+        const user = String(params[3] ?? "");
+        const idx = state.hosts.findIndex((h) => h[0] === hid);
+        if (idx < 0) return { id, result: false, error: null };
+        state.hosts[idx] = [hid, host, port, user];
+        return { id, result: true, error: null };
+      }
       case "web.remove_host": {
         const hid = String(params[0]);
         state.hosts = state.hosts.filter((h) => h[0] !== hid);
+        if (state.connectedHostId === hid) {
+          state.connected = false;
+          state.connectedHostId = null;
+        }
         return { id, result: true, error: null };
       }
       case "web.start_daemon":
@@ -1214,6 +1241,7 @@ export function handleDemoRpc(
       case "web.stop_daemon":
         state.hostOnline = false;
         state.connected = false;
+        state.connectedHostId = null;
         return { id, result: true, error: null };
       case "web.update_ui": {
         if (!state.connected) {

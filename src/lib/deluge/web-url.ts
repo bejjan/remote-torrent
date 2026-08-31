@@ -52,6 +52,23 @@ export function extractExplicitPort(input: string): string | null {
   }
 }
 
+/** Drop `:port` from a typed or stored URL so the Port field is the only place it appears. */
+export function stripExplicitPort(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  const port = extractExplicitPort(trimmed);
+  if (!port) return trimmed;
+  try {
+    const withScheme = ensureHttpUrl(trimmed);
+    const parsed = new URL(withScheme);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    const body = `${formatHost(parsed.hostname)}${path}${parsed.search}${parsed.hash}`;
+    return HAS_SCHEME.test(trimmed) ? `${parsed.protocol}//${body}` : body;
+  } catch {
+    return trimmed;
+  }
+}
+
 function formatHost(hostname: string): string {
   if (hostname.startsWith("[")) return hostname;
   if (hostname.includes(":")) return `[${hostname}]`;

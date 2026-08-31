@@ -6,7 +6,6 @@ import {
   LogOut,
   Menu,
   PanelLeft,
-  Plus,
   Search,
   Server,
   Settings,
@@ -50,7 +49,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { clientCapabilities, getStoredClientKind, rpc } from "@/lib/deluge/client";
 import { formatBytes, formatRate } from "@/lib/deluge/format";
 import { GRID_KEYS } from "@/lib/deluge/keys";
-import { processDownloadFinishedNotifications } from "@/lib/notify-complete";
+import { processDownloadFinishedNotifications, resetNotifyCompleteMemory } from "@/lib/notify-complete";
 import {
   LABEL_RPC,
   isLabelPluginEnabled,
@@ -141,10 +140,8 @@ import { cn } from "@/lib/utils";
 
 export function TorrentShell({
   onLogout,
-  onManageHosts,
 }: {
   onLogout: () => void;
-  onManageHosts: () => void;
 }) {
   const caps = clientCapabilities(
     typeof window === "undefined" ? "deluge" : getStoredClientKind()
@@ -193,6 +190,7 @@ export function TorrentShell({
   const activeIdRef = useRef(activeId);
   const wantSearchFocusRef = useRef(false);
   const pollGen = useRef(0);
+  const switchingHosts = useRef(false);
   const lastRatesRef = useRef({ download: 0, upload: 0 });
   const [rateSamples, setRateSamples] = useState<SessionRateSample[]>([]);
   const [searchFieldTitle, setSearchFieldTitle] = useState<string | undefined>(undefined);
@@ -301,10 +299,11 @@ export function TorrentShell({
   }, []);
 
   const poll = useCallback(async () => {
+    if (switchingHosts.current) return;
     const gen = ++pollGen.current;
     try {
       const result = await rpc<UiUpdate>("web.update_ui", [[...GRID_KEYS], {}]);
-      if (gen !== pollGen.current) return;
+      if (switchingHosts.current || gen !== pollGen.current) return;
       setUi((prev) => mergeUiUpdate(prev, result));
       const held = holdLastSessionRates(lastRatesRef.current, result.stats);
       lastRatesRef.current = held;
@@ -312,11 +311,26 @@ export function TorrentShell({
       setError(null);
       if (!result.connected) setError("Daemon disconnected");
     } catch (err) {
-      if (gen !== pollGen.current) return;
+      if (switchingHosts.current || gen !== pollGen.current) return;
       setError(err instanceof Error ? err.message : "Update failed");
     } finally {
-      if (gen === pollGen.current) setLoading(false);
+      if (!switchingHosts.current && gen === pollGen.current) setLoading(false);
     }
+  }, []);
+
+  const beginHostSwitch = useCallback(() => {
+    switchingHosts.current = true;
+    pollGen.current += 1;
+    setUi(null);
+    setSelected(new Set());
+    setActiveId(null);
+    setDetailsOpen(false);
+    setLabels([]);
+    setLoading(true);
+    setError(null);
+    setRateSamples([]);
+    lastRatesRef.current = { download: 0, upload: 0 };
+    resetNotifyCompleteMemory();
   }, []);
 
   useEffect(() => {
@@ -350,6 +364,24 @@ export function TorrentShell({
       setLabels([]);
     }
   }, []);
+
+  const finishHostSwitch = useCallback(() => {
+    switchingHosts.current = false;
+    setHostsOpen(false);
+    void refreshLabels();
+    void rpc<Record<string, unknown>>("web.get_config")
+      .then((web) => applyWebUi(web))
+      .catch(() => {
+        setShowZeroFilters(false);
+        setShowSidebar(true);
+      });
+    void poll();
+  }, [applyWebUi, poll, refreshLabels]);
+
+  const abortHostSwitch = useCallback(() => {
+    switchingHosts.current = false;
+    void poll();
+  }, [poll]);
 
   useEffect(() => {
     if (prefsOpen) return;
@@ -636,17 +668,16 @@ export function TorrentShell({
               placeholder={searchPlaceholder}
               className="min-w-0 flex-1"
             />
-            <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
           </div>
         ) : null}
         <div
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-1",
-            "sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-2",
-            searchExpanded && "max-sm:hidden"
+            "flex min-w-0 items-center gap-1",
+            "sm:grid sm:flex-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-2",
+            searchExpanded ? "max-sm:shrink-0" : "flex-1"
           )}
         >
-          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+          <div className={cn("flex min-w-0 items-center gap-1 sm:gap-2", searchExpanded && "max-sm:hidden")}>
             {mobile ? (
               <Button
                 variant="ghost"
@@ -675,9 +706,6 @@ export function TorrentShell({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="whitespace-nowrap" onClick={() => setHostsOpen(true)}>
                       <Server /> Connection Manager…
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="whitespace-nowrap" onClick={() => onManageHosts()}>
-                      <Server /> Open hosts page
                     </DropdownMenuItem>
                   </>
                 ) : null}
@@ -711,12 +739,13 @@ export function TorrentShell({
                 stats={stats}
                 torrents={ui?.torrents}
                 showDht={caps.dhtNodes}
+                className={cn(searchExpanded && "max-sm:hidden")}
               />
             ) : null}
             <Button
               variant="ghost"
               size="icon-sm"
-              className="relative shrink-0 sm:hidden"
+              className={cn("relative shrink-0 sm:hidden", searchExpanded && "hidden")}
               aria-label="Search torrents"
               aria-expanded={false}
               onClick={() => setSearchExpanded(true)}
@@ -726,7 +755,16 @@ export function TorrentShell({
                 <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" aria-hidden />
               ) : null}
             </Button>
-            <AddTorrentButton onClick={openAdd} label={addTorrentLabel} />
+            <AddTorrentDialog
+              open={addOpen}
+              onOpenChange={setAddOpen}
+              defaultPath={downloadPath}
+              label={addTorrentLabel}
+              onAdded={() => {
+                setFilters((prev) => selectSidebarState(prev, FILTER_DOWNLOADING));
+                void poll();
+              }}
+            />
           </div>
         </div>
       </header>
@@ -873,15 +911,6 @@ export function TorrentShell({
         </DialogContent>
       </Dialog>
 
-      <AddTorrentDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        defaultPath={downloadPath}
-        onAdded={() => {
-          setFilters((prev) => selectSidebarState(prev, FILTER_DOWNLOADING));
-          void poll();
-        }}
-      />
       <RemoveTorrentDialog
         open={removeOpen}
         onOpenChange={setRemoveOpen}
@@ -906,7 +935,12 @@ export function TorrentShell({
           <DialogHeader>
             <DialogTitle>Connection Manager</DialogTitle>
           </DialogHeader>
-          <ConnectionManager embedded onConnected={() => setHostsOpen(false)} />
+          <ConnectionManager
+            embedded
+            onConnecting={beginHostSwitch}
+            onConnected={finishHostSwitch}
+            onConnectFailed={abortHostSwitch}
+          />
         </DialogContent>
       </Dialog>
       ) : null}
@@ -957,16 +991,3 @@ function SearchField({
   );
 }
 
-function AddTorrentButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <Button
-      className="h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-    >
-      <Plus />
-      <span className="hidden xl:inline">{label}</span>
-    </Button>
-  );
-}

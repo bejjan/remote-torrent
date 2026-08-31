@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileKindIcon, FolderTreeIcon } from "@/components/app/file-tree-icons";
@@ -9,7 +9,6 @@ import { FilePrioritySelect } from "@/components/app/file-priority-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  ADD_DIALOG_CLASS,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +18,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,7 +67,14 @@ import {
   torrentIdsFromAddForm,
   type NotifyPermission,
 } from "@/lib/notify-complete";
+import { DEFAULT_ADD_TORRENT_LABEL } from "@/lib/deluge/escape-selection";
 import { cn } from "@/lib/utils";
+
+export const ADD_POPOVER_CLASS =
+  "w-[min(32rem,calc(100vw-1.5rem))] max-h-[min(44rem,calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] gap-0 overflow-hidden p-0";
+
+const ADD_PILL_TAB_CLASS =
+  "h-7 flex-none rounded-lg border-0 bg-transparent px-2.5 text-[13px] font-normal text-muted-foreground shadow-none after:hidden hover:bg-muted/50 hover:text-muted-foreground data-active:border-transparent data-active:bg-muted data-active:font-normal data-active:text-foreground data-active:shadow-none data-active:hover:bg-muted data-active:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-none dark:hover:text-muted-foreground dark:data-active:border-transparent dark:data-active:bg-muted dark:data-active:hover:text-foreground";
 
 const ADD_CONFIG_KEYS = [
   "add_paused",
@@ -105,11 +117,13 @@ export function AddTorrentDialog({
   open,
   onOpenChange,
   defaultPath,
+  label = DEFAULT_ADD_TORRENT_LABEL,
   onAdded,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultPath: string;
+  label?: string;
   onAdded?: () => void;
 }) {
   const [tab, setTab] = useState<AddTab>("file");
@@ -406,14 +420,52 @@ export function AddTorrentDialog({
   const notifyHint = notifyPermissionHint(notifyPermission, notifyOnComplete);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={ADD_DIALOG_CLASS} initialFocus={chooseFileRef}>
-        <DialogHeader className="shrink-0 border-b p-3 pr-12 sm:p-4">
-          <DialogTitle>Add torrent</DialogTitle>
-        </DialogHeader>
-        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-x-hidden overflow-y-auto px-4 py-3">
+    <Popover
+      open={open}
+      onOpenChange={(next, details) => {
+        if (!next && details.reason === "focus-out") {
+          details.cancel();
+          return;
+        }
+        onOpenChange(next);
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            className="h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5"
+            title={label}
+            aria-label={label}
+          />
+        }
+      >
+        <Plus />
+        <span className="hidden xl:inline">{label}</span>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        collisionPadding={8}
+        className={ADD_POPOVER_CLASS}
+        initialFocus={chooseFileRef}
+      >
+        <PopoverTitle className="sr-only">Add torrent</PopoverTitle>
+        <form
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (canAdd) void submit();
+          }}
+          onKeyDown={(event) => {
+            if (event.defaultPrevented) return;
+            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            if (!(event.target instanceof HTMLInputElement)) return;
+            event.preventDefault();
+            if (canAdd) event.currentTarget.requestSubmit();
+          }}
+        >
         <Tabs
-          className="min-w-0"
+          className="flex min-h-0 min-w-0 flex-1 flex-col gap-0"
           value={tab}
           onValueChange={(value) => {
             setTab(value as AddTab);
@@ -426,13 +478,22 @@ export function AddTorrentDialog({
             }
           }}
         >
-          <TabsList className="w-full">
-            <TabsTrigger value="file">File</TabsTrigger>
-            <TabsTrigger value="magnet">Magnet</TabsTrigger>
-            <TabsTrigger value="url">URL</TabsTrigger>
-          </TabsList>
+          <div className="flex min-w-0 shrink-0 items-center border-b p-1.5">
+            <TabsList className="h-8 w-max items-center justify-start gap-0.5 rounded-none bg-transparent p-0">
+              <TabsTrigger value="file" className={ADD_PILL_TAB_CLASS}>
+                File
+              </TabsTrigger>
+              <TabsTrigger value="magnet" className={ADD_PILL_TAB_CLASS}>
+                Magnet
+              </TabsTrigger>
+              <TabsTrigger value="url" className={ADD_PILL_TAB_CLASS}>
+                URL
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-x-hidden overflow-y-auto px-4 py-3">
           <div className="min-h-16">
-            <TabsContent value="file" className="grid min-h-16 min-w-0 gap-3 pt-3">
+            <TabsContent value="file" className="grid min-h-16 min-w-0 gap-3">
             <div
               onDragEnter={(e) => {
                 e.preventDefault();
@@ -496,7 +557,7 @@ export function AddTorrentDialog({
               </div>
             </div>
           </TabsContent>
-          <TabsContent value="magnet" className="grid min-h-16 gap-3 pt-3">
+          <TabsContent value="magnet" className="grid min-h-16 gap-3">
             <Textarea
               rows={2}
               className="h-16 min-h-16 field-sizing-fixed"
@@ -509,7 +570,7 @@ export function AddTorrentDialog({
               }}
             />
           </TabsContent>
-          <TabsContent value="url" className="grid min-h-16 min-w-0 gap-3 pt-3">
+          <TabsContent value="url" className="grid min-h-16 min-w-0 gap-3">
             <div className="flex min-h-16 min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 className="min-w-0"
@@ -535,7 +596,6 @@ export function AddTorrentDialog({
             </div>
           </TabsContent>
           </div>
-        </Tabs>
         {error ? (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -667,17 +727,19 @@ export function AddTorrentDialog({
             ) : null}
           </div>
         </div>
-        </div>
-        <DialogFooter className="m-0 shrink-0 rounded-none p-3 sm:p-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          </div>
+        </Tabs>
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t bg-muted/50 p-3 sm:flex-row sm:justify-end sm:p-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={!canAdd} onClick={() => void submit()}>
+          <Button type="submit" disabled={!canAdd}>
             {busy ? "Adding…" : "Add"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 

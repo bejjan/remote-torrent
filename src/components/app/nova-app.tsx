@@ -52,9 +52,6 @@ export function NovaApp() {
   }
 
   return (
-    <TorrentShell
-      onLogout={() => setPhase("login")}
-      onManageHosts={() => setPhase("hosts")}
-    />
+    <TorrentShell onLogout={() => setPhase("login")} />
   );
 }

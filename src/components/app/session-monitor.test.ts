@@ -48,7 +48,7 @@ assert.ok(
   "centered search sits left of the stats chip"
 );
 assert.ok(
-  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentButton"),
+  header.lastIndexOf("<SessionMonitor") < header.lastIndexOf("<AddTorrentDialog"),
   "stats chip sits in the right cluster with Add torrent"
 );
 
