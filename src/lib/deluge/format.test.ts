@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import {
+  formatCompactDate,
   formatCompactRate,
   formatTorrentEta,
   formatTorrentRate,
   formatSwarmCount,
   isUnusableTrackerFavicon,
+  normalizeTorrentTrackers,
   trackerFaviconHost,
   trackerFaviconHostCandidates,
   trackerFaviconLetter,
@@ -20,6 +22,26 @@ assert.equal(formatCompactRate(1024), "1K");
 assert.equal(formatCompactRate(340 * 1024), "340K");
 assert.equal(formatCompactRate(1.2 * 1024 ** 2), "1.2M");
 assert.equal(formatCompactRate(12.5 * 1024 ** 3), "12.5G");
+
+{
+  const now = new Date(2026, 7, 31, 15, 0, 0);
+  const sec = (date: Date) => date.getTime() / 1000;
+  const opts = (locale: string) => ({ now, locale });
+
+  assert.equal(formatCompactDate(0), "—");
+  assert.equal(formatCompactDate(sec(new Date(2026, 7, 31, 9, 5)), opts("en-US")), "Today 9:05 AM");
+  assert.equal(formatCompactDate(sec(new Date(2026, 7, 30, 21, 0)), opts("en-US")), "Yesterday 9:00 PM");
+  assert.equal(formatCompactDate(sec(new Date(2026, 0, 15, 14, 30)), opts("en-US")), "Jan 15, 2:30 PM");
+  assert.equal(
+    formatCompactDate(sec(new Date(2025, 11, 25, 8, 0)), opts("en-US")),
+    "Dec 25, 2025, 8:00 AM"
+  );
+
+  assert.equal(formatCompactDate(sec(new Date(2026, 7, 31, 9, 5)), opts("sv-SE")), "I dag 09:05");
+  assert.equal(formatCompactDate(sec(new Date(2026, 7, 30, 21, 0)), opts("sv-SE")), "I går 21:00");
+  assert.equal(formatCompactDate(sec(new Date(2026, 0, 15, 14, 30)), opts("sv-SE")), "15 jan. 14:30");
+  assert.equal(formatCompactDate(sec(new Date(2025, 11, 25, 8, 0)), opts("en-GB")), "25 Dec 2025, 08:00");
+}
 
 assert.equal(formatTorrentRate(0), "—");
 assert.equal(formatTorrentRate(-1), "—");
@@ -137,6 +159,24 @@ assert.equal(
     naturalHeight: 0,
   }),
   true
+);
+
+assert.deepEqual(normalizeTorrentTrackers(undefined), []);
+assert.deepEqual(normalizeTorrentTrackers(null), []);
+assert.deepEqual(normalizeTorrentTrackers("udp://tracker.example/announce"), []);
+assert.deepEqual(
+  normalizeTorrentTrackers([
+    { url: "udp://tracker.example:6969/announce", tier: 1 },
+    { announce: "http://backup.example/announce", tier: "2" },
+    { url: "** [DHT] **" },
+    { url: "  " },
+    { tier: 0 },
+    null,
+  ]),
+  [
+    { url: "udp://tracker.example:6969/announce", tier: 1 },
+    { url: "http://backup.example/announce", tier: 2 },
+  ]
 );
 
 console.log("format tests passed");

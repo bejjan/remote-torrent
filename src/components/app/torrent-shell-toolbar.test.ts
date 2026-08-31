@@ -120,13 +120,35 @@ assert.ok(
 );
 assert.match(table, /<Pause \/> Pause/);
 assert.match(table, /<Play \/> Resume/);
-assert.match(table, /<Trash2 \/> Remove/);
-assert.match(table, /<ChevronsUp \/> Queue top/);
-assert.match(table, /<ArrowUp \/> Queue up/);
-assert.match(table, /<ArrowDown \/> Queue down/);
-assert.match(table, /<ChevronsDown \/> Queue bottom/);
+assert.match(table, /variant="destructive"/);
+assert.match(table, /<Trash2 \/> Remove\.\.\./);
+assert.match(table, /<ListOrdered \/> Queue/);
+assert.match(table, /<ChevronsUp \/> Top/);
+assert.match(table, /<ArrowUp \/> Up/);
+assert.match(table, /<ArrowDown \/> Down/);
+assert.match(table, /<ChevronsDown \/> Bottom/);
+assert.match(table, /<Gauge \/> Limits/);
+assert.match(table, /D\/L Speed Limit/);
+assert.match(table, /U\/L Speed Limit/);
+assert.match(table, /Connection Limit/);
+assert.match(table, /Upload Slot Limit/);
+assert.match(table, /limitCaps\.connections/);
+assert.match(table, /limitCaps\.uploadSlots/);
+assert.match(table, /torrentLimitMenuCaps/);
+assert.match(table, /handlersRef\.current\.setOptions/);
+assert.match(table, /clientKind=\{caps\.kind\}|clientKind=\{clientKind\}/);
+assert.match(shell, /clientKind=\{caps\.kind\}/);
+assert.match(shell, /core\.set_torrent_options/);
 assert.match(table, /<FolderInput \/> Move storage…/);
 assert.match(table, /<RefreshCw \/> Force recheck/);
+assert.ok(
+  table.indexOf("<ListOrdered /> Queue") < table.indexOf("<Gauge /> Limits"),
+  "Queue submenu sits above Limits"
+);
+assert.ok(
+  table.indexOf("Remove...") < table.indexOf("<ListOrdered /> Queue"),
+  "Remove sits above the Queue submenu"
+);
 
 assert.match(footer, /overflow-x-auto/);
 assert.match(footer, /flex-wrap/);
