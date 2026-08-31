@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { handleQbittorrentCompat } from "./compat";
 import { handleQbittorrentDemo, QB_SESSION_COOKIE } from "./demo";
 
@@ -62,6 +63,22 @@ async function run() {
     { demo: true, cookieHeader: cookie }
   );
   assert.equal((files.result as { type: string }).type, "dir");
+
+  const inspect = await handleQbittorrentCompat(
+    { method: "web.get_torrent_status", params: [hash, ["name", "trackers", "peers"]], id: 11 },
+    { demo: true, cookieHeader: cookie }
+  );
+  assert.equal(inspect.error, null);
+  const inspectResult = inspect.result as { name: string; trackers: { url: string }[] };
+  assert.equal(typeof inspectResult.name, "string");
+  assert.ok(inspectResult.trackers.length > 0);
+  assert.equal(inspectResult.trackers.some((t) => t.url.startsWith("**")), false);
+  {
+    const src = readFileSync(new URL("./compat.ts", import.meta.url), "utf8");
+    assert.match(src, /fetchTorrentById/);
+    assert.match(src, /path: "\/torrents\/info"/);
+    assert.match(src, /query: \{ hashes: hash \}/);
+  }
 
   const plugins = await handleQbittorrentCompat(
     { method: "web.get_plugins", id: 8 },

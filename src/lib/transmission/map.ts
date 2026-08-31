@@ -506,7 +506,9 @@ export function torrentOptionsToTransmission(options: Record<string, unknown>): 
       args.uploadLimit = n;
     }
   }
-  if ("is_auto_managed" in options) args.honorsSessionLimits = Boolean(options.is_auto_managed);
+  if ("is_auto_managed" in options || "auto_managed" in options) {
+    args.honorsSessionLimits = Boolean(options.is_auto_managed ?? options.auto_managed);
+  }
   if ("stop_at_ratio" in options) args.seedRatioMode = options.stop_at_ratio ? 1 : 0;
   if ("stop_ratio" in options) args.seedRatioLimit = Number(options.stop_ratio);
   if (Array.isArray(options.file_priorities)) {

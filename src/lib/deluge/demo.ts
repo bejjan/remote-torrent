@@ -1776,6 +1776,10 @@ function applyTorrentOptions(extra: ExtraTorrent, opts: Record<string, unknown>)
     mapped.prioritize_first_last = Boolean(mapped.prioritize_first_last_pieces);
     delete mapped.prioritize_first_last_pieces;
   }
+  if ("auto_managed" in mapped) {
+    mapped.is_auto_managed = Boolean(mapped.auto_managed);
+    delete mapped.auto_managed;
+  }
   const prios = mapped.file_priorities;
   delete mapped.file_priorities;
   Object.assign(extra.status, mapped);

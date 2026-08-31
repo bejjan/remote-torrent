@@ -108,6 +108,21 @@ async function fetchPrefs(
   return (res.data ?? {}) as QbittorrentPreferences;
 }
 
+async function fetchTorrentById(
+  call: (req: QbittorrentRequest) => Promise<QbittorrentCallResult>,
+  id: unknown
+): Promise<QbittorrentTorrent | undefined> {
+  const hash = String(id ?? "").trim();
+  if (!hash) return undefined;
+  const res = await call({
+    method: "GET",
+    path: "/torrents/info",
+    query: { hashes: hash },
+  });
+  const list = Array.isArray(res.data) ? (res.data as QbittorrentTorrent[]) : [];
+  return torrentById(list, id) ?? list[0];
+}
+
 function torrentById(torrents: QbittorrentTorrent[], id: unknown): QbittorrentTorrent | undefined {
   const key = String(id).trim().toLowerCase();
   return torrents.find((t) => torrentKey(t) === key || t.hash.toLowerCase() === key);
@@ -233,8 +248,7 @@ export async function handleQbittorrentCompat(
       }
       case "web.get_torrent_status":
       case "core.get_torrent_status": {
-        const torrents = await fetchTorrents(call);
-        const torrent = torrentById(torrents, params[0]);
+        const torrent = await fetchTorrentById(call, params[0]);
         if (!torrent) throw new Error("Unknown torrent");
         const status = mapQbittorrentTorrent(torrent) as TorrentStatus & Record<string, unknown>;
         const keys = (params[1] as string[]) || [];
@@ -242,34 +256,41 @@ export async function handleQbittorrentCompat(
           ? Object.fromEntries(Object.entries(status).filter(([key]) => keys.includes(key)))
           : { ...status };
         if (!keys.length || keys.includes("peers")) {
-          const peersRes = await call({
-            method: "GET",
-            path: "/sync/torrentPeers",
-            query: { hash: torrent.hash },
-          });
-          const peers = (peersRes.data as QbittorrentTorrentPeers | undefined)?.peers;
-          (base as Record<string, unknown>).peers = mapQbittorrentPeers(peers);
+          try {
+            const peersRes = await call({
+              method: "GET",
+              path: "/sync/torrentPeers",
+              query: { hash: torrent.hash },
+            });
+            const peers = (peersRes.data as QbittorrentTorrentPeers | undefined)?.peers;
+            (base as Record<string, unknown>).peers = mapQbittorrentPeers(peers);
+          } catch {
+            (base as Record<string, unknown>).peers = [];
+          }
         }
         if (!keys.length || keys.includes("trackers")) {
-          const trackersRes = await call({
-            method: "GET",
-            path: "/torrents/trackers",
-            query: { hash: torrent.hash },
-          });
-          (base as Record<string, unknown>).trackers = mapQbittorrentTrackers(
-            trackersRes.data as QbittorrentTracker[]
-          );
+          try {
+            const trackersRes = await call({
+              method: "GET",
+              path: "/torrents/trackers",
+              query: { hash: torrent.hash },
+            });
+            (base as Record<string, unknown>).trackers = mapQbittorrentTrackers(
+              trackersRes.data as QbittorrentTracker[]
+            );
+          } catch {
+            (base as Record<string, unknown>).trackers = [];
+          }
         }
         return { id, result: base, error: null };
       }
       case "web.get_torrent_files": {
-        const torrents = await fetchTorrents(call);
-        const torrent = torrentById(torrents, params[0]);
-        if (!torrent) throw new Error("Unknown torrent");
+        const hash = String(params[0] ?? "").trim();
+        if (!hash) throw new Error("Unknown torrent");
         const filesRes = await call({
           method: "GET",
           path: "/torrents/files",
-          query: { hash: torrent.hash },
+          query: { hash },
         });
         return { id, result: filesTreeFromQbittorrent(filesRes.data as QbittorrentFile[]), error: null };
       }
@@ -438,11 +459,11 @@ export async function handleQbittorrentCompat(
             form: { hashes, limit: kibToBytesLimit(Number(options.max_upload_speed)) },
           });
         }
-        if ("is_auto_managed" in options) {
+        if ("is_auto_managed" in options || "auto_managed" in options) {
           await call({
             method: "POST",
             path: "/torrents/setAutoManagement",
-            form: { hashes, enable: Boolean(options.is_auto_managed) },
+            form: { hashes, enable: Boolean(options.is_auto_managed ?? options.auto_managed) },
           });
         }
         if ("stop_at_ratio" in options || "stop_ratio" in options) {
