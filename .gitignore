@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# Local Cursor/agent worktrees (nested checkouts; not project source)
+.worktrees/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
