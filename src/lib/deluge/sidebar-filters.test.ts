@@ -495,11 +495,14 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /useState\(emptyCollapsedGroups\)/, "default all expanded");
   assert.match(src, /aria-busy=\{loading \|\| undefined\}/);
   assert.match(src, /loading=\{loading\}/);
+  assert.match(src, /function FilterGroupSkeleton/);
+  assert.match(src, /Loading filters/);
   assert.match(
     src,
-    /\{loading \? \(\s*<p className="px-2 py-1 text-sm text-muted-foreground">Loading…<\/p>/,
-    "groups show muted Loading… instead of a zero catalog"
+    /\{loading \? <FilterGroupSkeleton rows=\{skeletonRows\} \/> : children\}/,
+    "groups show a pulse skeleton instead of a zero catalog"
   );
+  assert.doesNotMatch(src, /Loading…/, "sidebar loading is a skeleton, not Loading… copy");
   assert.doesNotMatch(src, /count=\{torrentCount\}/, "group headers do not take a torrent total");
   assert.match(
     src,
@@ -588,11 +591,9 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
       loading: true,
     })
   );
-  assert.equal(
-    [...html.matchAll(/Loading…/g)].length,
-    3,
-    "State, Trackers, and Labels each show Loading…"
-  );
+  assert.equal(html.includes("Loading…"), false, "sidebar loading is not Loading… copy");
+  assert.match(html, /Loading filters/);
+  assert.match(html, /animate-pulse/);
   assert.equal(html.includes('aria-busy="true"'), true);
   assert.equal(html.includes(">All<"), false, "catalog rows stay hidden while loading");
   assert.equal(/>0</.test(html), false, "zero counts must not look like an empty session");
