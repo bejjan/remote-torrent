@@ -41,6 +41,7 @@ import {
   labelRpcErrorMessage,
   normalizeLabelId,
 } from "@/lib/deluge/label-plugin";
+import { STATE_FILTERS } from "@/lib/deluge/keys";
 import {
   FILTER_ALL,
   SIDEBAR_TRACKER_ROW_CAP,
@@ -168,12 +169,14 @@ export function FilterSidebar({
   return (
     <ScrollArea className={cn("h-full", className)}>
       <div className="flex flex-col gap-5 p-3" aria-busy={loading || undefined}>
+        {loading ? <span className="sr-only">Loading filters</span> : null}
         <FilterGroup
           id="state"
           title="State"
           collapsed={collapsedGroups.has("state")}
           onToggle={() => toggleGroup("state")}
           loading={loading}
+          skeletonRows={STATE_FILTERS.length}
         >
           {stateCatalog.map(([name, count]) => (
             <FilterButton
@@ -194,6 +197,7 @@ export function FilterSidebar({
           collapsed={collapsedGroups.has("trackers")}
           onToggle={() => toggleGroup("trackers")}
           loading={loading}
+          skeletonRows={6}
         >
           {trackers.map((row) => (
             <FilterButton
@@ -215,6 +219,7 @@ export function FilterSidebar({
           collapsed={collapsedGroups.has("labels")}
           onToggle={() => toggleGroup("labels")}
           loading={loading}
+          skeletonRows={4}
         >
           {labels.map((row) => {
             const item = (
@@ -359,12 +364,45 @@ function LetterAvatar({ letter }: { letter: string }) {
   );
 }
 
+const SIDEBAR_SKELETON_LABEL_WIDTHS = [
+  "w-16",
+  "w-24",
+  "w-20",
+  "w-[4.5rem]",
+  "w-28",
+  "w-14",
+  "w-[5.5rem]",
+  "w-[4.25rem]",
+] as const;
+
+function FilterGroupSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="flex flex-col gap-0.5" aria-hidden>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex w-full items-center justify-between rounded-md px-2 py-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="size-3.5 shrink-0 animate-pulse rounded-sm bg-muted" />
+            <div
+              className={cn(
+                "h-3 animate-pulse rounded-sm bg-muted",
+                SIDEBAR_SKELETON_LABEL_WIDTHS[i % SIDEBAR_SKELETON_LABEL_WIDTHS.length]
+              )}
+            />
+          </div>
+          <div className="h-3 w-5 animate-pulse rounded-sm bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FilterGroup({
   id,
   title,
   collapsed,
   onToggle,
   loading = false,
+  skeletonRows = 6,
   children,
 }: {
   id: string;
@@ -372,6 +410,7 @@ function FilterGroup({
   collapsed: boolean;
   onToggle: () => void;
   loading?: boolean;
+  skeletonRows?: number;
   children: React.ReactNode;
 }) {
   const panelId = `sidebar-group-${id}`;
@@ -394,11 +433,7 @@ function FilterGroup({
         </button>
       </h3>
       <div id={panelId} hidden={collapsed} className={collapsed ? "hidden" : "flex flex-col gap-0.5"}>
-        {loading ? (
-          <p className="px-2 py-1 text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          children
-        )}
+        {loading ? <FilterGroupSkeleton rows={skeletonRows} /> : children}
       </div>
     </section>
   );

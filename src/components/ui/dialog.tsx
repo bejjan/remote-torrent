@@ -16,11 +16,6 @@ const LARGE_DIALOG_FRAME = cn(
   VIEWPORT_DIALOG_MAX_H
 )
 
-export const ADD_DIALOG_CLASS = cn(
-  "flex w-full min-w-0 max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl",
-  VIEWPORT_DIALOG_MAX_H
-)
-
 export const LARGE_DIALOG_CLASS = cn(
   LARGE_DIALOG_FRAME,
   "h-[min(40rem,calc(100svh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))]"

@@ -87,7 +87,9 @@ function statsEqual(a: SessionStats, b: SessionStats): boolean {
  * for unchanged torrents / stats so the table does not remount or rebuild rows.
  */
 export function mergeUiUpdate(prev: UiUpdate | null, next: UiUpdate): UiUpdate {
-  if (!prev) {
+  // A newly connected session must not keep torrents from the previous daemon.
+  const freshSession = !prev || (!prev.connected && next.connected);
+  if (freshSession) {
     const torrents = reuseTorrentMap(null, next.torrents);
     return torrents === next.torrents ? next : { ...next, torrents };
   }
