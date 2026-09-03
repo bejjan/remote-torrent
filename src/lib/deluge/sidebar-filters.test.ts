@@ -17,6 +17,7 @@ import {
   sidebarGroupRows,
   splitSpecialAll,
   sidebarFilterTreeFromTorrents,
+  sidebarSessionCatalog,
   stateAllCount,
   stateSidebarRows,
   torrentMatchesSidebarFilter,
@@ -466,7 +467,12 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /SIDEBAR_TRACKER_ROW_CAP/);
   assert.match(src, /completeStateFilters\(filters\?\.state\)/, "paint the injected catalog");
   assert.match(src, /onSelect\(selectSidebarState\(selected, name\)\)/);
-  assert.match(src, /alwaysShow=\{name === FILTER_ALL \|\| selected\.state === name\}/);
+  assert.match(
+    src,
+    /alwaysShow=\{name === FILTER_ALL \|\| selected\.state === name \|\| keepStates\.has\(name\)\}/
+  );
+  assert.match(src, /sessionTrackers/);
+  assert.match(src, /alwaysShow=\{row\.isAll \|\| Boolean\(row\.keepZero\)\}/);
   assert.match(
     src,
     /function FilterButton\([\s\S]*isVisibleFilterRow/,
@@ -477,7 +483,7 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   assert.match(src, /onError=\{advanceSource\}/);
   assert.match(src, /trackerFaviconSources\(host\)/);
   assert.match(src, /function LetterAvatar/);
-  assert.match(src, /bg-primary\/10 font-medium text-sidebar-foreground/);
+  assert.match(src, /bg-sidebar-foreground\/6 font-medium text-sidebar-foreground/);
   assert.match(src, /rounded-full bg-muted/);
   assert.match(src, /<Globe className="size-3\.5 text-muted-foreground" \/>/);
   assert.match(
@@ -580,6 +586,41 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     );
   }
   assert.match(html, />42</, "row counts such as All remain");
+}
+
+{
+  const html = renderToString(
+    createElement(FilterSidebar, {
+      filters: {
+        state: [
+          ["All", 1],
+          ["Error", 1],
+          ["Seeding", 0],
+          ["Paused", 0],
+        ],
+        tracker_host: [
+          ["All", 1],
+          ["live.example", 1],
+          ["quiet.example", 0],
+        ],
+        label: [
+          ["All", 1],
+          ["linux", 1],
+          ["movies", 0],
+        ],
+      },
+      selected: { state: "Error", tracker: "", label: "__all__" },
+      onSelect() {},
+      showZero: false,
+      sessionStates: ["Error", "Seeding"],
+      sessionTrackers: ["live.example", "quiet.example"],
+      sessionLabels: ["linux", "movies"],
+    })
+  );
+  assert.equal(html.includes("quiet.example"), true, "session trackers stay at count 0");
+  assert.equal(html.includes("movies"), true, "session labels stay at count 0");
+  assert.equal(html.includes("Seeding"), true, "session states stay at count 0");
+  assert.equal(html.includes("Paused"), false, "states absent from the session stay hidden");
 }
 
 {
@@ -705,11 +746,18 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
   );
   assert.deepEqual(
     Object.fromEntries(tree.tracker_host),
-    { All: 1, "bttracker.debian.org": 1 }
+    { All: 1, "bttracker.debian.org": 1, "archive.ubuntu.com": 0 }
   );
   assert.equal(tree.state.find(([name]) => name === "Checking")?.[1], 1);
   assert.equal(tree.state.find(([name]) => name === "Seeding")?.[1], 1);
   assert.equal(tree.state.find(([name]) => name === "All")?.[1], 2);
+  assert.equal(tree.state.some(([name]) => name === "Paused"), false, "session-empty states stay out of the tree");
+
+  const catalog = sidebarSessionCatalog([checking, seeding] as never);
+  assert.deepEqual(new Set(catalog.trackers), new Set(["bttracker.debian.org", "archive.ubuntu.com"]));
+  assert.ok(catalog.states.includes("Checking"));
+  assert.ok(catalog.states.includes("Seeding"));
+  assert.equal(catalog.states.includes("Paused"), false);
 
   const byTracker = sidebarFilterTreeFromTorrents(
     [checking, seeding] as never,
@@ -723,6 +771,80 @@ function paintStateRows(tree: unknown, showZero: boolean): FilterTuple[] {
     "bttracker.debian.org": 1,
     "archive.ubuntu.com": 1,
   });
+}
+
+{
+  const errored = {
+    state: "Error",
+    tracker_host: "bttracker.debian.org",
+    label: "linux",
+    download_payload_rate: 0,
+    upload_payload_rate: 0,
+  } as const;
+  const seeding = {
+    state: "Seeding",
+    tracker_host: "archive.ubuntu.com",
+    label: "",
+    download_payload_rate: 0,
+    upload_payload_rate: 1024,
+  } as const;
+  const tree = sidebarFilterTreeFromTorrents(
+    [errored, seeding] as never,
+    { state: "Error", tracker: "", label: "__all__" }
+  );
+  assert.deepEqual(Object.fromEntries(tree.tracker_host), {
+    All: 1,
+    "bttracker.debian.org": 1,
+    "archive.ubuntu.com": 0,
+  });
+  assert.deepEqual(Object.fromEntries(tree.label), {
+    All: 1,
+    linux: 1,
+    "": 0,
+  });
+}
+
+{
+  const rows = sidebarGroupRows(
+    [
+      ["All", 1],
+      ["bttracker.debian.org", 1],
+      ["archive.ubuntu.com", 0],
+      ["", 0],
+    ],
+    {
+      showZero: false,
+      fallbackAllCount: 1,
+      allValue: "",
+      emptyLabel: "(empty)",
+      namedAllLabel: "All (tracker)",
+      knownNames: ["archive.ubuntu.com", ""],
+    }
+  );
+  assert.ok(rows.some((row) => row.value === "archive.ubuntu.com" && row.count === 0));
+  assert.ok(rows.some((row) => row.label === "(empty)" && row.count === 0 && row.keepZero));
+}
+
+{
+  const next = clampSidebarSelection(
+    { state: "Error", tracker: "archive.ubuntu.com", label: "linux" },
+    [
+      ["All", 1],
+      ["Error", 1],
+    ],
+    [
+      ["All", 1],
+      ["bttracker.debian.org", 1],
+      ["archive.ubuntu.com", 0],
+    ],
+    [
+      ["All", 1],
+      ["linux", 0],
+    ],
+    false
+  );
+  assert.equal(next.tracker, "archive.ubuntu.com", "keep a session tracker at count 0");
+  assert.equal(next.label, "linux", "keep a session label at count 0");
 }
 
 console.log("sidebar-filters tests passed");

@@ -8,9 +8,9 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   ADMIN_DEMO_DEFAULT_COUNT,
   ADMIN_DEMO_MAX_COUNT,
@@ -146,16 +146,26 @@ function optionRowClass(selected: boolean, align: "center" | "start" = "center")
   );
 }
 
+function optionTileClass(selected: boolean) {
+  return cn(
+    "flex w-full min-w-0 cursor-pointer flex-col items-center gap-2 rounded-lg border px-2 py-2 text-center transition-colors",
+    "outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+    selected ? "border-primary bg-muted/40" : "border-border hover:bg-muted/25"
+  );
+}
+
 function OptionGroup<T extends string>({
   label,
   value,
   options,
   onChange,
+  layout = "stack",
 }: {
   label: string;
   value: T;
   options: { id: T; align?: "center" | "start"; children: React.ReactNode }[];
   onChange: (next: T) => void;
+  layout?: "stack" | "tiles";
 }) {
   const ids = options.map((option) => option.id);
 
@@ -176,7 +186,12 @@ function OptionGroup<T extends string>({
   return (
     <div className="grid min-w-0 gap-1.5">
       <Label>{label}</Label>
-      <div role="radiogroup" aria-label={label} className="grid gap-1.5" onKeyDown={onKeyDown}>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className={layout === "tiles" ? "grid grid-cols-3 gap-1.5" : "grid gap-1.5"}
+        onKeyDown={onKeyDown}
+      >
         {options.map((option) => {
           const selected = value === option.id;
           return (
@@ -186,7 +201,9 @@ function OptionGroup<T extends string>({
               role="radio"
               aria-checked={selected}
               tabIndex={selected ? 0 : -1}
-              className={optionRowClass(selected, option.align)}
+              className={
+                layout === "tiles" ? optionTileClass(selected) : optionRowClass(selected, option.align)
+              }
               onClick={() => onChange(option.id)}
             >
               {option.children}
@@ -210,6 +227,7 @@ function ClientPicker({
       label="Client"
       value={kind}
       onChange={onChange}
+      layout="tiles"
       options={CLIENT_OPTIONS.map((option) => ({
         id: option.id,
         children: (
@@ -217,11 +235,11 @@ function ClientPicker({
             <img
               src={option.icon}
               alt=""
-              width={28}
-              height={28}
-              className="size-7 shrink-0 object-contain"
+              width={40}
+              height={40}
+              className="size-10 object-contain"
             />
-            <span className="text-sm font-medium">{option.label}</span>
+            <span className="text-center text-xs font-semibold leading-tight">{option.label}</span>
           </>
         ),
       }))}
@@ -404,7 +422,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
       </div>
       <div className="relative my-auto flex w-full min-w-0 max-w-[25rem] flex-col items-center gap-4">
         <Brand markClassName="size-9" />
-        <Card className="w-full min-w-0 py-5 ring-1 ring-primary/15">
+        <Card className="w-full min-w-0 py-6 ring-1 ring-primary/15 [--card-spacing:--spacing(5)]">
         <CardHeader className="gap-2">
           <div className="flex min-h-8 min-w-0 items-center gap-2">
             {view === "demo" ? (
@@ -427,7 +445,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
         <CardContent>
           {view === "demo" ? (
             <form
-              className="flex min-w-0 flex-col gap-3"
+              className="flex min-w-0 flex-col gap-3.5"
               onSubmit={onDemoSubmit}
               onKeyDown={(event) => submitFormOnInputEnter(event, busy)}
             >
@@ -483,7 +501,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
             </form>
           ) : (
             <form
-              className="flex min-w-0 flex-col gap-3"
+              className="flex min-w-0 flex-col gap-3.5"
               onSubmit={onConnectSubmit}
               onKeyDown={(event) => submitFormOnInputEnter(event, busy)}
             >
@@ -516,34 +534,49 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
                 </div>
               </div>
               {clientUsesUsername(kind) ? (
+                <div className="grid grid-cols-2 items-end gap-2">
+                  <div className="grid min-w-0 gap-1.5">
+                    <Label htmlFor="daemon-username">Username</Label>
+                    <Input
+                      id="daemon-username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      className="min-w-0"
+                    />
+                  </div>
+                  <div className="grid min-w-0 gap-1.5">
+                    <Label htmlFor="daemon-password">Password</Label>
+                    <Input
+                      id="daemon-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      autoFocus
+                      className="min-w-0"
+                    />
+                  </div>
+                </div>
+              ) : (
                 <div className="grid gap-1.5">
-                  <Label htmlFor="daemon-username">Username</Label>
+                  <Label htmlFor="daemon-password">Password</Label>
                   <Input
-                    id="daemon-username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
+                    id="daemon-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    autoFocus
                   />
                 </div>
-              ) : null}
-              <div className="grid gap-1.5">
-                <Label htmlFor="daemon-password">Password</Label>
-                <Input
-                  id="daemon-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  autoFocus
-                />
-              </div>
-              <label className="flex items-start gap-2 text-sm leading-snug">
-                <Checkbox
-                  className="mt-0.5"
+              )}
+              <label className="flex items-center justify-between gap-3 text-sm leading-snug">
+                <span>Allow self-signed TLS</span>
+                <Switch
                   checked={tlsInsecure}
                   onCheckedChange={(v) => setTlsInsecure(v === true)}
                 />
-                <span>Allow self-signed TLS</span>
               </label>
               {error ? (
                 <Alert variant="destructive">

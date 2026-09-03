@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NotifyTestButton } from "@/components/app/notify-test-button";
 import { PrefNavIcon } from "@/components/app/pref-nav-icon";
 import {
   PREF_DIALOG_NAV_CLASS,
@@ -1220,6 +1221,17 @@ function InterfacePage({
           />
         ) : null}
       </PrefFieldset>
+      <PrefFieldset
+        title="Browser notifications"
+        hint="Shown when a download you marked finishes. Use Test to fire the same watcher without waiting for a real file."
+      >
+        <PrefRow
+          label="Test notification"
+          description="Asks for permission if needed, then simulates a finished torrent."
+        >
+          <NotifyTestButton variant="outline" size="sm" />
+        </PrefRow>
+      </PrefFieldset>
       {hasConfigKey(web, "auto_reconnect") ? (
         <PrefFieldset title="Connection">
           <SwitchRow
@@ -1514,6 +1526,14 @@ function NotificationsPage() {
   }, []);
   return (
     <PrefPage title="Notifications" description="Send email when torrent events occur.">
+      <PrefFieldset
+        title="Browser"
+        hint="Torro can show a desktop notification when a download you marked finishes. Use Test to fire the same watcher without waiting for a real file."
+      >
+        <PrefRow label="Test notification" description="Asks for permission if needed, then simulates a finished torrent.">
+          <NotifyTestButton variant="outline" size="sm" />
+        </PrefRow>
+      </PrefFieldset>
       <PrefFieldset title="Email">
         <SwitchRow
           label="Enable email notifications"

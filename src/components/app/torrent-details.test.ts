@@ -16,6 +16,8 @@ assert.doesNotMatch(details, /function FileTree/);
 assert.match(details, /InspectorStatusBar/);
 assert.match(details, /aria-label="Close inspector"/);
 assert.match(details, /aria-label=\{label\}/);
+assert.match(details, /paused=\{torrentIsPaused\(detail\?\.state\)\}/);
+assert.match(details, /paused \?/);
 assert.match(details, /core\.pause_torrent/);
 assert.match(details, /core\.resume_torrent/);
 assert.match(details, /core\.queue_top/);
@@ -23,6 +25,22 @@ assert.match(details, /core\.force_recheck/);
 assert.match(details, /label="Remove"/);
 assert.match(details, /label="Move storage"/);
 assert.match(details, /label="Force recheck"/);
+assert.match(details, /variant="destructive"/);
+assert.ok(
+  details.indexOf('label="Force recheck"') < details.indexOf('label="Remove"'),
+  "inspector Remove sits last after Force recheck"
+);
+{
+  const bar = details.slice(
+    details.indexOf("function InspectorActionBar"),
+    details.indexOf("function InspectorAction({")
+  );
+  assert.ok(
+    bar.lastIndexOf('label="Remove"') > bar.lastIndexOf('label="Force recheck"'),
+    "Remove is the last inspector toolbar action"
+  );
+  assert.match(bar, /variant="destructive"/);
+}
 assert.match(details, /function InspectorTabs/);
 assert.match(details, /function InspectorActionBar/);
 assert.match(details, /<InspectorTabs/);

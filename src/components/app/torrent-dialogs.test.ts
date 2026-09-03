@@ -5,138 +5,279 @@ import { fileURLToPath } from "node:url";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(dir, "torrent-dialogs.tsx"), "utf8");
+const addSource = readFileSync(join(dir, "add-torrent-dialog.tsx"), "utf8");
 const details = readFileSync(join(dir, "torrent-details.tsx"), "utf8");
 
-const addDialog = source.slice(
-  source.indexOf("export function AddTorrentDialog"),
-  source.indexOf("function TorrentPreviewCard")
+const addDialog = addSource.slice(
+  addSource.indexOf("export function AddTorrentDialog"),
+  addSource.indexOf("function SourcePromptDialog")
 );
-const preview = source.slice(
-  source.indexOf("function TorrentPreviewCard"),
-  source.indexOf("function AddFilesTree")
+const sourcePrompt = addSource.slice(
+  addSource.indexOf("function SourcePromptDialog"),
+  addSource.indexOf("function QueuePane")
 );
-const tree = source.slice(
-  source.indexOf("function AddFilesTree"),
-  source.indexOf("export function RemoveTorrentDialog")
+const queuePane = addSource.slice(
+  addSource.indexOf("function QueuePane"),
+  addSource.indexOf("function AddDialogActions")
 );
+const properties = addSource.slice(
+  addSource.indexOf("function PropertiesPane"),
+  addSource.indexOf("function TorrentPreviewCard")
+);
+const preview = addSource.slice(
+  addSource.indexOf("function TorrentPreviewCard"),
+  addSource.indexOf("function AddFilesTree")
+);
+const tree = addSource.slice(addSource.indexOf("function AddFilesTree"));
 
+assert.match(addSource, /export const ADD_POPOVER_CLASS/);
 assert.match(addDialog, /ADD_POPOVER_CLASS/);
-assert.match(addDialog, /min-w-0/);
-assert.match(addDialog, /overflow-x-hidden/);
-assert.match(addDialog, /grid-cols-1/);
-assert.doesNotMatch(addDialog, /90vh/);
-assert.doesNotMatch(addDialog, /sm:max-w-2xl/);
-assert.doesNotMatch(addDialog, /sm:max-w-3xl/);
-assert.match(source, /export const ADD_POPOVER_CLASS/);
-assert.match(source, /w-\[min\(32rem,calc\(100vw-1\.5rem\)\)\]/);
-assert.doesNotMatch(source, /w-\[min\(36rem/);
-assert.match(source, /100svh/);
+assert.match(addSource, /min\(43rem/);
+assert.doesNotMatch(addSource, /min\(48rem/);
+assert.match(addSource, /h-\[min\(33\.75rem/);
+assert.doesNotMatch(addSource, /min\(40rem/);
+assert.doesNotMatch(addSource, /min\(44rem/);
+assert.match(queuePane, /sm:w-\[15\.5rem\]/);
+assert.match(queuePane, /sm:min-w-\[15\.5rem\]/);
+assert.match(queuePane, /sm:max-w-\[15\.5rem\]/);
+assert.match(queuePane, /sm:flex-none/);
+assert.doesNotMatch(queuePane, /sm:w-72/);
+assert.doesNotMatch(queuePane, /sm:w-80/);
+assert.match(addSource, /100svh/);
+assert.doesNotMatch(addSource, /ADD_DIALOG_CLASS/);
 assert.match(addDialog, /<Popover/);
+assert.match(addDialog, /details\.reason === "focus-out"/);
+assert.match(addDialog, /details\.cancel\(\)/);
+assert.match(addDialog, /submittingRef/);
+assert.match(addDialog, /if \(open \|\| submittingRef\.current\) return/);
+assert.match(addDialog, /toAdd\.some\(\(item\) => !item\.path\)/);
 assert.match(addDialog, /PopoverTrigger/);
 assert.match(addDialog, /PopoverContent/);
 assert.match(addDialog, /align="end"/);
-assert.match(addDialog, /collisionPadding=\{8\}/);
 assert.match(addDialog, /<PopoverTitle className="sr-only">Add torrent<\/PopoverTitle>/);
-assert.doesNotMatch(addDialog, /<DialogTitle>Add torrent<\/DialogTitle>/);
-assert.doesNotMatch(addDialog, /DialogHeader/);
-assert.doesNotMatch(addDialog, /DialogFooter/);
-assert.match(addDialog, /ADD_PILL_TAB_CLASS/);
-assert.match(addDialog, /h-8 w-max items-center justify-start gap-0\.5 rounded-none bg-transparent p-0/);
-assert.match(addDialog, /flex min-w-0 shrink-0 items-center border-b p-1\.5/);
-assert.ok(
-  addDialog.indexOf("ADD_PILL_TAB_CLASS") < addDialog.indexOf("border-b p-1.5") ||
-    addDialog.indexOf("border-b p-1.5") < addDialog.indexOf("overflow-y-auto"),
-  "pill tabs sit above the divider and body"
-);
-assert.ok(
-  addDialog.indexOf("border-b p-1.5") < addDialog.indexOf("overflow-y-auto"),
-  "tab row divider sits above the scrolling body"
-);
-assert.match(source, /h-7 flex-none rounded-lg border-0/);
-assert.match(source, /text-\[13px\] font-normal text-muted-foreground/);
-assert.match(source, /after:hidden/);
-assert.match(source, /data-active:bg-muted data-active:font-normal/);
+assert.doesNotMatch(addDialog, /<Dialog /);
+assert.doesNotMatch(addDialog, /DialogTrigger/);
+assert.doesNotMatch(addDialog, /DialogHeader className="shrink-0 border-b/);
+assert.doesNotMatch(addDialog, /<DialogFooter/);
+assert.match(addDialog, /PREF_DIALOG_SPLIT_CLASS/);
+assert.match(addDialog, /<QueuePane/);
+assert.match(addDialog, /<PropertiesPane/);
+assert.match(addDialog, /<SourcePromptDialog/);
+
+assert.doesNotMatch(addSource, /ADD_PILL_TAB_CLASS/);
+assert.doesNotMatch(addSource, /TabsContent/);
+assert.doesNotMatch(addSource, /TabsList/);
+assert.doesNotMatch(addSource, /TabsTrigger/);
+assert.doesNotMatch(addSource, /setTab\(/);
+assert.doesNotMatch(addSource, /useState<AddTab>/);
+assert.doesNotMatch(addSource, /Choose torrent files/);
+assert.doesNotMatch(addSource, /chooseFileRef/);
 assert.match(details, /QUICK_INSPECT_TAB_CLASS/);
 assert.match(details, /h-7 flex-none rounded-lg border-0/);
+
 assert.match(addDialog, /<Plus \/>/);
 assert.match(addDialog, /hidden xl:inline/);
 assert.match(addDialog, /title=\{label\}/);
 assert.match(addDialog, /aria-label=\{label\}/);
-assert.match(addDialog, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
+assert.match(addSource, /h-8 min-w-0 shrink-0 px-2 xl:shrink xl:px-2.5/);
+assert.match(addDialog, /ADD_TOOLBAR_TRIGGER_CLASS/);
+assert.match(addDialog, /sourceMenuOpen/);
+assert.match(addDialog, /onSourceMenuOpenChange/);
+assert.match(addDialog, /function revealPanel/);
+assert.match(addDialog, /if \(!open\) onOpenChange\(true\)/);
+assert.match(addDialog, /<DropdownMenu open=\{sourceMenuOpen\}/);
+assert.match(addDialog, /<DropdownMenuTrigger/);
+assert.ok(
+  addDialog.indexOf('id="add-torrent-file"') < addDialog.indexOf("<Popover"),
+  "file input lives at the dialog root so the toolbar File action can click it"
+);
+assert.match(addDialog, /revealPanel\(\)/);
 assert.doesNotMatch(addDialog, /Add torrent…/);
 
-assert.match(addDialog, /id="add-torrent-file-name"/);
-assert.match(addDialog, /id="add-torrent-choose-file"/);
-assert.match(addDialog, /chooseFileRef/);
-assert.match(addDialog, /initialFocus=\{chooseFileRef\}/);
-assert.match(addDialog, /ref=\{chooseFileRef\}/);
-assert.match(addDialog, /if \(!open\) \{[\s\S]*?setTab\("file"\)/);
-assert.match(addDialog, /min-w-0 flex-1 truncate overflow-hidden/);
-assert.match(addDialog, /flex-col gap-x-3 gap-y-1.5 sm:flex-row sm:items-center/);
-assert.match(addDialog, /w-full shrink-0 sm:w-auto/);
-assert.match(addDialog, /Choose torrent file/);
-assert.match(addDialog, /Advanced settings/);
-assert.match(addDialog, /Notify when this download finishes/);
-assert.match(addDialog, /add-notify-hint/);
+assert.match(addDialog, /id="add-torrent-file"/);
+assert.match(addDialog, /multiple/);
+assert.match(addSource, /advancedOpen/);
+assert.match(properties, /aria-expanded=\{advancedOpen\}/);
+assert.match(properties, /text-sm font-medium text-muted-foreground/);
+assert.doesNotMatch(properties, /hover:bg-muted/);
+assert.doesNotMatch(properties, /hover:bg-sidebar-accent/);
+assert.doesNotMatch(properties, /uppercase/);
+assert.match(properties, /<span className="min-w-0 flex-1 truncate">Advanced<\/span>/);
+assert.doesNotMatch(addSource, /Advanced settings/);
+assert.doesNotMatch(properties, /rounded-md border border-border bg-muted\/40/);
+assert.ok(
+  properties.indexOf("<TorrentPreviewCard") < properties.indexOf("add-advanced-fields"),
+  "file preview sits above the Advanced foldout"
+);
+assert.match(addSource, /function AddDialogActions[\s\S]*bg-popover/);
+assert.doesNotMatch(
+  addSource.slice(addSource.indexOf("function AddDialogActions"), addSource.indexOf("function AdvancedSwitch")),
+  /bg-muted/
+);
+assert.match(addSource, /Notify when this download finishes/);
+assert.match(addSource, /add-notify-hint/);
 assert.match(addDialog, /loadNotifyOnComplete/);
 assert.match(addDialog, /requestNotifyPermissionFromGesture/);
+assert.match(addDialog, /function requestNotifyIfNeeded/);
+assert.match(addDialog, /NOTIFY_INSECURE_CONTEXT_MESSAGE/);
+assert.match(addDialog, /isNotifySecureContext/);
 assert.match(addDialog, /beginNotifyAdd/);
 assert.match(addDialog, /registerNotifyTorrentIds/);
-assert.match(addDialog, /notifyPermissionHint/);
+assert.ok(
+  addDialog.indexOf("if (wantsNotify)") < addDialog.indexOf("setBusy(true)") &&
+    addDialog.slice(addDialog.indexOf("if (wantsNotify)"), addDialog.indexOf("setBusy(true)")).includes(
+      "requestNotifyIfNeeded"
+    ),
+  "notify permission is requested before setBusy / RPC so the user gesture is still valid"
+);
+assert.ok(
+  addDialog.indexOf("void requestNotifyIfNeeded()") < addDialog.indexOf("setBusy(true)"),
+  "submit does not await permission before starting the add"
+);
+{
+  const submitStart = addDialog.indexOf("async function addFileUrlBatch");
+  const submitFn = addDialog.slice(submitStart, addDialog.indexOf("return (", submitStart));
+  assert.match(submitFn, /} finally \{\s*submittingRef\.current = false;\s*setBusy\(false\);/);
+  assert.doesNotMatch(submitFn, /auth\.login/);
+  assert.doesNotMatch(submitFn, /web\.connect/);
+  assert.match(submitFn, /rpc\("web\.add_torrents"/);
+}
+assert.doesNotMatch(addDialog, /await enableNotifyFromGesture/);
+assert.doesNotMatch(addDialog, /await requestNotifyPermissionFromGesture/);
+assert.match(addDialog, /onNotifyGesture=\{\(\) => void requestNotifyIfNeeded\(\)\}/);
+assert.match(properties, /onPointerDown=/);
+assert.match(properties, /onNotifyGesture\(\)/);
+assert.match(properties, /onKeyDown=/);
+assert.doesNotMatch(addSource, /notifyPermissionHint/);
+assert.match(addSource, /id="add-notify-hint" className="sr-only"/);
+assert.doesNotMatch(addSource, /Your browser will ask for permission/);
 assert.match(source, /rememberRemovedTorrentIds/);
 
-const fileInput = addDialog.slice(addDialog.indexOf("<input"), addDialog.indexOf('id="add-torrent-choose-file"'));
+const fileInput = addDialog.slice(
+  addDialog.indexOf("<input"),
+  addDialog.indexOf("{error ?")
+);
 assert.match(fileInput, /type="file"/);
+assert.match(fileInput, /multiple/);
 assert.match(fileInput, /tabIndex=\{-1\}/);
+assert.match(fileInput, /className="hidden"/);
 assert.doesNotMatch(fileInput, /autoFocus/);
 
-const chooseStart = addDialog.lastIndexOf("<Button", addDialog.indexOf('id="add-torrent-choose-file"'));
-const chooseBtn = addDialog.slice(chooseStart, addDialog.indexOf("Choose torrent file"));
-assert.match(chooseBtn, /autoFocus/);
-assert.match(chooseBtn, /ref=\{chooseFileRef\}/);
-assert.match(chooseBtn, /id="add-torrent-choose-file"/);
+assert.match(queuePane, /id="add-torrent-source"/);
+assert.match(queuePane, /Add torrent/);
+assert.match(queuePane, /<DropdownMenu/);
+assert.match(queuePane, /<AddSourceMenuItems/);
+assert.match(addSource, /<File \/> File/);
+assert.match(addSource, /<Magnet \/> Magnet/);
+assert.match(addSource, /<Link \/> URL/);
+assert.match(queuePane, /onPickFiles/);
+assert.match(queuePane, /onPickMagnet/);
+assert.match(queuePane, /onPickUrl/);
+assert.match(queuePane, /shrink-0 p-2/);
+assert.doesNotMatch(queuePane, /border-t p-2/);
+assert.match(queuePane, /Drop \.torrent files here/);
+assert.match(addDialog, /fileInputRef\.current\?\.click\(\)/);
+assert.match(addDialog, /setSourcePrompt\("magnet"\)/);
+assert.match(addDialog, /setSourcePrompt\("url"\)/);
+assert.match(addDialog, /initialFocus=\{locationInputRef\}/);
+assert.match(addDialog, /locationInputRef\.current/);
+assert.match(addDialog, /input\.focus\(\)/);
+assert.match(addDialog, /input\.select\(\)/);
+assert.match(addDialog, /requestAnimationFrame/);
+assert.match(properties, /ref=\{locationInputRef\}/);
+assert.match(queuePane, /ref=\{addSourceRef\}/);
+assert.doesNotMatch(queuePane, /autoFocus/);
 
-const magnetTab = addDialog.slice(
-  addDialog.indexOf('TabsContent value="magnet"'),
-  addDialog.indexOf('TabsContent value="url"')
-);
-const urlTab = addDialog.slice(addDialog.indexOf('TabsContent value="url"'), addDialog.indexOf("TorrentPreviewCard"));
-assert.doesNotMatch(magnetTab, /autoFocus/);
-assert.doesNotMatch(urlTab, /autoFocus/);
+assert.match(sourcePrompt, /id="add-source-magnet"/);
+assert.match(sourcePrompt, /id="add-source-url"/);
+assert.match(sourcePrompt, /<DialogTitle>\{isMagnet \? "Add magnet" : "Add URL"\}<\/DialogTitle>/);
+assert.match(sourcePrompt, /<Textarea/);
+assert.match(sourcePrompt, /<Input/);
+assert.match(sourcePrompt, /<Button type="submit">Add<\/Button>/);
+assert.match(sourcePrompt, /event\.stopPropagation\(\)/);
 
-assert.match(addDialog, /<TorrentPreviewCard/);
-assert.doesNotMatch(addDialog, /preview \? <TorrentPreviewCard/);
-assert.match(addDialog, /className="min-h-16"/);
-assert.match(addDialog, /useState<AddTab>\("file"\)/);
-assert.doesNotMatch(addDialog, /useState<AddTab>\("(magnet|url)"\)/);
-assert.match(addDialog, /setTab\("file"\)/);
-assert.match(addDialog, /TabsContent value="file" className="grid min-h-16 min-w-0 gap-3"/);
-assert.match(addDialog, /TabsContent value="magnet" className="grid min-h-16 gap-3"/);
-assert.match(addDialog, /TabsContent value="url" className="grid min-h-16 min-w-0 gap-3"/);
-assert.doesNotMatch(addDialog, /TabsList className="w-full"/);
-assert.doesNotMatch(addDialog, /<Dialog /);
-assert.match(addDialog, /min-h-16 min-w-0 content-center/);
-assert.match(addDialog, /h-16 min-h-16 field-sizing-fixed/);
-assert.doesNotMatch(addDialog, /min-h-28/);
-assert.doesNotMatch(addDialog, /min-h-24/);
-assert.match(addDialog, /loadGen/);
+assert.match(addSource, /<TorrentPreviewCard/);
+assert.match(properties, /locked=\{items\.length > 1\}/);
+assert.doesNotMatch(properties, /\{single \? \(/);
+assert.match(addDialog, /sessionGen/);
 assert.match(addDialog, /onAdded\?: \(\) => void/);
+assert.match(addDialog, /web\.add_torrents/);
+assert.match(addDialog, /items\.map\(\(item\) => \(\{ path: item\.path, options: optionsFromPending\(item\) \}\)\)/);
 assert.match(
   addDialog,
-  /toast\.success\("Torrent added"\);\s*onAdded\?\.\(\);\s*onOpenChange\(false\);/
+  /toast\.success\(addSuccessToast\(toAdd\.length\)\);\s*onAdded\?\.\(\);\s*onOpenChange\(false\);/
 );
+assert.match(addDialog, /addSubmitBatches\(toAdd\)/);
+assert.match(addDialog, /remainingAfterPartialAdd\(prev, succeededIds\)/);
+assert.match(addDialog, /addPartialFailureMessage\(/);
 assert.equal(
   [...addDialog.matchAll(/onAdded\?\.\(\)/g)].length,
-  1,
-  "onAdded runs only on add success, not cancel or error"
+  2,
+  "onAdded runs on full success and after a partial add so the list can refresh"
+);
+assert.doesNotMatch(addDialog, /onCancel=\{\(\) => \{\s*onAdded/);
+
+assert.match(addSource, /role="listbox"/);
+assert.match(addSource, /aria-multiselectable="true"/);
+assert.match(addSource, /No torrent file added\./);
+assert.match(queuePane, /bg-sidebar text-sidebar-foreground/);
+assert.match(queuePane, /flex items-center justify-center/);
+assert.match(queuePane, /text-center/);
+assert.match(properties, /Editing torrent/);
+assert.match(properties, /Editing \$\{items\.length\} torrents/);
+assert.match(addSource, /Multiple values/);
+assert.match(addSource, /metaKey \|\| event\.ctrlKey/);
+assert.match(addSource, /event\.shiftKey/);
+
+assert.doesNotMatch(queuePane, /Select all torrents/);
+assert.doesNotMatch(queuePane, /onRemoveSelected/);
+assert.doesNotMatch(queuePane, /onSelectAll/);
+assert.doesNotMatch(queuePane, /<Trash2/);
+assert.match(queuePane, /Remove \$\{item\.label\}/);
+
+assert.match(properties, /<AddDialogActions/);
+assert.match(properties, /canAdd=\{canAdd\}/);
+assert.doesNotMatch(addDialog, /<AddDialogActions/);
+assert.match(addSource, /function AddDialogActions/);
+assert.match(addSource, /type="submit"/);
+
+const notifyRow = properties.slice(
+  properties.indexOf("flex min-h-7 items-center justify-between"),
+  properties.indexOf("id=\"add-notify-hint\"")
+);
+assert.match(notifyRow, /<Bell className="size-4 shrink-0 text-muted-foreground" \/>/);
+assert.match(notifyRow, /Notify when this download finishes/);
+assert.match(notifyRow, /<NotifyTestButton/);
+assert.match(addSource, /NotifyTestButton/);
+assert.match(readFileSync(join(dir, "notify-test-button.tsx"), "utf8"), /Test notification/);
+assert.match(notifyRow, /justify-between/);
+assert.ok(
+  notifyRow.indexOf("<Bell") < notifyRow.indexOf("Notify when this download finishes") &&
+    notifyRow.indexOf("Notify when this download finishes") < notifyRow.indexOf("<Switch"),
+  "notify row is icon, label, then switch"
+);
+assert.match(notifyRow, /\(mixed\)/);
+assert.ok(
+  properties.indexOf("add-download-location") < properties.indexOf("Notify when this download finishes") &&
+    properties.indexOf("Notify when this download finishes") < properties.indexOf("<TorrentPreviewCard"),
+  "download location sits above notify, then the file list"
 );
 
-assert.match(preview, /min-w-0 truncate overflow-hidden font-medium/);
-assert.match(preview, /truncate overflow-hidden break-all font-mono/);
+assert.doesNotMatch(preview, /text-sm font-medium leading-6/);
+assert.doesNotMatch(preview, /title=\{name\}/);
+assert.match(preview, /border-t bg-sidebar px-2 py-1\.5 text-xs text-muted-foreground/);
+assert.match(preview, /file\$\{fileCount === 1 \? "" : "s"\} · \$\{formatBytes\(infoTreeSize\(tree\)\)\}/);
+assert.match(preview, /flex min-w-0 flex-col overflow-hidden rounded-md border/);
+assert.match(preview, /rounded-b-md border-t bg-sidebar/);
+assert.doesNotMatch(preview, /rounded-lg border p-3/);
+assert.doesNotMatch(preview, /infoHash/);
+assert.doesNotMatch(preview, /font-mono/);
 assert.match(preview, /min-h-40 max-h-56 min-w-0 overflow-auto/);
 assert.match(preview, /sm:min-h-56/);
 assert.match(preview, /File list will appear here/);
 assert.match(preview, /showFileGutter=\{fileCount > 1\}/);
+assert.match(preview, /File priorities can’t be changed when several torrents are selected/);
+assert.match(preview, /locked/);
 
 assert.match(tree, /flex min-w-0 items-center/);
 assert.match(tree, /min-w-0 flex-1 truncate/);
@@ -147,18 +288,17 @@ assert.match(tree, /FilePrioritySelect/);
 
 assert.match(source, /if \(open\) setRemoveData\(false\)/);
 assert.match(source, /if \(open\) setPath\(currentPath\)/);
+assert.match(source, /export \{ AddTorrentDialog, ADD_POPOVER_CLASS \}/);
 
 assert.match(addDialog, /<form/);
 assert.match(addDialog, /event\.currentTarget\.requestSubmit\(\)/);
 assert.match(addDialog, /event\.target instanceof HTMLInputElement/);
-assert.match(addDialog, /type="submit"/);
+assert.match(addSource, /type="submit"/);
 assert.match(addDialog, /type="button"/);
-assert.match(addDialog, /id="add-download-location"/);
+assert.match(addSource, /id="add-download-location"/);
 assert.doesNotMatch(
   addDialog,
   /<Button disabled=\{!canAdd\} onClick=\{\(\) => void submit\(\)\}>/
 );
-
-assert.match(addDialog, /details\.reason === "focus-out"/);
 
 console.log("add-torrent dialog width and truncation tests passed");

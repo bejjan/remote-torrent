@@ -54,6 +54,7 @@ import {
 } from "@/lib/deluge/format";
 import { normalizeTorrentStatus } from "@/lib/deluge/torrent-name";
 import type { DetailsDock } from "@/lib/deluge/ui-layout";
+import { torrentIsPaused } from "@/lib/deluge/torrent-pause-resume";
 import { overlayTorrentStatus } from "@/lib/deluge/ui-merge";
 import type { FileNode, TorrentPeer, TorrentStatus, TorrentTracker } from "@/lib/deluge/types";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,7 @@ export function TorrentDetails({
           variant === "dialog" ? (
             <InspectorActionBar
               torrentId={torrentId}
+              paused={torrentIsPaused(detail?.state)}
               onAct={onAct}
               onRemove={onRemove}
               onMove={onMove}
@@ -400,11 +402,13 @@ function InspectorTabs({ actions }: { actions?: ReactNode }) {
 
 function InspectorActionBar({
   torrentId,
+  paused,
   onAct,
   onRemove,
   onMove,
 }: {
   torrentId: string | null;
+  paused: boolean;
   onAct?: (method: string, torrentIds?: string[]) => void;
   onRemove?: (torrentIds: string[]) => void;
   onMove?: (torrentIds: string[]) => void;
@@ -414,27 +418,23 @@ function InspectorActionBar({
 
   return (
     <>
-      <InspectorAction
-        label="Pause"
-        disabled={disabled}
-        onClick={() => onAct?.("core.pause_torrent", ids)}
-      >
-        <Pause />
-      </InspectorAction>
-      <InspectorAction
-        label="Resume"
-        disabled={disabled}
-        onClick={() => onAct?.("core.resume_torrent", ids)}
-      >
-        <Play />
-      </InspectorAction>
-      <InspectorAction
-        label="Remove"
-        disabled={disabled}
-        onClick={() => onRemove?.(ids)}
-      >
-        <Trash2 />
-      </InspectorAction>
+      {paused ? (
+        <InspectorAction
+          label="Resume"
+          disabled={disabled}
+          onClick={() => onAct?.("core.resume_torrent", ids)}
+        >
+          <Play />
+        </InspectorAction>
+      ) : (
+        <InspectorAction
+          label="Pause"
+          disabled={disabled}
+          onClick={() => onAct?.("core.pause_torrent", ids)}
+        >
+          <Pause />
+        </InspectorAction>
+      )}
       <Separator orientation="vertical" className="mx-1 h-4" />
       <InspectorAction
         label="Queue top"
@@ -479,17 +479,28 @@ function InspectorActionBar({
       >
         <RefreshCw />
       </InspectorAction>
+      <Separator orientation="vertical" className="mx-1 h-4" />
+      <InspectorAction
+        label="Remove"
+        variant="destructive"
+        disabled={disabled}
+        onClick={() => onRemove?.(ids)}
+      >
+        <Trash2 />
+      </InspectorAction>
     </>
   );
 }
 
 function InspectorAction({
   label,
+  variant = "ghost",
   disabled,
   onClick,
   children,
 }: {
   label: string;
+  variant?: "ghost" | "destructive";
   disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
@@ -499,11 +510,11 @@ function InspectorAction({
       <TooltipTrigger
         render={
           <Button
-            variant="ghost"
+            variant={variant}
             size="icon-xs"
             aria-label={label}
             disabled={disabled}
-            className="text-muted-foreground"
+            className={variant === "destructive" ? undefined : "text-muted-foreground"}
             onClick={onClick}
           />
         }

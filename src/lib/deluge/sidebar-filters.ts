@@ -164,7 +164,7 @@ export function sidebarGroupRows(
     namedAllLabel: string;
     emptyValue?: string;
     /** Names that should appear even when count is 0 (e.g. labels from `label.get_labels`). */
-    knownNames?: string[];
+    knownNames?: readonly string[];
     /** Keep the busiest named rows; All is never dropped. */
     maxNamedRows?: number;
     /** Always keep this named value even when it falls outside the cap. */
@@ -178,14 +178,14 @@ export function sidebarGroupRows(
     { value: options.allValue, label: FILTER_ALL, count: allCount, isAll: true },
   ];
   for (const [name, count] of visibleFilterTuples(rest, options.showZero, (name) =>
-    Boolean(name) && known.has(name)
+    known.has(name)
   )) {
     rows.push({
       value: name ? name : (options.emptyValue ?? name),
       label: name === FILTER_ALL ? options.namedAllLabel : name || options.emptyLabel,
       count,
       isAll: false,
-      keepZero: Boolean(name) && known.has(name),
+      keepZero: known.has(name),
     });
   }
   return capNamedSidebarRows(rows, options.maxNamedRows, options.keepValue);
@@ -212,13 +212,13 @@ export function capNamedSidebarRows(
 }
 
 /** Insert known filter names missing from `web.update_ui` so a fresh label still lists. */
-export function mergeKnownFilterNames(tree: unknown, names: string[] | undefined): FilterTuple[] {
+export function mergeKnownFilterNames(tree: unknown, names: readonly string[] | undefined): FilterTuple[] {
   const tuples = normalizeFilterTuples(tree);
   if (!names?.length) return tuples;
   const seen = new Set(tuples.map(([name]) => name));
   const extra: FilterTuple[] = [];
   for (const name of names) {
-    if (name && !seen.has(name)) {
+    if (!seen.has(name)) {
       seen.add(name);
       extra.push([name, 0]);
     }
@@ -231,22 +231,20 @@ export function clampSidebarSelection(
   states: unknown,
   trackers: unknown,
   labels: unknown,
-  showZero: boolean,
+  _showZero: boolean,
   knownLabels: string[] = []
 ): SidebarFilterSelection {
   const catalogStates = completeStateFilters(states);
-  const visTrackers = visibleFilterTuples(splitSpecialAll(normalizeFilterTuples(trackers)).rest, showZero);
+  const trackerRest = splitSpecialAll(normalizeFilterTuples(trackers)).rest;
   const labelRest = splitSpecialAll(mergeKnownFilterNames(labels, knownLabels)).rest;
-  const keep = new Set(knownLabels);
-  const visLabels = visibleFilterTuples(labelRest, showZero, (name) => Boolean(name) && keep.has(name));
 
   const next: SidebarFilterSelection = { ...selected };
   if (!catalogStates.some(([name]) => name === selected.state)) next.state = FILTER_ALL;
-  if (selected.tracker !== "" && !visTrackers.some(([name]) => name === selected.tracker)) {
+  if (selected.tracker !== "" && !trackerRest.some(([name]) => name === selected.tracker)) {
     next.tracker = "";
   }
   if (selected.label !== "__all__") {
-    const match = visLabels.some(([name]) => (name || "__none__") === selected.label);
+    const match = labelRest.some(([name]) => (name || "__none__") === selected.label);
     if (!match) next.label = "__all__";
   }
   return next;
@@ -286,6 +284,26 @@ export function filterTorrentMap(
   return next;
 }
 
+/** Session filter names that should stay listed when another filter zeroes their count. */
+export function sidebarSessionCatalog(torrents: Iterable<TorrentStatus>): {
+  states: string[];
+  trackers: string[];
+  labels: string[];
+} {
+  const states = new Set<string>();
+  const trackers = new Set<string>();
+  const labels = new Set<string>();
+  for (const torrent of torrents) {
+    if (torrent.state) states.add(torrent.state);
+    if (torrent.download_payload_rate > 0 || torrent.upload_payload_rate > 0) {
+      states.add("Active");
+    }
+    trackers.add(torrent.tracker_host || "");
+    labels.add(torrent.label || "");
+  }
+  return { states: [...states], trackers: [...trackers], labels: [...labels] };
+}
+
 /** Counts for each sidebar group, excluding that group's own selection. */
 export function sidebarFilterTreeFromTorrents(
   torrents: Iterable<TorrentStatus>,
@@ -294,7 +312,16 @@ export function sidebarFilterTreeFromTorrents(
   const forState: TorrentStatus[] = [];
   const forTracker: TorrentStatus[] = [];
   const forLabel: TorrentStatus[] = [];
+  const sessionStates = new Set<string>();
+  const trackers = new Map<string, number>();
+  const labels = new Map<string, number>();
   for (const torrent of torrents) {
+    if (torrent.state) sessionStates.add(torrent.state);
+    if (torrent.download_payload_rate > 0 || torrent.upload_payload_rate > 0) {
+      sessionStates.add("Active");
+    }
+    trackers.set(torrent.tracker_host || "", 0);
+    labels.set(torrent.label || "", 0);
     if (torrentMatchesSidebarFilter(torrent, selected, "state")) forState.push(torrent);
     if (torrentMatchesSidebarFilter(torrent, selected, "tracker")) forTracker.push(torrent);
     if (torrentMatchesSidebarFilter(torrent, selected, "label")) forLabel.push(torrent);
@@ -309,21 +336,30 @@ export function sidebarFilterTreeFromTorrents(
       stateCounts.set("Active", (stateCounts.get("Active") ?? 0) + 1);
     }
   }
-
-  const trackers = new Map<string, number>();
   for (const torrent of forTracker) {
     const host = torrent.tracker_host || "";
     trackers.set(host, (trackers.get(host) ?? 0) + 1);
   }
-
-  const labels = new Map<string, number>();
   for (const torrent of forLabel) {
     const name = torrent.label || "";
     labels.set(name, (labels.get(name) ?? 0) + 1);
   }
 
+  const states: FilterTuple[] = [];
+  for (const name of STATE_FILTERS) {
+    const count = stateCounts.get(name) ?? 0;
+    if (name === FILTER_ALL || sessionStates.has(name) || count > 0) {
+      states.push([name, count]);
+    }
+  }
+  for (const [name, count] of stateCounts) {
+    if (!STATE_FILTERS.includes(name as (typeof STATE_FILTERS)[number])) {
+      states.push([name, count]);
+    }
+  }
+
   return {
-    state: STATE_FILTERS.map((name) => [name, stateCounts.get(name) ?? 0]),
+    state: states,
     tracker_host: [["All", forTracker.length], ...trackers.entries()],
     label: [["All", forLabel.length], ...labels.entries()],
   };

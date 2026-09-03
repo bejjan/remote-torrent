@@ -353,7 +353,17 @@ function HostStatusBadge({
       </Badge>
     );
   }
-  return <Badge variant={online ? "default" : "secondary"}>{status}</Badge>;
+  if (online) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-transparent bg-[color:var(--downloading)]/15 text-[color:var(--downloading)]"
+      >
+        {status}
+      </Badge>
+    );
+  }
+  return <Badge variant="secondary">{status}</Badge>;
 }
 
 function HostTableSkeleton() {

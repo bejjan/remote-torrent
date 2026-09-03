@@ -11,10 +11,10 @@ import {
   ChevronsUp,
   FolderInput,
   Gauge,
+  Inbox,
   ListOrdered,
   Pause,
   Play,
-  Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react";
@@ -33,7 +33,6 @@ import {
 import { HighlightText } from "@/components/app/highlight-text";
 import { DragResizeHandle } from "@/components/app/drag-resize-handle";
 import { StateBadge, stateBarClass } from "@/components/app/state-badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -97,6 +96,7 @@ import {
   torrentLimitMenuCaps,
   torrentLimitRadioValue,
 } from "@/lib/deluge/torrent-limit-menu";
+import { torrentIsPaused } from "@/lib/deluge/torrent-pause-resume";
 import { SELECT_COLUMN_ID } from "@/lib/deluge/ui-layout";
 import { cn } from "@/lib/utils";
 
@@ -178,7 +178,6 @@ export type TorrentTableProps = {
   onSelectedChange: (next: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   onActiveIdChange: (id: string | null) => void;
   onOpenDetails: (id: string) => void;
-  onAddTorrent: () => void;
   onAct: (method: string, torrentIds?: string[]) => void;
   onSetLabel: (label: string, torrentIds?: string[]) => void;
   onSetOptions: (options: Record<string, unknown>, torrentIds?: string[]) => void;
@@ -226,7 +225,6 @@ export const TorrentTable = memo(function TorrentTable({
   onSelectedChange,
   onActiveIdChange,
   onOpenDetails,
-  onAddTorrent,
   onAct,
   onSetLabel,
   onSetOptions,
@@ -521,19 +519,14 @@ export const TorrentTable = memo(function TorrentTable({
   if (torrents.length === 0) {
     const query = search.trim();
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+        <Inbox className="size-12 text-muted-foreground" aria-hidden />
         <p className="text-sm font-medium" title={query ? torrentSearchEmptyTitle(search, false) : undefined}>
           {query ? torrentSearchEmptyTitle(search) : TORRENT_FILTER_EMPTY_TITLE}
         </p>
         <p className="text-sm text-muted-foreground">
           {query ? TORRENT_SEARCH_EMPTY_HINT : TORRENT_FILTER_EMPTY_HINT}
         </p>
-        {query ? null : (
-          <Button size="sm" onClick={onAddTorrent}>
-            <Plus />
-            Add torrent
-          </Button>
-        )}
       </div>
     );
   }
@@ -853,28 +846,23 @@ const TorrentRow = memo(function TorrentRow({
           <AppWindow /> Open inspector...
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={() => {
-            handlersRef.current.act("core.pause_torrent", handlersRef.current.selectForContext(id));
-          }}
-        >
-          <Pause /> Pause
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => {
-            handlersRef.current.act("core.resume_torrent", handlersRef.current.selectForContext(id));
-          }}
-        >
-          <Play /> Resume
-        </ContextMenuItem>
-        <ContextMenuItem
-          variant="destructive"
-          onClick={() => {
-            handlersRef.current.remove(handlersRef.current.selectForContext(id));
-          }}
-        >
-          <Trash2 /> Remove...
-        </ContextMenuItem>
+        {torrentIsPaused(torrent.state) ? (
+          <ContextMenuItem
+            onClick={() => {
+              handlersRef.current.act("core.resume_torrent", handlersRef.current.selectForContext(id));
+            }}
+          >
+            <Play /> Resume
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem
+            onClick={() => {
+              handlersRef.current.act("core.pause_torrent", handlersRef.current.selectForContext(id));
+            }}
+          >
+            <Pause /> Pause
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuSub>
           <ContextMenuSubTrigger>
@@ -1012,6 +1000,15 @@ const TorrentRow = memo(function TorrentRow({
             ))}
           </ContextMenuSubContent>
         </ContextMenuSub>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => {
+            handlersRef.current.remove(handlersRef.current.selectForContext(id));
+          }}
+        >
+          <Trash2 /> Remove...
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );

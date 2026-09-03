@@ -3,18 +3,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import { normalizeDelugeWebUrl, sanitizePublicUrl } from "@/lib/deluge/web-url";
 
-export const PROXY_TIMEOUT_MS = 15_000;
+/** TCP connect only. List polling and add share this; a dead host fails fast. */
+export const PROXY_CONNECT_TIMEOUT_MS = 15_000;
+/** Full request (headers + body). `web.add_torrents` waits on the daemon and can exceed 15s. */
+export const PROXY_REQUEST_TIMEOUT_MS = 60_000;
+/** @deprecated Use PROXY_CONNECT_TIMEOUT_MS or PROXY_REQUEST_TIMEOUT_MS. */
+export const PROXY_TIMEOUT_MS = PROXY_CONNECT_TIMEOUT_MS;
 
 const insecureDispatcher = new Agent({
-  connect: { rejectUnauthorized: false, timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { rejectUnauthorized: false, timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 const secureDispatcher = new Agent({
-  connect: { timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 export function tlsInsecureEnabled(req: NextRequest): boolean {
@@ -132,18 +137,25 @@ export function describeProxyError(err: unknown, target: string, service = "Delu
     (err instanceof Error ? err.message : "Proxy failure");
   const codeSet = new Set(codes);
 
+  const isConnectTimeout =
+    codeSet.has("UND_ERR_CONNECT_TIMEOUT") ||
+    messages.includes("connect timeout") ||
+    messages.includes("connect timed out");
   const isTimeout =
+    isConnectTimeout ||
     codeSet.has("TimeoutError") ||
     codeSet.has("AbortError") ||
-    codeSet.has("UND_ERR_CONNECT_TIMEOUT") ||
     codeSet.has("UND_ERR_HEADERS_TIMEOUT") ||
     codeSet.has("UND_ERR_BODY_TIMEOUT") ||
     messages.includes("timeout") ||
     messages.includes("aborted") ||
     (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError"));
 
+  if (isConnectTimeout) {
+    return `Timed out after ${PROXY_CONNECT_TIMEOUT_MS / 1000}s connecting to ${service}${where}. Check the URL and that the daemon is running.`;
+  }
   if (isTimeout) {
-    return `Timed out after ${PROXY_TIMEOUT_MS / 1000}s connecting to ${service}${where}. Check the URL and that the daemon is running.`;
+    return `Timed out after ${PROXY_REQUEST_TIMEOUT_MS / 1000}s waiting for ${service} to respond${where}. The session is up; the last request did not finish in time.`;
   }
   if (codeSet.has("ECONNREFUSED")) {
     return `Connection refused (ECONNREFUSED)${where}. Is ${service} running at that host and port?`;
@@ -245,7 +257,7 @@ export async function proxyDeluge(
       headers,
       body: init.body as never,
       dispatcher: tlsInsecureEnabled(req) ? insecureDispatcher : secureDispatcher,
-      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      signal: AbortSignal.timeout(PROXY_REQUEST_TIMEOUT_MS),
       redirect: "follow",
     });
 
