@@ -260,7 +260,7 @@ assert.equal(isNotifySecureContext({ isSecureContext: false, hostname: "192.168.
 assert.match(NOTIFY_INSECURE_CONTEXT_MESSAGE, /localhost/);
 
 void (async () => {
-  const g = globalThis as typeof globalThis & {
+  const g = globalThis as Omit<typeof globalThis, "window" | "Notification"> & {
     Notification?: {
       permission: NotificationPermission;
       requestPermission: () => Promise<NotificationPermission>;
