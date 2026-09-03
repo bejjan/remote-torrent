@@ -349,7 +349,7 @@ export const NOTIFY_TEST_TORRENT_NAME = "Example torrent";
 export function simulateFinishedDownloadNotification(
   name = NOTIFY_TEST_TORRENT_NAME
 ): {
-  events: { id: string; name: string; delivery: NotifyDeliveryResult }[];
+  events: DownloadFinishedNotifyEvent[];
   delivery: NotifyDeliveryResult;
 } {
   const id = normalizeTorrentId(NOTIFY_TEST_TORRENT_ID);
@@ -425,10 +425,16 @@ export function rememberRemovedTorrentIds(ids: Iterable<string>) {
   }
 }
 
+export interface DownloadFinishedNotifyEvent {
+  id: string;
+  name: string;
+  delivery: NotifyDeliveryResult;
+}
+
 export function processDownloadFinishedNotifications(
   torrents: Record<string, TorrentFinishRow> | null | undefined,
   opts?: { pruneMissing?: boolean }
-): { id: string; name: string }[] {
+): DownloadFinishedNotifyEvent[] {
   if (!torrents) return [];
   const rows = Object.entries(torrents).map(([rawId, row]) => ({
     id: normalizeTorrentId(rawId) || rawId,
@@ -462,7 +468,7 @@ export function processDownloadFinishedNotifications(
   }
 
   const notifyIds = loadNotifyTorrentIds();
-  const events: { id: string; name: string; delivery: NotifyDeliveryResult }[] = [];
+  const events: DownloadFinishedNotifyEvent[] = [];
   const nextPrev = new Map(prevSnapshots);
   const liveNormalized = new Set(rows.map((item) => item.id));
 
