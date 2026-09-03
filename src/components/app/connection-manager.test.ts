@@ -31,6 +31,7 @@ assert.match(source, /openEdit/);
 assert.match(source, /<Pencil \/>/);
 
 assert.match(source, /--seeding/);
+assert.match(source, /--downloading/);
 assert.match(source, /isHostConnected/);
 assert.match(source, /\{!connected \? \(/);
 assert.match(source, /variant="destructive"/);

@@ -17,7 +17,7 @@ const footer = shell.slice(
   shell.indexOf("<footer"),
   shell.indexOf("<Sheet open={sidebarOpen}")
 );
-const dialogs = readFileSync(join(dir, "torrent-dialogs.tsx"), "utf8");
+const dialogs = readFileSync(join(dir, "add-torrent-dialog.tsx"), "utf8");
 const addTrigger = dialogs.slice(
   dialogs.indexOf("<PopoverTrigger"),
   dialogs.indexOf("</PopoverTrigger>")
@@ -57,6 +57,8 @@ assert.equal(
   "one Add torrent trigger lives in the header"
 );
 
+assert.match(dialogs, /<DropdownMenu open=\{sourceMenuOpen\}/);
+assert.match(dialogs, /<DropdownMenuTrigger/);
 assert.match(addTrigger, /<Plus \/>/);
 assert.match(addTrigger, /\{label\}/);
 assert.match(addTrigger, /hidden xl:inline/);
@@ -128,6 +130,7 @@ assert.ok(
   table.indexOf("Open inspector...") < table.indexOf("<Pause /> Pause"),
   "Open inspector sits at the top of the torrent context menu"
 );
+assert.match(table, /torrentIsPaused\(torrent\.state\) \?/);
 assert.match(table, /<Pause \/> Pause/);
 assert.match(table, /<Play \/> Resume/);
 assert.match(table, /variant="destructive"/);
@@ -156,8 +159,12 @@ assert.ok(
   "Queue submenu sits above Limits"
 );
 assert.ok(
-  table.indexOf("Remove...") < table.indexOf("<ListOrdered /> Queue"),
-  "Remove sits above the Queue submenu"
+  table.indexOf("<ListOrdered /> Queue") < table.indexOf("Remove..."),
+  "Remove sits at the bottom of the torrent context menu"
+);
+assert.ok(
+  table.lastIndexOf("<ContextMenuSeparator />") < table.lastIndexOf("<Trash2 /> Remove..."),
+  "Remove is in its own section after the last separator"
 );
 
 assert.match(footer, /overflow-x-auto/);
@@ -181,7 +188,10 @@ assert.match(shell, /setSearchPlaceholder\(torrentSearchPlaceholder/);
 assert.match(shell, /setAddTorrentLabel\(addTorrentShortcutTitle/);
 assert.match(shell, /placeholder=\{placeholder\}/);
 assert.match(shell, /focusVisibleTorrentSearch/);
-assert.match(shell, /setAddOpen\(true\)/);
+assert.match(shell, /setAddMenuOpen\(true\)/);
+assert.match(shell, /sourceMenuOpen=\{addMenuOpen\}/);
+assert.match(shell, /onSourceMenuOpenChange=\{setAddMenuOpen\}/);
+assert.doesNotMatch(shell, /setAddOpen\(true\)/);
 assert.match(shell, /onAdded=\{\(\) => \{/);
 assert.match(shell, /selectSidebarState\(prev, FILTER_DOWNLOADING\)/);
 assert.match(shell, /void poll\(\);/);

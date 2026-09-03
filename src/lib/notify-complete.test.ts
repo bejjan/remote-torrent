@@ -3,13 +3,22 @@ import {
   beginNotifyAdd,
   extractAddedTorrentIds,
   isDownloadFinished,
+  isNotifySecureContext,
+  NOTIFY_INSECURE_CONTEXT_MESSAGE,
+  NOTIFY_TEST_TORRENT_ID,
+  NOTIFY_TEST_TORRENT_NAME,
   notifyPermissionHint,
   parseNotifyOnComplete,
   parseNotifyTorrentIds,
   processDownloadFinishedNotifications,
+  pruneNotifyTorrentIds,
   registerNotifyTorrentIds,
+  requestNotifyPermissionFromGesture,
   resetNotifyCompleteMemory,
   shouldNotifyDownloadFinished,
+  showDownloadFinishedNotification,
+  simulateFinishedDownloadNotification,
+  testDownloadFinishedNotificationFromGesture,
   torrentIdsFromAddForm,
   NOTIFY_ON_COMPLETE_STORAGE_KEY,
   NOTIFY_TORRENT_IDS_STORAGE_KEY,
@@ -63,6 +72,7 @@ assert.deepEqual(
 assert.equal(isDownloadFinished({ state: "Downloading", progress: 40 }), false);
 assert.equal(isDownloadFinished({ state: "Queued", progress: 0 }), false);
 assert.equal(isDownloadFinished({ state: "Seeding", progress: 100 }), true);
+assert.equal(isDownloadFinished({ state: "Finished", progress: 100 }), true);
 assert.equal(isDownloadFinished({ state: "Paused", progress: 100 }), true);
 assert.equal(isDownloadFinished({ state: "Paused", progress: 10 }), false);
 assert.equal(isDownloadFinished({ state: "Checking", progress: 100 }), false);
@@ -186,6 +196,19 @@ assert.equal(notifyPermissionHint("unsupported", true), "Notifications are not a
   assert.equal(finished.length, 1);
   assert.equal(finished[0].id, "magnet");
 
+  resetNotifyCompleteMemory();
+  store.set(NOTIFY_TORRENT_IDS_STORAGE_KEY, "[]");
+  processDownloadFinishedNotifications({
+    old: { name: "Old", state: "Downloading", progress: 10 },
+  });
+  beginNotifyAdd();
+  const instant = processDownloadFinishedNotifications({
+    old: { name: "Old", state: "Downloading", progress: 10 },
+    fast: { name: "Already done", state: "Seeding", progress: 100 },
+  });
+  assert.equal(instant.length, 1, "new torrent that first appears finished must still notify");
+  assert.equal(instant[0].id, "fast");
+
   const pruned = processDownloadFinishedNotifications({
     old: { name: "Old", state: "Downloading", progress: 10 },
   });
@@ -193,4 +216,147 @@ assert.equal(notifyPermissionHint("unsupported", true), "Notifications are not a
   assert.ok(!parseNotifyTorrentIds(store.get(NOTIFY_TORRENT_IDS_STORAGE_KEY)).includes("magnet"));
 }
 
-console.log("notify-complete tests passed");
+{
+  resetNotifyCompleteMemory();
+  const store = new Map<string, string>();
+  const memory = globalThis as typeof globalThis & { localStorage: Storage };
+  memory.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  const hash = "ABCDEF0123456789ABCDEF0123456789ABCDEF01";
+  registerNotifyTorrentIds([hash], { seedIncomplete: true });
+  pruneNotifyTorrentIds(["already-visible"], ["already-visible"]);
+  assert.ok(
+    parseNotifyTorrentIds(store.get(NOTIFY_TORRENT_IDS_STORAGE_KEY)).includes(
+      "abcdef0123456789abcdef0123456789abcdef01"
+    ),
+    "IDs that have not appeared in the session yet must not be pruned"
+  );
+  processDownloadFinishedNotifications({
+    [hash]: { name: "Case", state: "Downloading", progress: 10 },
+  });
+  const finished = processDownloadFinishedNotifications({
+    [hash]: { name: "Case", state: "Seeding", progress: 100 },
+  });
+  assert.equal(finished.length, 1, "notify IDs match after hash case normalization");
+  assert.equal(finished[0].id, "abcdef0123456789abcdef0123456789abcdef01");
+}
+
+assert.equal(isNotifySecureContext({ isSecureContext: true, hostname: "192.168.1.10" }), true);
+assert.equal(isNotifySecureContext({ isSecureContext: false, hostname: "localhost" }), true);
+assert.equal(isNotifySecureContext({ isSecureContext: false, hostname: "127.0.0.1" }), true);
+assert.equal(isNotifySecureContext({ isSecureContext: false, hostname: "192.168.1.10" }), false);
+assert.match(NOTIFY_INSECURE_CONTEXT_MESSAGE, /localhost/);
+
+void (async () => {
+  const g = globalThis as typeof globalThis & {
+    Notification?: {
+      permission: NotificationPermission;
+      requestPermission: () => Promise<NotificationPermission>;
+      new (title: string, options?: NotificationOptions): { title: string; body?: string; onclick: (() => void) | null; close: () => void };
+    };
+    window?: { isSecureContext?: boolean; location?: { hostname?: string } };
+    localStorage?: Storage;
+  };
+  const previousWindow = g.window;
+  const previousNotification = g.Notification;
+  const shown: { title: string; body?: string }[] = [];
+  let requested = false;
+  let throwOnConstruct = false;
+
+  function MockNotification(this: { title: string; body?: string; onclick: (() => void) | null; close: () => void }, title: string, options?: NotificationOptions) {
+    if (throwOnConstruct) throw new Error("Notification construct failed");
+    this.title = title;
+    this.body = options?.body;
+    this.onclick = null;
+    this.close = () => undefined;
+    shown.push({ title, body: options?.body });
+  }
+  MockNotification.permission = "default" as NotificationPermission;
+  MockNotification.requestPermission = () => {
+    requested = true;
+    MockNotification.permission = "granted";
+    return Promise.resolve("granted" as NotificationPermission);
+  };
+
+  g.window = { isSecureContext: true, location: { hostname: "localhost" } };
+  g.Notification = MockNotification as unknown as typeof g.Notification;
+
+  const pending = requestNotifyPermissionFromGesture();
+  assert.equal(requested, true, "requestPermission must run in the same turn as the gesture");
+  assert.equal(await pending, "granted");
+
+  requested = false;
+  g.window = { isSecureContext: false, location: { hostname: "192.168.1.50" } };
+  MockNotification.permission = "default";
+  const insecure = await requestNotifyPermissionFromGesture();
+  assert.equal(insecure, "unsupported");
+  assert.equal(requested, false, "insecure LAN origins must not call requestPermission");
+
+  const insecureTest = await testDownloadFinishedNotificationFromGesture();
+  assert.equal(insecureTest.ok, false);
+  assert.equal(insecureTest.ok === false && insecureTest.reason, "insecure");
+  assert.match(insecureTest.ok === false ? insecureTest.message : "", /localhost/);
+
+  g.window = { isSecureContext: true, location: { hostname: "localhost" } };
+  MockNotification.permission = "granted";
+  const store = new Map<string, string>();
+  g.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  resetNotifyCompleteMemory();
+  store.set(NOTIFY_TORRENT_IDS_STORAGE_KEY, JSON.stringify(["keep-me"]));
+  shown.length = 0;
+  const first = simulateFinishedDownloadNotification();
+  assert.equal(first.events.length, 1);
+  assert.equal(first.events[0].id, NOTIFY_TEST_TORRENT_ID);
+  assert.equal(first.delivery.ok, true);
+  assert.equal(shown.length, 1);
+  assert.equal(shown[0].title, "Download finished");
+  assert.equal(shown[0].body, NOTIFY_TEST_TORRENT_NAME);
+  assert.ok(
+    parseNotifyTorrentIds(store.get(NOTIFY_TORRENT_IDS_STORAGE_KEY)).includes("keep-me"),
+    "test finish must not prune other watched IDs"
+  );
+  assert.ok(!parseNotifyTorrentIds(store.get(NOTIFY_TORRENT_IDS_STORAGE_KEY)).includes(NOTIFY_TEST_TORRENT_ID));
+
+  shown.length = 0;
+  const again = simulateFinishedDownloadNotification("Second pass");
+  assert.equal(again.events.length, 1, "test trigger must re-seed so it can fire more than once");
+  assert.equal(shown[0].body, "Second pass");
+
+  throwOnConstruct = true;
+  const threw = showDownloadFinishedNotification("Broken");
+  assert.equal(threw.ok, false);
+  assert.equal(threw.ok === false && threw.reason, "error");
+  assert.match(threw.ok === false ? threw.message : "", /construct failed/);
+
+  g.window = previousWindow;
+  g.Notification = previousNotification;
+  console.log("notify-complete tests passed");
+})().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

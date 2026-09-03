@@ -189,6 +189,12 @@ assert.match(emptyState, /TORRENT_SEARCH_EMPTY_HINT/);
 assert.match(emptyState, /TORRENT_FILTER_EMPTY_TITLE/);
 assert.match(emptyState, /TORRENT_FILTER_EMPTY_HINT/);
 assert.doesNotMatch(emptyState, /No torrents match this view/);
-assert.match(emptyState, /query \? null : \(/);
+assert.doesNotMatch(emptyState, /onAddTorrent/);
+assert.doesNotMatch(emptyState, /Add torrent/);
+assert.match(emptyState, /<Inbox className="size-12 text-muted-foreground" aria-hidden \/>/);
+assert.ok(
+  emptyState.indexOf("<Inbox") < emptyState.indexOf("torrentSearchEmptyTitle"),
+  "empty-state icon sits above the title"
+);
 
 console.log("torrent-table cell truncation tests passed");

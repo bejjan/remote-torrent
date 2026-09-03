@@ -22,11 +22,8 @@ import { SessionMonitor } from "@/components/app/session-monitor";
 import { SessionProgressFavicon } from "@/components/app/session-progress-favicon";
 import { ThemeMenuSub } from "@/components/app/theme-toggle";
 import { TorrentDetails } from "@/components/app/torrent-details";
-import {
-  AddTorrentDialog,
-  MoveTorrentDialog,
-  RemoveTorrentDialog,
-} from "@/components/app/torrent-dialogs";
+import { AddTorrentDialog } from "@/components/app/add-torrent-dialog";
+import { MoveTorrentDialog, RemoveTorrentDialog } from "@/components/app/torrent-dialogs";
 import { TorrentTable } from "@/components/app/torrent-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,6 +73,7 @@ import {
   filterTorrentMap,
   selectSidebarState,
   sidebarFilterTreeFromTorrents,
+  sidebarSessionCatalog,
 } from "@/lib/deluge/sidebar-filters";
 import {
   applyColumnVisibility,
@@ -161,6 +159,7 @@ export function TorrentShell({
   const [sortKey, setSortKey] = useState<TorrentSortKey>("queue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [addOpen, setAddOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -188,6 +187,7 @@ export function TorrentShell({
   const searchValueRef = useRef(search);
   const selectedRef = useRef(selected);
   const activeIdRef = useRef(activeId);
+  const addOpenRef = useRef(addOpen);
   const wantSearchFocusRef = useRef(false);
   const pollGen = useRef(0);
   const switchingHosts = useRef(false);
@@ -199,6 +199,7 @@ export function TorrentShell({
   searchValueRef.current = search;
   selectedRef.current = selected;
   activeIdRef.current = activeId;
+  addOpenRef.current = addOpen;
 
   useEffect(() => {
     const isMac = isMacPlatform(navigator.userAgent);
@@ -406,6 +407,10 @@ export function TorrentShell({
     () => sidebarFilterTreeFromTorrents(Object.values(ui?.torrents ?? {}), filters),
     [ui?.torrents, filters]
   );
+  const sessionCatalog = useMemo(
+    () => sidebarSessionCatalog(Object.values(ui?.torrents ?? {})),
+    [ui?.torrents]
+  );
   const sidebarLoading = loading && !ui;
   const visibleTorrents = useMemo(
     () => filterTorrentMap(ui?.torrents, filters),
@@ -551,8 +556,6 @@ export function TorrentShell({
     void poll();
   }, [refreshLabels, poll]);
 
-  const openAdd = useCallback(() => setAddOpen(true), []);
-
   useEffect(() => {
     if (!wantSearchFocusRef.current) return;
     if (focusVisibleTorrentSearch()) wantSearchFocusRef.current = false;
@@ -584,7 +587,7 @@ export function TorrentShell({
       }
       if (decideAddTorrentShortcutAction(shortcutInput) === "open-add") {
         event.preventDefault();
-        setAddOpen(true);
+        if (!addOpenRef.current) setAddMenuOpen(true);
         return;
       }
       const action = decideEscapeSelectionAction({
@@ -636,7 +639,6 @@ export function TorrentShell({
       onSelectedChange={setSelected}
       onActiveIdChange={setActiveId}
       onOpenDetails={openDetails}
-      onAddTorrent={openAdd}
       onAct={act}
       onSetLabel={setLabel}
       onSetOptions={setOptions}
@@ -758,6 +760,8 @@ export function TorrentShell({
             <AddTorrentDialog
               open={addOpen}
               onOpenChange={setAddOpen}
+              sourceMenuOpen={addMenuOpen}
+              onSourceMenuOpenChange={setAddMenuOpen}
               defaultPath={downloadPath}
               label={addTorrentLabel}
               onAdded={() => {
@@ -789,6 +793,9 @@ export function TorrentShell({
                 showZero={showZeroFilters}
                 labelPluginEnabled={labelPluginEnabled}
                 definedLabels={labels}
+                sessionStates={sessionCatalog.states}
+                sessionTrackers={sessionCatalog.trackers}
+                sessionLabels={sessionCatalog.labels}
                 onLabelsChanged={onLabelsChanged}
                 showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
                 loading={sidebarLoading}
@@ -883,6 +890,9 @@ export function TorrentShell({
             showZero={showZeroFilters}
             labelPluginEnabled={labelPluginEnabled}
             definedLabels={labels}
+            sessionStates={sessionCatalog.states}
+            sessionTrackers={sessionCatalog.trackers}
+            sessionLabels={sessionCatalog.labels}
             onLabelsChanged={onLabelsChanged}
             showLabelGroup={caps.kind === "deluge" || Boolean(ui?.filters?.label)}
             loading={sidebarLoading}

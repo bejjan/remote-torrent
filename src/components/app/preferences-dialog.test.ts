@@ -42,5 +42,9 @@ assert.match(source, /show_sidebar/);
 assert.match(source, /TransmissionPreferences/);
 assert.match(source, /QBittorrentPreferences/);
 assert.doesNotMatch(source, /lorem ipsum/i);
+assert.match(source, /NotifyTestButton/);
+assert.match(source, /Test notification/);
+assert.match(source, /title="Browser notifications"/);
+assert.match(source, /PrefFieldset[\s\S]*title="Browser"/);
 
 console.log("preferences-dialog tests passed");

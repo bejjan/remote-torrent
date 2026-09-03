@@ -86,11 +86,18 @@ export function removeNotifyTorrentIds(ids: Iterable<string>): Set<string> {
   return next;
 }
 
-export function pruneNotifyTorrentIds(liveIds: Iterable<string>): Set<string> {
+export function pruneNotifyTorrentIds(
+  liveIds: Iterable<string>,
+  seenIds?: Iterable<string>
+): Set<string> {
   const live = new Set([...liveIds].map((id) => normalizeTorrentId(id)).filter(Boolean));
+  const seen = seenIds
+    ? new Set([...seenIds].map((id) => normalizeTorrentId(id)).filter(Boolean))
+    : null;
   const next = new Set<string>();
   for (const id of loadNotifyTorrentIds()) {
     if (live.has(id)) next.add(id);
+    else if (seen && !seen.has(id)) next.add(id);
   }
   saveNotifyTorrentIds(next);
   return next;
@@ -166,7 +173,7 @@ export function isDownloadFinished(row: TorrentFinishSnapshot | undefined): bool
   if (TRANSIENT_STATES.has(state)) return false;
   if (row.is_finished === true) return true;
   if ((row.progress ?? 0) >= 100) return true;
-  return state === "Seeding";
+  return state === "Seeding" || state === "Finished";
 }
 
 /**
@@ -194,6 +201,28 @@ export function snapshotTorrentFinish(row: TorrentFinishRow): TorrentFinishSnaps
   };
 }
 
+export const NOTIFY_INSECURE_CONTEXT_MESSAGE =
+  "Notifications need https or http://localhost — a LAN IP will not ask for permission.";
+
+function readNotifyWindow(): { isSecureContext?: boolean; location?: { hostname?: string } } | undefined {
+  if (typeof window !== "undefined") return window;
+  return (globalThis as { window?: { isSecureContext?: boolean; location?: { hostname?: string } } })
+    .window;
+}
+
+export function isNotifySecureContext(ctx?: {
+  isSecureContext?: boolean;
+  hostname?: string;
+}): boolean {
+  const win = readNotifyWindow();
+  const secure = ctx?.isSecureContext ?? win?.isSecureContext;
+  if (secure === true) return true;
+  const host = ctx?.hostname ?? win?.location?.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return true;
+  if (secure === false) return false;
+  return true;
+}
+
 export function notificationsSupported(): boolean {
   return typeof Notification !== "undefined";
 }
@@ -207,15 +236,27 @@ export function currentNotifyPermission(): NotifyPermission {
   }
 }
 
-export async function requestNotifyPermissionFromGesture(): Promise<NotifyPermission> {
-  if (!notificationsSupported()) return "unsupported";
+/**
+ * Start the browser permission prompt in this turn.
+ * Must be called from a user gesture — do not await unrelated work first.
+ */
+export function requestNotifyPermissionFromGesture(): Promise<NotifyPermission> {
+  if (!isNotifySecureContext()) return Promise.resolve("unsupported");
+  if (!notificationsSupported()) return Promise.resolve("unsupported");
   try {
-    if (Notification.permission === "default") {
-      await Notification.requestPermission();
+    if (Notification.permission !== "default") {
+      return Promise.resolve(Notification.permission);
     }
-    return Notification.permission;
+    const pending = Notification.requestPermission();
+    return Promise.resolve(pending).then(
+      (value) =>
+        value === "granted" || value === "denied" || value === "default"
+          ? value
+          : Notification.permission,
+      () => "unsupported" as NotifyPermission
+    );
   } catch {
-    return "unsupported";
+    return Promise.resolve("unsupported");
   }
 }
 
@@ -238,10 +279,46 @@ export function notifyPermissionHint(
   return null;
 }
 
-export function showDownloadFinishedNotification(name: string) {
-  if (!notificationsSupported()) return;
+export type NotifyDeliveryReason = "unsupported" | "denied" | "insecure" | "error";
+
+export type NotifyDeliveryResult =
+  | { ok: true }
+  | { ok: false; reason: NotifyDeliveryReason; message: string };
+
+export function notifyDeliveryFailure(
+  permission: NotifyPermission,
+  secure = isNotifySecureContext()
+): NotifyDeliveryResult {
+  if (!secure) {
+    return { ok: false, reason: "insecure", message: NOTIFY_INSECURE_CONTEXT_MESSAGE };
+  }
+  if (permission === "unsupported") {
+    return {
+      ok: false,
+      reason: "unsupported",
+      message: notifyPermissionHint("unsupported", true) ?? "Notifications are not available in this browser.",
+    };
+  }
+  return {
+    ok: false,
+    reason: "denied",
+    message:
+      notifyPermissionHint(permission, true) ??
+      "Notifications are blocked in the browser. Allow them in site settings.",
+  };
+}
+
+export function showDownloadFinishedNotification(name: string): NotifyDeliveryResult {
+  if (!isNotifySecureContext()) {
+    return { ok: false, reason: "insecure", message: NOTIFY_INSECURE_CONTEXT_MESSAGE };
+  }
+  if (!notificationsSupported()) {
+    return notifyDeliveryFailure("unsupported");
+  }
   try {
-    if (Notification.permission !== "granted") return;
+    if (Notification.permission !== "granted") {
+      return notifyDeliveryFailure(currentNotifyPermission());
+    }
     const notification = new Notification("Download finished", {
       body: normalizeTorrentName(name || "Torrent"),
     });
@@ -253,9 +330,62 @@ export function showDownloadFinishedNotification(name: string) {
       }
       notification.close();
     };
-  } catch {
-    /* insecure context, missing Notification, or user-agent block */
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      message:
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "The browser blocked the notification.",
+    };
   }
+}
+
+export const NOTIFY_TEST_TORRENT_ID = "__torro_notify_test__";
+export const NOTIFY_TEST_TORRENT_NAME = "Example torrent";
+
+export function simulateFinishedDownloadNotification(
+  name = NOTIFY_TEST_TORRENT_NAME
+): {
+  events: { id: string; name: string; delivery: NotifyDeliveryResult }[];
+  delivery: NotifyDeliveryResult;
+} {
+  const id = normalizeTorrentId(NOTIFY_TEST_TORRENT_ID);
+  prevSnapshots.delete(id);
+  sessionSeenIds.delete(id);
+  registerNotifyTorrentIds([id], { seedIncomplete: true });
+  const events = processDownloadFinishedNotifications(
+    {
+      [id]: { name, state: "Seeding", progress: 100, is_finished: true },
+    },
+    { pruneMissing: false }
+  );
+  removeNotifyTorrentIds([id]);
+  prevSnapshots.delete(id);
+  sessionSeenIds.delete(id);
+  return {
+    events,
+    delivery:
+      events[0]?.delivery ?? {
+        ok: false,
+        reason: "error",
+        message: "Finish watcher did not fire for the test torrent.",
+      },
+  };
+}
+
+/** Permission prompt (gesture-safe) then the same finish watcher + `new Notification`. */
+export async function testDownloadFinishedNotificationFromGesture(): Promise<NotifyDeliveryResult> {
+  if (!isNotifySecureContext()) {
+    return { ok: false, reason: "insecure", message: NOTIFY_INSECURE_CONTEXT_MESSAGE };
+  }
+  const permission = await requestNotifyPermissionFromGesture();
+  if (permission !== "granted") {
+    return notifyDeliveryFailure(permission);
+  }
+  return simulateFinishedDownloadNotification().delivery;
 }
 
 /** Snapshot current session IDs, then register torrents that appear after add. */
@@ -300,43 +430,57 @@ export function processDownloadFinishedNotifications(
   opts?: { pruneMissing?: boolean }
 ): { id: string; name: string }[] {
   if (!torrents) return [];
-  const liveIds = Object.keys(torrents);
-  for (const id of liveIds) sessionSeenIds.add(id);
+  const rows = Object.entries(torrents).map(([rawId, row]) => ({
+    id: normalizeTorrentId(rawId) || rawId,
+    row,
+  }));
+  for (const { id } of rows) sessionSeenIds.add(id);
 
   if (pendingPolls > 0) {
     const discovered: string[] = [];
-    for (const id of liveIds) {
+    for (const { id } of rows) {
       if (!snapshotBeforeAdd.has(id)) discovered.push(id);
     }
-    if (discovered.length) addNotifyTorrentIds(discovered);
+    if (discovered.length) {
+      addNotifyTorrentIds(discovered);
+      // Same seed as registerNotifyTorrentIds({ seedIncomplete }) so a torrent
+      // that first appears already finished still transitions incomplete → done.
+      for (const id of discovered) {
+        if (!prevSnapshots.has(id)) {
+          prevSnapshots.set(id, { state: "Downloading", progress: 0, is_finished: false });
+        }
+      }
+    }
     pendingPolls -= 1;
   }
 
-  if (opts?.pruneMissing !== false) pruneNotifyTorrentIds(liveIds);
+  if (opts?.pruneMissing !== false) {
+    pruneNotifyTorrentIds(
+      rows.map((item) => item.id),
+      sessionSeenIds
+    );
+  }
 
   const notifyIds = loadNotifyTorrentIds();
-  const events: { id: string; name: string }[] = [];
+  const events: { id: string; name: string; delivery: NotifyDeliveryResult }[] = [];
   const nextPrev = new Map(prevSnapshots);
+  const liveNormalized = new Set(rows.map((item) => item.id));
 
-  for (const id of liveIds) {
-    const row = torrents[id];
+  for (const { id, row } of rows) {
     const snap = snapshotTorrentFinish(row);
     const prev = prevSnapshots.get(id);
     if (prev && notifyIds.has(id) && shouldNotifyDownloadFinished(prev, snap)) {
       const name = typeof row.name === "string" ? row.name : "Torrent";
-      events.push({ id, name });
+      events.push({ id, name, delivery: showDownloadFinishedNotification(name) });
     }
     nextPrev.set(id, snap);
   }
 
   for (const id of [...nextPrev.keys()]) {
-    if (!torrents[id] && !notifyIds.has(id)) nextPrev.delete(id);
+    if (!liveNormalized.has(id) && !notifyIds.has(id)) nextPrev.delete(id);
   }
   prevSnapshots = nextPrev;
 
-  for (const event of events) {
-    showDownloadFinishedNotification(event.name);
-  }
   return events;
 }
 

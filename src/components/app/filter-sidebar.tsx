@@ -88,6 +88,9 @@ export function FilterSidebar({
   showZero = false,
   labelPluginEnabled = null,
   definedLabels = EMPTY_LABELS,
+  sessionStates = EMPTY_LABELS,
+  sessionTrackers = EMPTY_LABELS,
+  sessionLabels = EMPTY_LABELS,
   showLabelGroup = true,
   loading = false,
   className,
@@ -99,6 +102,12 @@ export function FilterSidebar({
   showZero?: boolean;
   labelPluginEnabled?: boolean | null;
   definedLabels?: string[];
+  /** States present in the session; stay listed when another filter zeroes them. */
+  sessionStates?: readonly string[];
+  /** Tracker hosts present in the session; stay listed at count 0. */
+  sessionTrackers?: readonly string[];
+  /** Labels present on torrents; stay listed at count 0. */
+  sessionLabels?: readonly string[];
   showLabelGroup?: boolean;
   loading?: boolean;
   className?: string;
@@ -108,6 +117,7 @@ export function FilterSidebar({
   // Live Deluge injects every state at 0. Paint the catalog; FilterButton drops zeros.
   const stateCatalog = completeStateFilters(filters?.state);
   const torrentCount = stateAllCount(stateCatalog);
+  const keepStates = new Set(sessionStates);
   const trackers = sidebarGroupRows(filters?.tracker_host ?? EMPTY_TUPLES, {
     showZero,
     fallbackAllCount: torrentCount,
@@ -116,6 +126,7 @@ export function FilterSidebar({
     namedAllLabel: "All (tracker)",
     maxNamedRows: SIDEBAR_TRACKER_ROW_CAP,
     keepValue: selected.tracker,
+    knownNames: sessionTrackers,
   });
   const labels = sidebarGroupRows(filters?.label ?? EMPTY_TUPLES, {
     showZero,
@@ -124,7 +135,7 @@ export function FilterSidebar({
     emptyLabel: "(no label)",
     namedAllLabel: "All (label)",
     emptyValue: "__none__",
-    knownNames: definedLabels,
+    knownNames: [...definedLabels, ...sessionLabels],
   });
 
   useEffect(() => {
@@ -186,7 +197,7 @@ export function FilterSidebar({
               active={selected.state === name}
               icon={stateIcon(name)}
               showZero={showZero}
-              alwaysShow={name === FILTER_ALL || selected.state === name}
+              alwaysShow={name === FILTER_ALL || selected.state === name || keepStates.has(name)}
               onClick={() => onSelect(selectSidebarState(selected, name))}
             />
           ))}
@@ -207,7 +218,7 @@ export function FilterSidebar({
               active={selected.tracker === row.value}
               icon={row.isAll ? allTrackersIcon() : <TrackerFavicon host={row.value} />}
               showZero={showZero}
-              alwaysShow={row.isAll}
+              alwaysShow={row.isAll || Boolean(row.keepZero)}
               onClick={() => onSelect({ ...selected, tracker: row.value })}
             />
           ))}
@@ -466,7 +477,7 @@ function FilterButton({
       className={cn(
         "flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm transition-colors",
         active
-          ? "bg-primary/10 font-medium text-sidebar-foreground"
+          ? "bg-sidebar-foreground/6 font-medium text-sidebar-foreground"
           : "hover:bg-sidebar-accent/60"
       )}
     >

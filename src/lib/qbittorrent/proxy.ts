@@ -2,7 +2,8 @@ import { Agent, fetch as undiciFetch } from "undici";
 import { NextRequest, NextResponse } from "next/server";
 import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import {
-  PROXY_TIMEOUT_MS,
+  PROXY_CONNECT_TIMEOUT_MS,
+  PROXY_REQUEST_TIMEOUT_MS,
   describeProxyError,
   jsonRpcError,
   rewriteSetCookie,
@@ -13,15 +14,15 @@ import { normalizeQbittorrentWebUrl, qbittorrentWebOrigin, sanitizePublicUrl } f
 import type { QbittorrentCallResult, QbittorrentRequest } from "./types";
 
 const insecureDispatcher = new Agent({
-  connect: { rejectUnauthorized: false, timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { rejectUnauthorized: false, timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 const secureDispatcher = new Agent({
-  connect: { timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 export function shouldUseQbittorrentDemo(target: string): boolean {
@@ -286,7 +287,7 @@ export async function proxyQbittorrent(
       headers,
       body,
       dispatcher: tlsInsecureEnabled(req) ? insecureDispatcher : secureDispatcher,
-      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      signal: AbortSignal.timeout(PROXY_REQUEST_TIMEOUT_MS),
       redirect: "manual",
     });
     const text = await upstream.text();

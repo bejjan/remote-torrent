@@ -2,7 +2,8 @@ import { Agent, fetch as undiciFetch } from "undici";
 import { NextRequest, NextResponse } from "next/server";
 import { parseAdminDemoHeader } from "@/lib/demo/admin-catalog";
 import {
-  PROXY_TIMEOUT_MS,
+  PROXY_CONNECT_TIMEOUT_MS,
+  PROXY_REQUEST_TIMEOUT_MS,
   describeProxyError,
   jsonRpcError,
   rewriteSetCookie,
@@ -16,15 +17,15 @@ const SESSION_HEADER = "x-transmission-session-id";
 const SESSION_COOKIE = "nova_tx_csrf";
 
 const insecureDispatcher = new Agent({
-  connect: { rejectUnauthorized: false, timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { rejectUnauthorized: false, timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 const secureDispatcher = new Agent({
-  connect: { timeout: PROXY_TIMEOUT_MS },
-  bodyTimeout: PROXY_TIMEOUT_MS,
-  headersTimeout: PROXY_TIMEOUT_MS,
+  connect: { timeout: PROXY_CONNECT_TIMEOUT_MS },
+  bodyTimeout: PROXY_REQUEST_TIMEOUT_MS,
+  headersTimeout: PROXY_REQUEST_TIMEOUT_MS,
 });
 
 export function shouldUseTransmissionDemo(target: string): boolean {
@@ -131,7 +132,7 @@ export async function proxyTransmissionRpc(
       headers: nextHeaders,
       body: payload,
       dispatcher: tlsInsecureEnabled(req) ? insecureDispatcher : secureDispatcher,
-      signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      signal: AbortSignal.timeout(PROXY_REQUEST_TIMEOUT_MS),
       redirect: "follow",
     });
   };
